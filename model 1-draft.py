@@ -61,3 +61,7 @@ class Model_1:
         
         #Model decision varaibles
         added_cap=m.addVars(self.techs,)
+
+    def testfunction(self):
+        '''test commit messages'''
+        print('This is a test commit')
