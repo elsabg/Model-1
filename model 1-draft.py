@@ -64,4 +64,3 @@ class Model_1:
 
     def testfunction(self):
         '''test commit messages'''
-        print('This is a test commit')
