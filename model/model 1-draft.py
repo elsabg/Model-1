@@ -60,7 +60,12 @@ class Model_1:
         m=Model('Model_1_case_1')
         
         #Model decision varaibles
-        added_cap=m.addVars(self.techs,)
+        added_cap = m.addVars(self.techs, self.years, name='addedCap')
+        added_cap_e = m.addVars(self.years, name='addedCapE')
+        b_in = m.addVars(self.years, self.days, self.hours, name='bIn')
+        b_out = m.addVars(self.years, self.days, self.hours, name='bOut')
+        inst_cap = m.addVars(self.techs, self.years, name='instCap')
+        inst_cap_e = m.addVars(self.years, name='instCapE')
 
     def testfunction(self):
         '''test commit messages'''
