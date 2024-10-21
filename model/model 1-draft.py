@@ -67,5 +67,3 @@ class Model_1:
         inst_cap = m.addVars(self.techs, self.years, name='instCap')
         inst_cap_e = m.addVars(self.years, name='instCapE')
 
-    def testfunction(self):
-        '''test commit messages'''
