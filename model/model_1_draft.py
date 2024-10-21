@@ -40,7 +40,7 @@ class Model_1:
         self.min_soc = int(self.data['parameters']['min SoC'][0])
         self.bat_eff = int(self.data['parameters']['Battery Eff'][0])
         
-        #Costs and tariffs
+            #Costs and tariffs
         self.ucc = self.data['tech']['UCC'].to_numpy()
         self.uofc = self.data['tech']['UOFC'].to_numpy()
         self.uovc = self.data['tech']['UOVC'].to_numpy()
@@ -48,10 +48,10 @@ class Model_1:
         self.diesel_p = self.data['tariffs']['Diesel Price'].to_numpy()
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
         
-        #Electricity demand
+            #Electricity demand
         self.demand = self.data['elec_demand'].to_numpy()
         
-        #Sets
+            #Sets
         self.techs = self.data['tech'].columns.to_numpy()[1::]
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
         
@@ -78,5 +78,30 @@ class Model_1:
         p_DGC = m.addVars(self.years, name='priceDGC')
         ud = m.addVars(self.years, self.days, self.hours, name='unmetDemand')
         h_weight = m.addVars(self.house, name='houseWeight')
-        
 
+        #case 1-specific decision variables
+        rent = m.addVar(name='rent')
+        ren_cap = m.addVars(self.techs, self.years, name='renCap') 
+
+        #Model objective function
+
+        #Setting up the costs for each year
+        tr = zeros(self.years) #total yearly revenues
+        tcc = zeros(self.years) #total yearly capital costs
+        tovc = zeros(self.years) #total yearly operation variable costs
+        tofc = zeros(self.years) #total yearly operation fixed costs
+        tcud = zeros(self.years) #total yearly cost of unmet demand
+
+
+        for y in range(self.years)
+            tr[y] = quicksum(((
+                              (disp[g][y][d][h] * self.p_DGC[y]) 
+                              for g in self.techs 
+                              for h in self.hours)
+                              * self.d_weights[d])
+                              for d in self.days
+                              )   
+            tcc[y] = quicksum((
+                               (added_cap[g][y] * self.ucc[g]) for g in techs) 
+                               + added_cap_e[y] * self.ucc[4]
+                               )
