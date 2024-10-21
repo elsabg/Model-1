@@ -33,7 +33,7 @@ class Model_1:
         self.init_cap = self.data['tech']['Initial Capacity'].to_numpy()
         self.life_0 = self.data['tech']['Remaining Lifetime'].to_numpy()
         self.life = self.data['tech']['Lifetime'].to_numpy()
-            #Capacity factors
+            #Capcity factors
         self.cap_fact = self.data['cap_factors'].to_numpy()
         self.min_soc = int(self.data['parameters']['min SoC'][0])
         self.bat_eff = int(self.data['parameters']['Battery Eff'][0])
@@ -51,7 +51,6 @@ class Model_1:
         
         #Sets
         self.techs = self.data['tech'].columns.to_numpy()
-        self.house = self.data['rent_cap'].columns.to_numpy()
         
     def solve(self, rent, elec_price):
         #Decision variables for grid search
@@ -60,21 +59,11 @@ class Model_1:
         
         m=Model('Model_1_case_1')
         
-        #Model decision variables
+        #Model decision varaibles
         added_cap = m.addVars(self.techs, self.years, name='addedCap')
         added_cap_e = m.addVars(self.years, name='addedCapE')
         b_in = m.addVars(self.years, self.days, self.hours, name='bIn')
         b_out = m.addVars(self.years, self.days, self.hours, name='bOut')
         inst_cap = m.addVars(self.techs, self.years, name='instCap')
         inst_cap_e = m.addVars(self.years, name='instCapE')
-        disp = m.addVars(self.techs, self.years, 
-                         self.days, self.hours, 
-                         name='disp')
-        ret_cap = m.addVars(self.techs, self.years, name='retiredCap')
-        ret_cap_e = m.addVars(self.years, name='retiredCapE')
-        soc = m.addVars(self.years, self.days, self.hours, name='SoC')
-        p_DGC = m.addVars(self.years, name='priceDGC')
-        ud = m.addVars(self.years, self.days, self.hours, name='unmetDemand')
-        h_weight = m.addVars(self.house, name='houseWeight')
-        
 
