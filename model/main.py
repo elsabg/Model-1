@@ -1,48 +1,49 @@
 # -*- coding: utf-8 -*-
 '''
-Created on Tue Oct  14:18:06 2024
+Created on Mon Oct 21 14:18:06 2024
 
 @author: jakobsvolba
 '''
 
 import numpy as np
 
+import functions as func
+
 from model_1_draft import Model_1
-
-
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
 # initialize model                                                              #
 #                                                                               #
 #-------------------------------------------------------------------------------#
+
 model = Model_1(_file_name='model_inputs.xlsx')
 
-#read max_govTariff out of 'model_inputs.xlsx'
+#-------------------------------------------------------------------------------#
+#                                                                               #
+# test model run                                                                #
+#                                                                               #
+#-------------------------------------------------------------------------------#
 
-el_price = np.linspace(0, max_govTariff, 20)
+func.test_run_model_case_1(model)
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
 # model run case 1: PV capacity rent                                            #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-pv_rent = np.linspace(1, max_pvRent, 20)
 
-for i in el_price:
-    for j in pv_rent:
-        model.solve(rent=j, elec_price=i)
-        # write output data to a file
+#read max_govTariff out of 'model_inputs.xlsx'
+maxgovtariff = 0.5
+maxpvrent = 50
 
+#func.run_model_case_1(model, maxgovtariff, maxpvrent)
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
 # model run case 2: feed in tariff                                              #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-
-
-
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
