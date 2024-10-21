@@ -7,9 +7,10 @@ License APACHE 2.0
 The purpose of this model is to describe a microgrid in a context where the diesel
 generator company (DGC) has full control. Accordingly, the DGC ought to make the decisions
 regarding:
-• The consumers and prosumers linked to the microgrid,
-• The operations (dispatch) within the microgrid,
-• The investment, rent, and retirement of technologies in the microgrid.
+
+- The consumers and prosumers linked to the microgrid
+- The operations (dispatch) within the microgrid
+- The investment, rent, and retirement of technologies in the microgrid
 
 The premise of the model is that the DGC aims to maximize the present value of its profits by
 making the above-mentioned decisions. By modeling this behavior, we generally aim to create an
