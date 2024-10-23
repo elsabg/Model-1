@@ -44,6 +44,7 @@ class Model_1:
         self.ucc = self.data['tech']['UCC'].to_numpy()
         self.uofc = self.data['tech']['UOFC'].to_numpy()
         self.uovc = self.data['tech']['UOVC'].to_numpy()
+        self.ucud = self.data['rent_cap']['UCUD'].to_numpy()
         self.heat_r = self.data['heat_rate'].to_numpy()
         self.diesel_p = self.data['tariffs']['Diesel Price'].to_numpy()
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
@@ -81,11 +82,12 @@ class Model_1:
 
         #case 1-specific decision variables
         rent = m.addVar(name='rent')
-        ren_cap = m.addVars(self.techs, self.years, name='renCap') 
+        ren_cap = m.addVars(self.techs, self.years, name='renCap')
 
-        #Model objective function
+        #binary variables########################################
 
-        #Setting up the costs for each year
+        # Model objective function
+        #Setting up the costs and revenues for each year
         tr = zeros(self.years) #total yearly revenues
         tcc = zeros(self.years) #total yearly capital costs
         tovc = zeros(self.years) #total yearly operation variable costs
@@ -94,14 +96,57 @@ class Model_1:
 
 
         for y in range(self.years)
-            tr[y] = quicksum(((
-                              (disp[g][y][d][h] * self.p_DGC[y]) 
-                              for g in self.techs 
-                              for h in self.hours)
-                              * self.d_weights[d])
-                              for d in self.days
-                              )   
-            tcc[y] = quicksum((
-                               (added_cap[g][y] * self.ucc[g]) for g in techs) 
-                               + added_cap_e[y] * self.ucc[4]
-                               )
+            tr[y] = quicksum(
+                (
+                    (
+                        (
+                            disp[g][y][d][h] * self.p_DGC[y]
+                        ) for h in range(self.hours)
+                    ) * self.d_weights[d]
+                    for d in range(self.days)
+                ) for g in self.techs
+            ) 
+            tcc[y] = quicksum(
+                (
+                    (
+                        added_cap[g][y] * self.ucc[g]
+                    ) for g in techs
+                ) + added_cap_e[y] * self.ucc[4]
+            )
+            tovc[y] = quicksum(
+                (
+                    (
+                        (
+                            (
+                                disp[g][y][d][h]
+                            ) for h in raneg(self.hours)
+                        ) * self.d_weights[d]
+                    ) for d in range(self.days)
+                ) * self.uovc[g]
+            ) + quicksum(
+                (
+                    (
+                        (
+                            self.heat_r * disp[g][y][d][h] * diesel_p[y]
+                        ) for h in range(self.hours)
+                    ) * self.d_weights[d]
+                ) for d in range(self.days)
+            )
+            tofc[y] = quicksum(
+                (
+                    (
+                        inst_cap[g][y] * self.uofc[g]
+                    ) for g in self.techs
+                ) + rent_cap[y] * rent
+            )
+        
+        # net present value of total profits
+        tp_npv=quicksum(
+            (
+                (
+                    tr[y] - tcc[y] - tofc[y] - tovc[y] #yearly profits
+                ) * ( 1 / ((1 + self.i) ** y)) # discount factor
+            ) for y in range(self.years)
+        )
+
+        m.setObjective(tp_npv, gurobipy.maximize)
