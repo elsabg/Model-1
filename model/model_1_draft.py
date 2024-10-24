@@ -44,8 +44,7 @@ class Model_1:
         self.ucc = self.data['tech']['UCC'].to_numpy()
         self.uofc = self.data['tech']['UOFC'].to_numpy()
         self.uovc = self.data['tech']['UOVC'].to_numpy()
-        self.ucud = self.data['rent_cap']['UCUD'].to_numpy()
-        self.heat_r = self.data['heat_rate'].to_numpy()
+        self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
         self.diesel_p = self.data['tariffs']['Diesel Price'].to_numpy()
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
         
@@ -57,13 +56,20 @@ class Model_1:
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
         
     def solve(self, rent, elec_price):
+        'Create and solve the model'
+
         #Decision variables for grid search
         self.rent = rent
         self.elec_price = elec_price
         
         m=Model('Model_1_case_1')
-        
-        #Model decision variables
+
+        #----------------------------------------------------------------------#
+        #                                                                      #
+        # Decision Variables                                                   #
+        #                                                                      #
+        #----------------------------------------------------------------------#
+
         added_cap = m.addVars(self.techs, self.years, name='addedCap')
         added_cap_e = m.addVars(self.years, name='addedCapE')
         b_in = m.addVars(self.years, self.days, self.hours, name='bIn')
@@ -84,18 +90,26 @@ class Model_1:
         rent = m.addVar(name='rent')
         ren_cap = m.addVars(self.techs, self.years, name='renCap')
 
-        #binary variables########################################
+        #heat rate variables
+        b = m.addVars(self.heat_r_k, self.years, 
+                      self.days, self.hours, 
+                      vtype=GRB.BINARY, name='b')
 
-        # Model objective function
+        #----------------------------------------------------------------------#
+        #                                                                      #
+        # Objective function                                                   #
+        #                                                                      #
+        #----------------------------------------------------------------------#
+
         #Setting up the costs and revenues for each year
-        tr = zeros(self.years) #total yearly revenues
-        tcc = zeros(self.years) #total yearly capital costs
-        tovc = zeros(self.years) #total yearly operation variable costs
-        tofc = zeros(self.years) #total yearly operation fixed costs
-        tcud = zeros(self.years) #total yearly cost of unmet demand
+        tr = np.zeros(self.years) #total yearly revenues
+        tcc = np.zeros(self.years) #total yearly capital costs
+        tovc = np.zeros(self.years) #total yearly operation variable costs
+        tofc = np.zeros(self.years) #total yearly operation fixed costs
+        tcud = np.zeros(self.years) #total yearly cost of unmet demand
 
 
-        for y in range(self.years)
+        for y in range(self.years):
             tr[y] = quicksum(
                 (
                     (
@@ -119,15 +133,15 @@ class Model_1:
                         (
                             (
                                 disp[g][y][d][h]
-                            ) for h in raneg(self.hours)
+                            ) for h in range(self.hours)
                         ) * self.d_weights[d]
                     ) for d in range(self.days)
-                ) * self.uovc[g]
+                ) * self.uovc[g] for g in self.techs
             ) + quicksum(
                 (
                     (
                         (
-                            self.heat_r * disp[g][y][d][h] * diesel_p[y]
+                            self.heat_r * disp[g][y][d][h] * self.diesel_p[y]
                         ) for h in range(self.hours)
                     ) * self.d_weights[d]
                 ) for d in range(self.days)
@@ -137,11 +151,11 @@ class Model_1:
                     (
                         inst_cap[g][y] * self.uofc[g]
                     ) for g in self.techs
-                ) + rent_cap[y] * rent
+                ) + ren_cap[y] * rent
             )
         
-        # net present value of total profits
-        tp_npv=quicksum(
+        # Net Present Value of Total Profits
+        tp_npv = quicksum(
             (
                 (
                     tr[y] - tcc[y] - tofc[y] - tovc[y] #yearly profits
@@ -149,4 +163,28 @@ class Model_1:
             ) for y in range(self.years)
         )
 
-        m.setObjective(tp_npv, gurobipy.maximize)
+        m.setObjective(tp_npv, GRB.MAXIMIZE)
+
+        #----------------------------------------------------------------------#
+        #                                                                      #
+        # Constraints                                                          #
+        #                                                                      #
+        #----------------------------------------------------------------------#
+
+        # Supply-Demand Balance Constraint
+        m.addConstrts(
+            (quicksum(disp[g][y][d][h] for g in self.techs) 
+            + ud[y][d][h] + b_out[y][d][h] ==
+            quicksum(h_weight[i][y] * self.demand[i][y][g][h] 
+            for i in self.house) + b_in[y][d][h])
+            for h in range(self.hours)
+            for d in range(self.days)
+            for y in range(self.years)
+        )
+        m.addConstrts(
+            (h_weight[i][y] =< self.max_house[i][y])
+            for i in self.house
+            for y in range(self.years)
+        )
+
+        # Generator Capacity Constraint
