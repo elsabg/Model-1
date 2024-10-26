@@ -52,7 +52,9 @@ class Model_1:
         self.demand = self.data['elec_demand'].to_numpy()
         
             #Sets
-        self.techs = self.data['tech'].columns.to_numpy()[1::]
+        self.techs = self.data['tech'].columns.to_numpy()[1:-1]
+        self.techs_g = ['Diesel Generator', 'Owned PV', 'Rented PV']
+        self.techs_o = ['Diesel Generator', 'Owned PV', 'Owned Batteries']
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
         
     def solve(self, rent, elec_price):
