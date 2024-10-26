@@ -173,20 +173,129 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        # Supply-Demand Balance Constraint
+        # Supply-Demand Balance
         m.addConstrts(
-            (quicksum(disp[g][y][d][h] for g in self.techs) 
-            + ud[y][d][h] + b_out[y][d][h] ==
-            quicksum(h_weight[i][y] * self.demand[i][y][g][h] 
-            for i in self.house) + b_in[y][d][h])
-            for h in range(self.hours)
-            for d in range(self.days)
-            for y in range(self.years)
+            (
+                (quicksum(disp[g][y][d][h] for g in self.techs) 
+                + ud[y][d][h] + b_out[y][d][h] ==
+                quicksum(h_weight[i][y] * self.demand[i][y][g][h] 
+                for i in self.house) + b_in[y][d][h])
+                for h in range(self.hours)
+                for d in range(self.days)
+                for y in range(self.years)
+            ),
+            "Supply-demand balance"
         )
         m.addConstrts(
-            (h_weight[i][y] =< self.max_house[i][y])
-            for i in self.house
-            for y in range(self.years)
+            (
+                (h_weight[i][y] =< self.max_house[i][y])
+                for i in self.house
+                for y in range(self.years)
+            ),
+            "Maximum connected houses"
         )
 
-        # Generator Capacity Constraint
+        # Generator Capacity
+        m.addConstrts(
+            (
+                (inst_cap[g][y] == 
+                inst_cap[g][y-1] + added_cap[g][y]
+                - ret_cap[g][y])
+                for g in self.techs_o
+                for y in range(1, self.years)
+            ), 
+            "Tracking capacity"
+        )
+        m.addConstrts(
+            (
+                (inst_cap[g][0] == self.init_cap[g])
+                for g in self.techs_o
+            ),
+            "Initial capacity"
+        )
+
+        # Generator retirement
+        m.addConstrts(
+            (
+                (ret_cap[g][self.life_0 - 1] == self.init_cap[g])
+                for g in self.techs_o
+            ),
+            "Retirement of initial capacity"
+        )
+        m.addConstrts(
+            (
+                (ret_cap[g][y] == 0)
+                for g in self.techs_o
+                for y in range(self.life_0) 
+            ),
+            "Retirement before initial capacity"
+        )
+        m.addConstrts(
+            (
+                ((ret_cap[g][y] == added_cap[g][y - self.life[g]])
+                for y in range(self.life_0 + 1, self.years))
+                for g in self.techs_o
+            ),
+            "Retirement after initial capacity"
+        )
+
+        # Rented Capacity
+        m.addConstrts(
+            (
+                (inst_cap['Rented PV'][y] == rent_cap[g][y])
+                for y in range (1, self.years)
+            ),
+            "Tracking rented capacity" 
+        )
+        m.addConstrt(
+            (inst_cap['Rented PV'][y] == 0),
+            "Initial rented capacity"
+        )
+        m.addConstrts(
+            (
+                (ren_cap[g][y] =< 
+                quicksum((self.h_weight[i][y] * self.avg_pv_cap[i])
+                for i in self.house)
+                for y in range(self.years))
+            ),
+            "Maximum rented capacity"
+        )
+
+        # Dispatch
+        m.addConstrts(
+            (
+                (disp['Diesel Generator'][y][d][h] =< 
+                inst_cap['Diesel Generator'][y])
+                for h in range(self.hours)
+                for d in range(self.days)
+                for y in range(self.years)
+            ),
+            "Maximum DG dispatch"
+        )
+        m.addConstrts(
+            (
+                (disp[g][y][d][h] =<
+                self.cap_fact[y][d][h] * inst_cap[g][y])
+                for g in ['Owned PV', "Rented PV"]
+                for h in range(self.hours)
+                for d in range(self.days)
+                for y in range(self.years)
+            ),
+            "Maximum PV dispatch"
+        )
+        m.addConstrts(
+            (
+                (b_in[y][d][h] =<
+                inst_cap['Batteries'][y])
+                for y in range(self.years)
+            ),
+            "Maximum battery input"
+        )
+        m.addConstrts(
+            (
+                (b_out[y][d][h] =<
+                inst_cap['Batteries'][y])
+                for y in range(self.years)
+            ),
+            "Maximum battery output"
+        )
