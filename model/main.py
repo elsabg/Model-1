@@ -6,6 +6,7 @@ Created on Mon Oct 21 14:18:06 2024
 '''
 
 import numpy as np
+import pandas as pd
 
 import functions as func
 
@@ -18,6 +19,8 @@ from model_1_draft import Model_1
 #-------------------------------------------------------------------------------#
 
 model = Model_1(_file_name='model_inputs.xlsx')
+
+
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
@@ -33,9 +36,10 @@ func.test_run_model_case_1(model)
 #                                                                               #
 #-------------------------------------------------------------------------------#
 
-#read max_govTariff out of 'model_inputs.xlsx'
-maxgovtariff = 0.5
-maxpvrent = 50
+#read max_govTariff and max pvrent out of 'model_inputs.xlsx'
+max_values = pd.read_excel('model_inputs.xlsx', sheet_name='tariffs')
+maxgovtariff = max_values['max_govtariff'][0] # write maxgovtariff and maxpvrent in model inputs
+maxpvrent = max_values['max_pvrent'][0]
 
 #func.run_model_case_1(model, maxgovtariff, maxpvrent)
 
