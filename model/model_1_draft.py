@@ -32,17 +32,16 @@ class Model_1:
         self.max_house = self.data['rent_cap'].loc[0].iloc[1::].to_numpy()
         self.avg_pv_cap = self.data['rent_cap'].loc[1].iloc[1::].to_numpy()
             #DGC capacities
-        self.init_cap = self.data['tech']['Initial capacity'].to_numpy()
-        self.life_0 = (self.data['tech']['Remaining lifetime'].to_numpy())[-1]
-        self.init_cap_e = self.data['tech']['Initial capacity'].to_numpy()
+        self.init_cap = (self.data['tech']['Initial capacity'].to_numpy())[:-1]
+        self.life_0 = (self.data['tech']['Remaining lifetime'].to_numpy())[:-1]
+        self.init_cap_e = (self.data['tech']['Initial capacity'].to_numpy())[-1]
         self.life_0_e = (self.data['tech']['Remaining lifetime'].to_numpy())[-1]
-        self.life = self.data['tech']['Lifetime'].to_numpy()
+        self.life = (self.data['tech']['Lifetime'].to_numpy())[:-1]
         self.life_e = (self.data['tech']['Lifetime'].to_numpy())[-1]
             #Capacity factors
         self.cap_fact = self.data['cap_factors'].to_numpy()
         self.min_soc = int(self.data['parameters']['min SoC'][0])
         self.bat_eff = int(self.data['parameters']['Battery Eff'][0])
-        
             #Costs and tariffs
         self.ucc = self.data['tech']['UCC'].to_numpy()
         self.uofc = self.data['tech']['UOFC'].to_numpy()
@@ -52,8 +51,14 @@ class Model_1:
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
         
             #Electricity demand
-        self.demand = self.data['elec_demand'].to_numpy()
-        
+        self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
+        self.demand_2 = self.data['elec_demand (2)'].iloc[:, 1:].to_numpy()
+        self.demand_3 = self.data['elec_demand (3)'].iloc[:, 1:].to_numpy()
+        self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
+        self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
+        self.demand = [self.demand_1, self.demand_2, 
+                       self.demand_3, self.demand_4,
+                       self.demand_5]
             #Sets
         self.techs = self.data['tech'].columns.to_numpy()[1:-1]
         self.techs_g = ['Diesel Generator', 'Owned PV', 'Rented PV']
@@ -113,14 +118,14 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         #Setting up the costs and revenues for each year
-        tr = np.zeros(self.years) #total yearly revenues
-        tcc = np.zeros(self.years) #total yearly capital costs
-        tovc = np.zeros(self.years) #total yearly operation variable costs
-        tofc = np.zeros(self.years) #total yearly operation fixed costs
-        tcud = np.zeros(self.years) #total yearly cost of unmet demand
+        tr = np.zeros(self.years + 1) #total yearly revenues
+        tcc = np.zeros(self.years + 1) #total yearly capital costs
+        tovc = np.zeros(self.years + 1) #total yearly operation variable costs
+        tofc = np.zeros(self.years + 1) #total yearly operation fixed costs
+        tcud = np.zeros(self.years + 1) #total yearly cost of unmet demand
 
 
-        for y in range(self.years):
+        for y in range(1, self.years + 1):
             tr[y] = quicksum(
                 (
                     (
@@ -135,8 +140,8 @@ class Model_1:
                 (
                     (
                         added_cap[g][y] * self.ucc[g]
-                    ) for g in techs
-                ) + added_cap_e[y] * self.ucc[4]
+                    ) for g in self.techs
+                ) + added_cap_e[y] * self.ucc[-1]
             )
             tovc[y] = quicksum(
                 (
@@ -195,9 +200,9 @@ class Model_1:
             ),
             "Supply-demand balance"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                (h_weight[i][y] =< self.max_house[i][y])
+                h_weight[i][y] <= self.max_house[i][y]
                 for i in self.house
                 for y in range(self.years)
             ),
@@ -259,7 +264,7 @@ class Model_1:
         # Rented Capacity
         m.addConstrts(
             (
-                (inst_cap['Rented PV'][y] == rent_cap[g][y])
+                (inst_cap['Rented PV'][y] == ren_cap[g][y])
                 for y in range (1, self.years)
             ),
             "Tracking rented capacity" 
@@ -268,12 +273,11 @@ class Model_1:
             (inst_cap['Rented PV'][y] == 0),
             "Initial rented capacity"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                (ren_cap[g][y] =< 
-                quicksum((self.h_weight[i][y] * self.avg_pv_cap[i])
-                for i in self.house)
-                for y in range(self.years))
+                ren_cap[g][y] <= 
+                quicksum(self.h_weight[i][y] * self.avg_pv_cap[i] for i in self.house)
+                for y in range(self.years)
             ),
             "Maximum rented capacity"
         )
@@ -281,7 +285,7 @@ class Model_1:
         # Dispatch
         m.addConstrts(
             (
-                (disp['Diesel Generator'][y][d][h] =< 
+                (disp['Diesel Generator'][y][d][h] <= 
                 inst_cap['Diesel Generator'][y])
                 for h in range(self.hours)
                 for d in range(self.days)
@@ -291,7 +295,7 @@ class Model_1:
         )
         m.addConstrts(
             (
-                (disp[g][y][d][h] =<
+                (disp[g][y][d][h] <=
                 self.cap_fact[y][d][h] * inst_cap[g][y])
                 for g in ['Owned PV', "Rented PV"]
                 for h in range(self.hours)
@@ -302,17 +306,21 @@ class Model_1:
         )
         m.addConstrts(
             (
-                (b_in[y][d][h] =<
+                (b_in[y][d][h] <=
                 inst_cap['Batteries'][y])
                 for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ),
             "Maximum battery input"
         )
         m.addConstrts(
             (
-                (b_out[y][d][h] =<
+                (b_out[y][d][h] <=
                 inst_cap['Batteries'][y])
                 for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ),
             "Maximum battery output"
         )
@@ -323,73 +331,95 @@ class Model_1:
         m.addConstrts(
             (
                 (disp['Diesel Generator'][y][d][h] >= 0)
-                for y in range(years)
-                for d in range(days)
-                for h in range(hours)
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ), 
             'heat rate 1.1'
         )
         m.addConstrts(
             (
                 (disp['Diesel Generator'][y][d][h] <= 
-                inst_cap['Diesel Generator'][y] * 0.3 
+                inst_cap['Diesel Generator'][y] * 0.25 
                 + bigM * (1-b[0][y][d][h]))
-                for y in range(years)
-                for d in range(days)
-                for h in range(hours)
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ), 
             'heat rate 1.2'
         )
         m.addConstrts(
             (
                 (disp['Diesel Generator'][y][d][h] >= 
-                inst_cap['Diesel Generator'][y] * 0.3 
+                inst_cap['Diesel Generator'][y] * 0.25 
                 - bigM * (1-b[1][y][d][h]))
-                for y in range(years)
-                for d in range(days)
-                for h in range(hours)
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ), 
             'heat rate 2.1'
         )
         m.addConstrts(
             (
                 (disp['Diesel Generator'][y][d][h] <= 
-                inst_cap['Diesel Generator'][y] * 0.8 
+                inst_cap['Diesel Generator'][y] * 0.5 
                 + bigM * (1-b[1][y][d][h]))
-                for y in range(years)
-                for d in range(days)
-                for h in range(hours)
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ), 
             'heat rate 2.2'
         )
         m.addConstrts(
             (
                 (disp['Diesel Generator'][y][d][h] >= 
-                inst_cap['Diesel Generator'][y] * 0.8 
+                inst_cap['Diesel Generator'][y] * 0.5 
                 - bigM * (1-b[2][y][d][h]))
-                for y in range(years)
-                for d in range(days)
-                for h in range(hours)
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ), 
             'heat rate 3.1'
         )
         m.addConstrts(
             (
                 (disp['Diesel Generator'][y][d][h] <= 
-                inst_cap['Diesel Generator'][y] 
+                inst_cap['Diesel Generator'][y] * 0.75 
                 + bigM * (1-b[2][y][d][h]))
-                for y in range(years)
-                for d in range(days)
-                for h in range(hours)
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ), 
             'heat rate 3.2'
         )
         m.addConstrts(
             (
-                quicksum(b[j][y][d][h] for j in range(3)) == 1
-                for y in range(years)
-                for d in range(days)
-                for h in range(hours)
+                (disp['Diesel Generator'][y][d][h] >= 
+                inst_cap['Diesel Generator'][y] * 0.75 
+                - bigM * (1-b[4][y][d][h]))
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
+            ), 
+            'heat rate 4.1'
+        )
+        m.addConstrts(
+            (
+                (disp['Diesel Generator'][y][d][h] <= 
+                inst_cap['Diesel Generator'][y] 
+                + bigM * (1-b[4][y][d][h]))
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
+            ), 
+            'heat rate 4.2'
+        )
+        m.addConstrts(
+            (
+                quicksum(b[j][y][d][h] for j in range(4)) == 1
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ),
             'heat rate binary'
         )
@@ -400,17 +430,17 @@ class Model_1:
                 (soc[y][d][h] == soc[y-1][d][h] 
                 + self.bat_eff * b_in[y][d][h]
                 - b_out[y][d][h] / self.bat_eff)
-                for y in range(1, years)
-                for d in range(days)
-                for h in range(hours)
+                for y in range(1, self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ),
             'SoC tracking'
         )
         m.addConstrts(
             (
                 (soc[y][d][0] == soc[y][d][23])
-                for y in range(years)
-                for d in range(days)
+                for y in range(self.years)
+                for d in range(self.days)
             ),
             ' SoC of representative periods'
         )
@@ -418,19 +448,19 @@ class Model_1:
             (
                 (self.min_soc * self.inst_cap_e[y] <=
                 soc[y][d][h])
-                for y in range(years)
-                for d in range(days)
-                for h in range(hours)
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ),
             'SoC capacity 1'
         )
         m.addConstrts(
             (
-                (elf.inst_cap_e[y] >=
+                (self.inst_cap_e[y] >=
                 soc[y][d][h])
-                for y in range(years)
-                for d in range(days)
-                for h in range(hours)
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
             ),
             'SoC capacity 2'
         )
@@ -476,7 +506,7 @@ class Model_1:
         m.addConstrts(
             (
                 (p_DGC[y] <= self.max_tariff[y])
-                for y in range(years)
+                for y in range(self.years)
             ),
             'maximum tariff'
         )
@@ -489,15 +519,15 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        ret = np.zeros(len(self.techs), years + 1) # retired capacity
-        inst = np.zeros(len(self.techs), years + 1) # installed capacity
-        added = np.zeros(len(self.techs), years + 1) # added capacity
-        rented = np.zeros(len(self.techs), years + 1) # rented capacity
-        ret_e = np.zeros(years + 1) # retired energy capacity
-        inst_e = np.zeros(years + 1) # installed energy capacity
-        added_e = np.zeros(years + 1) # added energy capacity
+        ret = np.zeros(len(self.techs), self.years + 1) # retired capacity
+        inst = np.zeros(len(self.techs), self.years + 1) # installed capacity
+        added = np.zeros(len(self.techs), self.years + 1) # added capacity
+        rented = np.zeros(len(self.techs), self.years + 1) # rented capacity
+        ret_e = np.zeros(self.years + 1) # retired energy capacity
+        inst_e = np.zeros(self.years + 1) # installed energy capacity
+        added_e = np.zeros(self.years + 1) # added energy capacity
 
-        for y in range(years + 1):
+        for y in range(self.years + 1):
             for g in range(len(self.techs)):
                 ret[g][y] = ret_cap[g][y].X
                 inst[g][y] = inst_cap[g][y].X
@@ -507,16 +537,16 @@ class Model_1:
             inst_e[y] = inst_cap_e[y].X
             added_e[y] = added_cap_e[y].X
         
-        ret = pd.dataframe(
+        ret = pd.DataFrame(
             ret, columns=[i for i in range(self.years + 1)]
             )
-        inst = pd.dataframe(
+        inst = pd.DataFrame(
             inst, columns=[i for i in range(self.years + 1)]
             )
-        added = pd.dataframe(
+        added = pd.DataFrame(
             added, columns=[i for i in range(self.years + 1)]
             )
-        rented = pd.dataframe(
+        rented = pd.DataFrame(
             rented, columns=[i for i in range(self.years + 1)]
             )
         ret_e = pd.Series(
@@ -525,7 +555,7 @@ class Model_1:
         inst_e = pd.Series(
             inst_e, columns=[i for i in range(self.years + 1)]
             )
-        added_e = pf.Series(
+        added_e = pd.Series(
             added_e, columns=[i for i in range(self.years + 1)]
             )
         
@@ -536,5 +566,3 @@ class Model_1:
         print(ret_e)
         print(inst_e)
         print(added_e)
-
-
