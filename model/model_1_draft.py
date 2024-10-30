@@ -75,7 +75,6 @@ class Model_1:
         #Decision variables for grid search
         self.rent = rent
         self.elec_price = elec_price
-
         m=Model('Model_1_case_1')
 
         #----------------------------------------------------------------------#
