@@ -20,7 +20,6 @@ class Model_1:
         'read the excel file'
 
         self.data = pd.read_excel(self._file_name, sheet_name=None)
-
         self.years = int(self.data['parameters']['Planning horizon'][0])
         self.days = int(self.data['parameters']['Days'][0]) - 1 #DO NOT FORGET TO REMOVE IT LATER I WENT OVER THE LIMIT FOR IT
         self.hours = int(self.data['parameters']['Hours'][0])

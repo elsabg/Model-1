@@ -20,8 +20,6 @@ from model_1_draft import Model_1
 
 model = Model_1(_file_name='model_inputs.xlsx')
 
-
-
 #-------------------------------------------------------------------------------#
 #                                                                               #
 # test model run                                                                #
