@@ -157,10 +157,12 @@ class Model_1:
                 (
                     (
                         (
-                            self.heat_r * disp[g][y][d][h] * self.diesel_p[y]
-                        ) for h in range(self.hours)
-                    ) * self.d_weights[d]
-                ) for d in range(self.days)
+                            (
+                                self.heat_r * disp[g][y][d][h] * self.diesel_p[y]
+                            ) for h in range(self.hours)
+                        ) * self.d_weights[d]
+                    ) for d in range(self.days)
+                ) for g in  self.techs
             )
             tofc[y] = quicksum(
                 (
@@ -192,7 +194,7 @@ class Model_1:
             (
                 (quicksum(disp[g][y][d][h] for g in self.techs)
                 + ud[y][d][h] + b_out[y][d][h] ==
-                quicksum(h_weight[i][y] * self.demand[i][y][g][h]
+                quicksum(h_weight[i][y] * self.demand[i][y][h]
                 for i in self.house) + b_in[y][d][h])
                 for h in range(self.hours)
                 for d in range(self.days)
@@ -264,7 +266,7 @@ class Model_1:
         # Rented Capacity
         m.addConstrts(
             (
-                (inst_cap['Rented PV'][y] == ren_cap[g][y])
+                (inst_cap['Rented PV'][y] == ren_cap[self.techs_g['Rented PV']][y])# instead of g the whole object
                 for y in range (1, self.years + 1)
             ),
             "Tracking rented capacity"
@@ -278,7 +280,7 @@ class Model_1:
         )
         m.addConstrs(
             (
-                ren_cap[g][y] <=
+                ren_cap[self.techs_g['Rented PV']][y] <=    # instead of g the whole object
                 quicksum(self.h_weight[i][y] * self.avg_pv_cap[i]
                          for i in self.house)
                 for y in range(1, self.years + 1)

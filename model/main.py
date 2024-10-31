@@ -18,8 +18,8 @@ from model_1_draft import Model_1
 #                                                                               #
 #-------------------------------------------------------------------------------#
 
-model = Model_1(_file_name='model_inputs.xlsx')
-
+model = Model_1(_file_name='model_inputs_testing.xlsx')
+model.load_data()
 
 
 #-------------------------------------------------------------------------------#
@@ -38,8 +38,8 @@ func.test_run_model_case_1(model)
 
 #read max_govTariff and max pvrent out of 'model_inputs.xlsx'
 max_values = pd.read_excel('model_inputs.xlsx', sheet_name='tariffs')
-maxgovtariff = max_values['max_govtariff'][0] # write maxgovtariff and maxpvrent in model inputs
-maxpvrent = max_values['max_pvrent'][0]
+maxgovtariff = max_values['ministry_tariff'][0] # write maxgovtariff and maxpvrent in model inputs
+maxpvrent = max_values['pv_rent'][0]
 
 #func.run_model_case_1(model, maxgovtariff, maxpvrent)
 
