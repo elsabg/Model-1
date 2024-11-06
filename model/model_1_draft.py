@@ -47,7 +47,8 @@ class Model_1:
         self.ucc = self.tech_df['UCC'].to_dict()
         self.uofc = self.tech_df['UOFC'].to_dict()
         self.uovc = self.tech_df['UOVC'].to_dict()
-        self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
+        #self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
+        self.heat_r_k = 0.25
         self.diesel_p = self.data['tariffs']['Diesel Price'].to_numpy()
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
 
@@ -92,7 +93,7 @@ class Model_1:
         added_cap_e = m.addVars(self.years + 1, name='addedCapE')
         b_in = m.addVars(self.years + 1, self.days, self.hours, name='bIn')
         b_out = m.addVars(self.years + 1, self.days, self.hours, name='bOut')
-        inst_cap = m.addVars(self.techs, self.years, name='instCap')
+        inst_cap = m.addVars(self.techs, self.years + 1, name='instCap')
         inst_cap_e = m.addVars(self.years + 1, name='instCapE')
         disp = m.addVars(self.techs, self.years + 1,
                          self.days, self.hours,
@@ -107,13 +108,13 @@ class Model_1:
 
         #case 1-specific decision variables
         rent = m.addVar(name='rent')
-        ren_cap = m.addVars(self.techs, self.years + 1, name='renCap')
+        ren_cap = m.addVars(self.years + 1, name='renCap')
 
         #heat rate binary variables
-        b = m.addVars(len(self.heat_r_k), self.years + 1,
-                      self.days, self.hours,
-                      vtype=GRB.BINARY, name='b')
-        heat_r = np.zeros((self.years + 1, self.days, self.hours))
+        #b = m.addVars(len(self.heat_r_k), self.years + 1,
+        #              self.days, self.hours,
+        #              vtype=GRB.BINARY, name='b')
+        #heat_r = np.zeros((self.years + 1, self.days, self.hours))
 
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -122,55 +123,46 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         #Setting up the costs and revenues for each year
-        tr = np.zeros(self.years + 1) #total yearly revenues
-        tcc = np.zeros(self.years + 1) #total yearly capital costs
-        tovc = np.zeros(self.years + 1) #total yearly operation variable costs
-        tofc = np.zeros(self.years + 1) #total yearly operation fixed costs
-        tcud = np.zeros(self.years + 1) #total yearly cost of unmet demand
+        tr = [0] * (self.years + 1) #total yearly revenues
+        tcc = [0] * (self.years + 1) #total yearly capital costs
+        tovc = [0] * (self.years + 1) #total yearly operation variable costs
+        tofc = [0] * (self.years + 1) #total yearly operation fixed costs
+        tcud = [0] * (self.years + 1) #total yearly cost of unmet demand
 
+        print(self.uofc)
 
         for y in range(1, self.years + 1):
             tr[y] = quicksum(
-                (disp[g][y][d][h] * self.d_weights[d])
+                (disp[g, y, d, h] * self.d_weights[d])
                 for g in self.techs
                 for d in range(self.days)
                 for h in range(self.hours)
             ) * self.elec_price
             tcc[y] = quicksum(
-                (
                     (
-                        added_cap[g][y] * self.ucc[g]
+                        added_cap[g, y] * self.ucc[g]
                     ) for g in self.techs
-                ) + added_cap_e[y] * self.ucc['Owned Batteries Energy']
-            )
-            tovc[y] = quicksum(
+                ) + added_cap_e[y] * self.ucc['Owned Batteries']
+            tovc[y] = quicksum( #is the calculation still correct?
                 (
-                    (
-                        (
-                            (
-                                disp[g][y][d][h]
-                            ) for h in range(self.hours)
-                        ) * self.d_weights[d]
-                    ) for d in range(self.days)
-                ) * self.uovc[g] for g in self.techs
+                    disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
+                    for h in range(self.hours)
+                    for d in range(self.days)
+                    for g in self.techs
+                )
             ) + quicksum(
                 (
-                    (
-                        (
-                            (
-                                self.heat_r * disp[g][y][d][h] * self.diesel_p[y]
-                            ) for h in range(self.hours)
-                        ) * self.d_weights[d]
-                    ) for d in range(self.days)
-                ) for g in  self.techs
+                        self.heat_r_k * disp['Diesel Generator', y, d, h] * self.diesel_p[y-1] * self.d_weights[d]
+                        for h in range(self.hours)
+                        for d in range(self.days)
+                )
             )
             tofc[y] = quicksum(
-                (
                     (
-                        inst_cap[g][y] * self.uofc[g]
-                    ) for g in self.techs
+                        inst_cap[g, y] * self.uofc[g]
+                        for g in self.techs
+                    )
                 ) + ren_cap[y] * self.rent
-            )
 
         # Net Present Value of Total Profits
         tp_npv = quicksum(
@@ -192,7 +184,7 @@ class Model_1:
         # Supply-Demand Balance
         m.addConstrts(
             (
-                (quicksum(disp[g][y][d][h] for g in self.techs)
+                (quicksum(disp[g, y, d, h] for g in self.techs)
                 + ud[y][d][h] + b_out[y][d][h] ==
                 quicksum(h_weight[i][y] * self.demand[i][y][h]
                 for i in self.house) + b_in[y][d][h])
