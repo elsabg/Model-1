@@ -30,6 +30,15 @@ class Model_1:
         #Capacity parameters
             #Household capacities
         self.max_house = self.data['rent_cap'].loc[0].iloc[1::].to_numpy()
+
+        self.max_house_str = {
+            'Type 1': self.max_house[0],
+            'Type 2': self.max_house[1],
+            'Type 3': self.max_house[2],
+            'Type 4': self.max_house[3],
+            'Type 5': self.max_house[4]
+        }
+
         self.avg_pv_cap = self.data['rent_cap'].loc[1].iloc[1::].to_numpy()
             #DGC capacities
         self.tech_df = self.data['tech'].set_index('Unnamed: 0')
@@ -58,9 +67,17 @@ class Model_1:
         self.demand_3 = self.data['elec_demand (3)'].iloc[:, 1:].to_numpy()
         self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
         self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
-        self.demand = [self.demand_1.tolist(), self.demand_2.tolist(),
-                       self.demand_3.tolist(), self.demand_4.tolist(),
-                       self.demand_5.tolist()]
+        #self.demand = [self.demand_1.tolist(), self.demand_2.tolist(),
+        #               self.demand_3.tolist(), self.demand_4.tolist(),
+        #               self.demand_5.tolist()]
+
+        self.demand = {
+            'Type 1': self.demand_1.tolist(),
+            'Type 2': self.demand_2.tolist(),
+            'Type 3': self.demand_3.tolist(),
+            'Type 4': self.demand_4.tolist(),
+            'Type 5': self.demand_5.tolist()
+        }
             #Sets
         self.techs = self.data['tech'].iloc[:-1, 0].to_numpy()
         self.techs_e = self.data['tech'].iloc[:, 0].to_numpy()
@@ -104,7 +121,7 @@ class Model_1:
         p_DGC = m.addVars(self.years + 1, name='priceDGC')
         ud = m.addVars(self.years + 1, self.days,
                        self.hours, name='unmetDemand')
-        h_weight = m.addVars(self.house, name='houseWeight')
+        h_weight = m.addVars(self.house, self.years + 1, name='houseWeight')
 
         #case 1-specific decision variables
         rent = m.addVar(name='rent')
@@ -129,8 +146,6 @@ class Model_1:
         tofc = [0] * (self.years + 1) #total yearly operation fixed costs
         tcud = [0] * (self.years + 1) #total yearly cost of unmet demand
 
-        print(self.uofc)
-
         for y in range(1, self.years + 1):
             tr[y] = quicksum(
                 (disp[g, y, d, h] * self.d_weights[d])
@@ -152,9 +167,9 @@ class Model_1:
                 )
             ) + quicksum(
                 (
-                        self.heat_r_k * disp['Diesel Generator', y, d, h] * self.diesel_p[y-1] * self.d_weights[d]
-                        for h in range(self.hours)
-                        for d in range(self.days)
+                    self.heat_r_k * disp['Diesel Generator', y, d, h] * self.diesel_p[y-1] * self.d_weights[d]
+                    for h in range(self.hours)
+                    for d in range(self.days)
                 )
             )
             tofc[y] = quicksum(
@@ -182,12 +197,14 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         # Supply-Demand Balance
-        m.addConstrts(
+        m.addConstrs(
             (
-                (quicksum(disp[g, y, d, h] for g in self.techs)
-                + ud[y][d][h] + b_out[y][d][h] ==
-                quicksum(h_weight[i][y] * self.demand[i][y][h]
-                for i in self.house) + b_in[y][d][h])
+                (quicksum(
+                    disp[g, y, d, h] for g in self.techs)
+                    + ud[y, d, h] + b_out[y, d, h] ==
+                quicksum(
+                    h_weight[i, y] * self.demand[i][d][h] # keine jahre sondern nur tag und stunden
+                    for i in self.house) + b_in[y, d, h])
                 for h in range(self.hours)
                 for d in range(self.days)
                 for y in range(1, self.years + 1)
@@ -196,7 +213,7 @@ class Model_1:
         )
         m.addConstrs(
             (
-                h_weight[i][y] <= self.max_house[i][y]
+                h_weight[i, y] <= self.max_house_str[i] #max_house cap doesent change over the years
                 for i in self.house
                 for y in range(1, self.years + 1)
             ),
@@ -204,53 +221,56 @@ class Model_1:
         )
 
         # Generator Capacity
-        m.addConstrts(
+        m.addConstrs(
             (
-                (inst_cap[g][y] ==
-                inst_cap[g][y-1] + added_cap[g][y]
-                - ret_cap[g][y])
+                (inst_cap[g, y] ==
+                inst_cap[g, y-1] + added_cap[g, y]
+                - ret_cap[g, y])
                 for g in self.techs_o
                 for y in range(1, self.years + 1)
             ),
             "Tracking capacity"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                (inst_cap[g][0] == self.init_cap[g])
+                (inst_cap[g, 0] == self.init_cap[g])
                 for g in self.techs_o
             ),
             "Initial capacity"
         )
 
+
         # Generator retirement
-        m.addConstrts(
+        m.addConstrs(
             (
-                (ret_cap[g][self.life_0 - 1] == self.init_cap[g])
+                (ret_cap[g, self.life_0[g] - 1] == self.init_cap[g])# lifetime of g?
                 for g in self.techs_o
             ),
             "Retirement of initial capacity"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                (ret_cap[g][y] == 0)
+                (ret_cap[g, y] == 0)
                 for g in self.techs_o
-                for y in range(1, self.life_0 + 1)
+                for y in range(1, self.life_0[g] + 1) # lifetime of g?
             ),
             "Retirement before initial capacity"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                ((ret_cap[g][y] == added_cap[g][y - self.life[g]])
-                for y in range(self.life + 2, self.years + 1))
+                (ret_cap[g, y] == added_cap[g, y - self.life[g]])
                 for g in self.techs_o
+                for y in range(self.life[g] + 2, self.years + 1) # y not in ()
             ),
             "Retirement after initial capacity"
         )
-        m.addConstrts(
+
+
+        m.addConstrs(
             (
-                ((ret_cap[g][y] == 0)
-                for y in range(self.life_0 + 1, self.life + 1))
+                (ret_cap[g, y] == 0)
                 for g in self.techs_o
+                for y in range(self.life_0[g] + 1, self.life[g] + 1) # y not in (
             ),
             "Retirement between initial capacity and life"
         )
