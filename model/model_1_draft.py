@@ -19,7 +19,8 @@ class Model_1:
     def load_data(self):
         'read the excel file'
 
-        self.data = pd.read_excel(self._file_name, sheet_name=None)
+        self.data = pd.read_excel(self._file_name, decimal=',', sheet_name=None)
+
         self.years = int(self.data['parameters']['Planning horizon'][0])
         self.days = int(self.data['parameters']['Days'][0]) - 1 #DO NOT FORGET TO REMOVE IT LATER I WENT OVER THE LIMIT FOR IT
         self.hours = int(self.data['parameters']['Hours'][0])
@@ -29,8 +30,25 @@ class Model_1:
         #Capacity parameters
             #Household capacities
         self.max_house = self.data['rent_cap'].loc[0].iloc[1::].to_numpy()
+
+        self.max_house_str = {
+            'Type 1': self.max_house[0],
+            'Type 2': self.max_house[1],
+            'Type 3': self.max_house[2],
+            'Type 4': self.max_house[3],
+            'Type 5': self.max_house[4]
+        }
+
         self.avg_pv_cap = self.data['rent_cap'].loc[1].iloc[1::].to_numpy()
             #DGC capacities
+        self.avg_pv_cap_str = {
+            'Type 1': self.avg_pv_cap[0],
+            'Type 2': self.avg_pv_cap[1],
+            'Type 3': self.avg_pv_cap[2],
+            'Type 4': self.avg_pv_cap[3],
+            'Type 5': self.avg_pv_cap[4]
+        }
+
         self.tech_df = self.data['tech'].set_index('Unnamed: 0')
         self.init_cap = self.tech_df['Initial capacity'].iloc[:-1].to_dict()
         self.life_0 = self.tech_df['Remaining lifetime'].iloc[:-1].to_dict()
@@ -40,13 +58,14 @@ class Model_1:
         self.life_e = (self.data['tech']['Lifetime'].to_numpy())[-1]
             #Capacity factors
         self.cap_fact = self.data['cap_factors'].iloc[:, 1:].to_numpy()
-        self.min_soc = int(self.data['parameters']['min SoC'][0])
-        self.bat_eff = int(self.data['parameters']['Battery Eff'][0])
+        self.min_soc = self.data['parameters']['min SoC'][0]
+        self.bat_eff = self.data['parameters']['Battery Eff'][0]
             #Costs and tariffs
         self.ucc = self.tech_df['UCC'].to_dict()
         self.uofc = self.tech_df['UOFC'].to_dict()
         self.uovc = self.tech_df['UOVC'].to_dict()
-        self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
+        #self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
+        self.heat_r_k = 0.25
         self.diesel_p = self.data['tariffs']['Diesel Price'].to_numpy()
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
 
@@ -56,9 +75,17 @@ class Model_1:
         self.demand_3 = self.data['elec_demand (3)'].iloc[:, 1:].to_numpy()
         self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
         self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
-        self.demand = [self.demand_1.tolist(), self.demand_2.tolist(),
-                       self.demand_3.tolist(), self.demand_4.tolist(),
-                       self.demand_5.tolist()]
+        #self.demand = [self.demand_1.tolist(), self.demand_2.tolist(),
+        #               self.demand_3.tolist(), self.demand_4.tolist(),
+        #               self.demand_5.tolist()]
+
+        self.demand = {
+            'Type 1': self.demand_1.tolist(),
+            'Type 2': self.demand_2.tolist(),
+            'Type 3': self.demand_3.tolist(),
+            'Type 4': self.demand_4.tolist(),
+            'Type 5': self.demand_5.tolist()
+        }
             #Sets
         self.techs = self.data['tech'].iloc[:-1, 0].to_numpy()
         self.techs_e = self.data['tech'].iloc[:, 0].to_numpy()
@@ -74,7 +101,6 @@ class Model_1:
         #Decision variables for grid search
         self.rent = rent
         self.elec_price = elec_price
-
         m=Model('Model_1_case_1')
 
         #----------------------------------------------------------------------#
@@ -92,7 +118,7 @@ class Model_1:
         added_cap_e = m.addVars(self.years + 1, name='addedCapE')
         b_in = m.addVars(self.years + 1, self.days, self.hours, name='bIn')
         b_out = m.addVars(self.years + 1, self.days, self.hours, name='bOut')
-        inst_cap = m.addVars(self.techs, self.years, name='instCap')
+        inst_cap = m.addVars(self.techs, self.years + 1, name='instCap')
         inst_cap_e = m.addVars(self.years + 1, name='instCapE')
         disp = m.addVars(self.techs, self.years + 1,
                          self.days, self.hours,
@@ -103,17 +129,18 @@ class Model_1:
         p_DGC = m.addVars(self.years + 1, name='priceDGC')
         ud = m.addVars(self.years + 1, self.days,
                        self.hours, name='unmetDemand')
-        h_weight = m.addVars(self.house, name='houseWeight')
+        h_weight = m.addVars(self.house, self.years + 1, name='houseWeight')
 
         #case 1-specific decision variables
         rent = m.addVar(name='rent')
-        ren_cap = m.addVars(self.techs, self.years + 1, name='renCap')
+        ren_cap = m.addVars(self.years + 1, name='renCap')
 
         #heat rate binary variables
-        b = m.addVars(len(self.heat_r_k), self.years + 1,
-                      self.days, self.hours,
-                      vtype=GRB.BINARY, name='b')
-        heat_r = np.zeros((self.years + 1, self.days, self.hours))
+        #b = m.addVars(len(self.heat_r_k), self.years + 1,
+        #              self.days, self.hours,
+        #              vtype=GRB.BINARY, name='b')
+        #heat_r = np.zeros((self.years + 1, self.days, self.hours))
+
 
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -122,53 +149,44 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         #Setting up the costs and revenues for each year
-        tr = np.zeros(self.years + 1) #total yearly revenues
-        tcc = np.zeros(self.years + 1) #total yearly capital costs
-        tovc = np.zeros(self.years + 1) #total yearly operation variable costs
-        tofc = np.zeros(self.years + 1) #total yearly operation fixed costs
-        tcud = np.zeros(self.years + 1) #total yearly cost of unmet demand
-
+        tr = [0] * (self.years + 1) #total yearly revenues
+        tcc = [0] * (self.years + 1) #total yearly capital costs
+        tovc = [0] * (self.years + 1) #total yearly operation variable costs
+        tofc = [0] * (self.years + 1) #total yearly operation fixed costs
+        tcud = [0] * (self.years + 1) #total yearly cost of unmet demand
 
         for y in range(1, self.years + 1):
             tr[y] = quicksum(
-                (disp[g][y][d][h] * self.d_weights[d])
+                (disp[g, y, d, h] * self.d_weights[d])
                 for g in self.techs
                 for d in range(self.days)
                 for h in range(self.hours)
             ) * self.elec_price
             tcc[y] = quicksum(
-                (
                     (
-                        added_cap[g][y] * self.ucc[g]
+                        added_cap[g, y] * self.ucc[g]
                     ) for g in self.techs
-                ) + added_cap_e[y] * self.ucc['Owned Batteries Energy']
-            )
+                ) + added_cap_e[y] * self.ucc['Owned Batteries']
             tovc[y] = quicksum(
                 (
-                    (
-                        (
-                            (
-                                disp[g][y][d][h]
-                            ) for h in range(self.hours)
-                        ) * self.d_weights[d]
-                    ) for d in range(self.days)
-                ) * self.uovc[g] for g in self.techs
+                    disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
+                    for g in self.techs
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                )
             ) + quicksum(
                 (
-                    (
-                        (
-                            self.heat_r * disp[g][y][d][h] * self.diesel_p[y]
-                        ) for h in range(self.hours)
-                    ) * self.d_weights[d]
-                ) for d in range(self.days)
+                    self.heat_r_k * disp['Diesel Generator', y, d, h] * self.diesel_p[y-1] * self.d_weights[d] # check diesel index
+                    for h in range(self.hours)
+                    for d in range(self.days)
+                )
             )
             tofc[y] = quicksum(
-                (
                     (
-                        inst_cap[g][y] * self.uofc[g]
-                    ) for g in self.techs
+                        inst_cap[g, y] * self.uofc[g]
+                        for g in self.techs
+                    )
                 ) + ren_cap[y] * self.rent
-            )
 
         # Net Present Value of Total Profits
         tp_npv = quicksum(
@@ -188,12 +206,14 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         # Supply-Demand Balance
-        m.addConstrts(
+        m.addConstrs(
             (
-                (quicksum(disp[g][y][d][h] for g in self.techs)
-                + ud[y][d][h] + b_out[y][d][h] ==
-                quicksum(h_weight[i][y] * self.demand[i][y][g][h]
-                for i in self.house) + b_in[y][d][h])
+                (quicksum(
+                    disp[g, y, d, h] for g in self.techs)
+                    + ud[y, d, h] + b_out[y, d, h] ==
+                quicksum(
+                    h_weight[i, y] * self.demand[i][d][h]
+                    for i in self.house) + b_in[y, d, h])
                 for h in range(self.hours)
                 for d in range(self.days)
                 for y in range(1, self.years + 1)
@@ -202,7 +222,7 @@ class Model_1:
         )
         m.addConstrs(
             (
-                h_weight[i][y] <= self.max_house[i][y]
+                h_weight[i, y] <= self.max_house_str[i]
                 for i in self.house
                 for y in range(1, self.years + 1)
             ),
@@ -210,76 +230,78 @@ class Model_1:
         )
 
         # Generator Capacity
-        m.addConstrts(
+        m.addConstrs(
             (
-                (inst_cap[g][y] ==
-                inst_cap[g][y-1] + added_cap[g][y]
-                - ret_cap[g][y])
+                (inst_cap[g, y] ==
+                inst_cap[g, y-1] + added_cap[g, y]
+                - ret_cap[g, y])
                 for g in self.techs_o
                 for y in range(1, self.years + 1)
             ),
             "Tracking capacity"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                (inst_cap[g][0] == self.init_cap[g])
+                (inst_cap[g, 0] == self.init_cap[g])
                 for g in self.techs_o
             ),
             "Initial capacity"
         )
 
+
         # Generator retirement
-        m.addConstrts(
+        m.addConstrs(
             (
-                (ret_cap[g][self.life_0 - 1] == self.init_cap[g])
+                (ret_cap[g, self.life_0[g] - 1] == self.init_cap[g])
                 for g in self.techs_o
             ),
             "Retirement of initial capacity"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                (ret_cap[g][y] == 0)
+                (ret_cap[g, y] == 0)
                 for g in self.techs_o
-                for y in range(1, self.life_0 + 1)
+                for y in range(1, self.life_0[g] + 1)
             ),
             "Retirement before initial capacity"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                ((ret_cap[g][y] == added_cap[g][y - self.life[g]])
-                for y in range(self.life + 2, self.years + 1))
+                (ret_cap[g, y] == added_cap[g, y - self.life[g]])
                 for g in self.techs_o
+                for y in range(self.life[g] + 2, self.years + 1)
             ),
             "Retirement after initial capacity"
         )
-        m.addConstrts(
+
+        m.addConstrs(
             (
-                ((ret_cap[g][y] == 0)
-                for y in range(self.life_0 + 1, self.life + 1))
+                (ret_cap[g, y] == 0)
                 for g in self.techs_o
+                for y in range(self.life_0[g] + 1, min(self.life[g] + 1, self.years + 1)) # y not in (
             ),
             "Retirement between initial capacity and life"
         )
 
         # Rented Capacity
-        m.addConstrts(
+        m.addConstrs(
             (
-                (inst_cap['Rented PV'][y] == ren_cap[g][y])
+                (inst_cap['Rented PV', y] == ren_cap[y])# instead of g the whole object
                 for y in range (1, self.years + 1)
             ),
             "Tracking rented capacity"
         )
-        m.addConstrt(
+        m.addConstrs(
             (
-                (inst_cap['Rented PV'][y] == 0)
+                (inst_cap['Rented PV', y] == 0)
                 for y in range(1, self.years + 1)
             ),
             "Initial rented capacity"
         )
         m.addConstrs(
             (
-                ren_cap[g][y] <=
-                quicksum(self.h_weight[i][y] * self.avg_pv_cap[i]
+                ren_cap[y] <=    # instead of g the whole object
+                quicksum(h_weight[i, y] * self.avg_pv_cap_str[i]
                          for i in self.house)
                 for y in range(1, self.years + 1)
             ),
@@ -287,20 +309,20 @@ class Model_1:
         )
 
         # Dispatch
-        m.addConstrts(
+        m.addConstrs(
             (
-                (disp['Diesel Generator'][y][d][h] <=
-                inst_cap['Diesel Generator'][y])
+                (disp['Diesel Generator', y, d, h] <=
+                inst_cap['Diesel Generator', y])
                 for h in range(self.hours)
                 for d in range(self.days)
                 for y in range(1, self.years + 1)
             ),
             "Maximum DG dispatch"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                (disp[g][y][d][h] <=
-                self.cap_fact[y][d][h] * inst_cap[g][y])
+                (disp[g, y, d, h] <=
+                self.cap_fact[d][h] * inst_cap[g, y])
                 for g in ['Owned PV', "Rented PV"]
                 for h in range(self.hours)
                 for d in range(self.days)
@@ -308,20 +330,20 @@ class Model_1:
             ),
             "Maximum PV dispatch"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                (b_in[y][d][h] <=
-                inst_cap['Batteries'][y])
+                (b_in[y, d, h] <=
+                inst_cap['Owned Batteries', y])
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
                 for h in range(self.hours)
             ),
             "Maximum battery input"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                (b_out[y][d][h] <=
-                inst_cap['Batteries'][y])
+                (b_out[y, d, h] <=
+                inst_cap['Owned Batteries', y])
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
                 for h in range(self.hours)
@@ -329,7 +351,7 @@ class Model_1:
             "Maximum battery output"
         )
 
-        # Heat Rate
+        '''# Heat Rate
         bigM = 700 # find the max value of bigM
 
         m.addConstrts(
@@ -426,49 +448,50 @@ class Model_1:
                 for h in range(self.hours)
             ),
             'heat rate binary'
-        )
+        )'''
 
         # Storage
-        m.addConstrts(
+        print(self.bat_eff)
+        m.addConstrs(
             (
-                (soc[y][d][h] == soc[y-1][d][h]
-                + self.bat_eff * b_in[y][d][h]
-                - b_out[y][d][h] / self.bat_eff)
+                (soc[y, d, h] == soc[y-1, d, h]
+                + self.bat_eff * b_in[y, d, h]
+                - b_out[y, d, h] / self.bat_eff)
                 for y in range(2, self.years + 1)
                 for d in range(self.days)
                 for h in range(self.hours)
             ),
             'SoC tracking'
         )
-        m.addConstrts(
+        m.addConstrs(
             (
-                (soc[y][d][0] == soc[y][d][23])
+                (soc[y, d, 0] == soc[y, d, 23])
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
             ),
             ' SoC of representative periods'
         )
-        m.addConstrts(
+        m.addConstrs(
             (
                 (self.min_soc * inst_cap_e[y] <=
-                soc[y][d][h])
+                soc[y, d, h])
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
                 for h in range(self.hours)
             ),
             'SoC capacity 1'
         )
-        m.addConstrts(
+        m.addConstrs(
             (
                 (inst_cap_e[y] >=
-                soc[y][d][h])
+                soc[y, d, h])
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
                 for h in range(self.hours)
             ),
             'SoC capacity 2'
         )
-        m.addConstrts(
+        m.addConstrs(
             (
                 (inst_cap_e[y] ==
                 inst_cap_e[y-1] + added_cap_e[y]
@@ -477,7 +500,7 @@ class Model_1:
             ),
             "Tracking storage capacity"
         )
-        m.addConstrt(
+        m.addConstr(
             (
                 inst_cap_e[0] == self.init_cap_e
             ),
@@ -485,20 +508,20 @@ class Model_1:
         )
 
         # Storage retirement
-        m.addConstrt(
+        m.addConstr(
             (
                 ret_cap_e[self.life_0_e + 1] == self.init_cap_e
             ),
             "Retirement of initial storage capacity"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
                 (ret_cap_e[y] == 0)
                 for y in range(1, self.life_0_e + 1)
             ),
             "Retirement before initial capacity"
         )
-        m.addConstrts(
+        m.addConstrs(
             (
                 ((ret_cap_e[y] == added_cap_e[y - self.life_e])
                 for y in range(self.life_0_e + 2, self.years + 1))
@@ -507,36 +530,36 @@ class Model_1:
         )
 
         # Tariff constraints
-        m.addConstrts(
+        m.addConstrs(
             (
-                (p_DGC[y] <= self.max_tariff[y])
+                (p_DGC[y] <= self.max_tariff[y-1]) # still correct?
                 for y in range(1, self.years + 1)
             ),
             'maximum tariff'
         )
 
         m.optimize()
-
+        '''
         #----------------------------------------------------------------------#
         #                                                                      #
         # Output                                                               #
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        ret = np.zeros(len(self.techs), self.years + 1) # retired capacity
-        inst = np.zeros(len(self.techs), self.years + 1) # installed capacity
-        added = np.zeros(len(self.techs), self.years + 1) # added capacity
-        rented = np.zeros(len(self.techs), self.years + 1) # rented capacity
-        ret_e = np.zeros(self.years + 1) # retired energy capacity
-        inst_e = np.zeros(self.years + 1) # installed energy capacity
-        added_e = np.zeros(self.years + 1) # added energy capacity
+        ret = np.zeros((len(self.techs), self.years + 1)) # retired capacity
+        inst = np.zeros((len(self.techs), self.years + 1)) # installed capacity
+        added = np.zeros((len(self.techs), self.years + 1)) # added capacity
+        rented = np.zeros((len(self.techs), self.years + 1)) # rented capacity
+        ret_e = np.zeros((self.years + 1)) # retired energy capacity
+        inst_e = np.zeros((self.years + 1)) # installed energy capacity
+        added_e = np.zeros((self.years + 1)) # added energy capacity
 
         for y in range(self.years + 1):
-            for g in range(len(self.techs)):
-                ret[g][y] = ret_cap[g][y].X
-                inst[g][y] = inst_cap[g][y].X
-                added[g][y] = added_cap[g][y].X
-                rented[g][y] = ren_cap[g][y].X
+            for g in self.techs:
+                ret[self.techs.tolist().index(g)][y] = ret_cap[g, y].X
+                inst[g][y] = inst_cap[g, y].X
+                added[g][y] = added_cap[g, y].X
+                rented[g][y] = ren_cap[g, y].X
             ret_e[y] = ret_cap_e[y].X
             inst_e[y] = inst_cap_e[y].X
             added_e[y] = added_cap_e[y].X
@@ -570,3 +593,4 @@ class Model_1:
         print(ret_e)
         print(inst_e)
         print(added_e)
+        '''
