@@ -37,10 +37,10 @@ func.test_run_model_case_1(model)
 #-------------------------------------------------------------------------------#
 
 #read max_govTariff and max pvrent out of 'model_inputs.xlsx'
-max_values = pd.read_excel('model_inputs.xlsx', sheet_name='tariffs')
-maxgovtariff = max_values['ministry_tariff'][0] # write maxgovtariff and maxpvrent in model inputs
-maxpvrent = max_values['pv_rent'][0]
-
+'''max_values = pd.read_excel('model_inputs.xlsx', decimal=',', sheet_name='tariffs')
+maxgovtariff = max_values['Ministry Tariff'][0] # write maxgovtariff and maxpvrent in model inputs
+maxpvrent = max_values['PV Rent'][0]
+'''
 #func.run_model_case_1(model, maxgovtariff, maxpvrent)
 
 #-------------------------------------------------------------------------------#
