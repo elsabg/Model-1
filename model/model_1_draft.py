@@ -167,16 +167,16 @@ class Model_1:
                         added_cap[g, y] * self.ucc[g]
                     ) for g in self.techs
                 ) + added_cap_e[y] * self.ucc['Owned Batteries']
-            tovc[y] = quicksum( #is the calculation still correct?
+            tovc[y] = quicksum(
                 (
                     disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                    for h in range(self.hours)
-                    for d in range(self.days)
                     for g in self.techs
+                    for d in range(self.days)
+                    for h in range(self.hours)
                 )
             ) + quicksum(
                 (
-                    self.heat_r_k * disp['Diesel Generator', y, d, h] * self.diesel_p[y-1] * self.d_weights[d]
+                    self.heat_r_k * disp['Diesel Generator', y, d, h] * self.diesel_p[y-1] * self.d_weights[d] # check diesel index
                     for h in range(self.hours)
                     for d in range(self.days)
                 )
@@ -212,7 +212,7 @@ class Model_1:
                     disp[g, y, d, h] for g in self.techs)
                     + ud[y, d, h] + b_out[y, d, h] ==
                 quicksum(
-                    h_weight[i, y] * self.demand[i][d][h] # keine jahre sondern nur tag und stunden
+                    h_weight[i, y] * self.demand[i][d][h]
                     for i in self.house) + b_in[y, d, h])
                 for h in range(self.hours)
                 for d in range(self.days)
@@ -222,7 +222,7 @@ class Model_1:
         )
         m.addConstrs(
             (
-                h_weight[i, y] <= self.max_house_str[i] #max_house cap doesent change over the years
+                h_weight[i, y] <= self.max_house_str[i]
                 for i in self.house
                 for y in range(1, self.years + 1)
             ),
@@ -252,7 +252,7 @@ class Model_1:
         # Generator retirement
         m.addConstrs(
             (
-                (ret_cap[g, self.life_0[g] - 1] == self.init_cap[g])# lifetime of g?
+                (ret_cap[g, self.life_0[g] - 1] == self.init_cap[g])
                 for g in self.techs_o
             ),
             "Retirement of initial capacity"
@@ -261,7 +261,7 @@ class Model_1:
             (
                 (ret_cap[g, y] == 0)
                 for g in self.techs_o
-                for y in range(1, self.life_0[g] + 1) # lifetime of g?
+                for y in range(1, self.life_0[g] + 1)
             ),
             "Retirement before initial capacity"
         )
@@ -269,7 +269,7 @@ class Model_1:
             (
                 (ret_cap[g, y] == added_cap[g, y - self.life[g]])
                 for g in self.techs_o
-                for y in range(self.life[g] + 2, self.years + 1) # y not in ()
+                for y in range(self.life[g] + 2, self.years + 1)
             ),
             "Retirement after initial capacity"
         )
