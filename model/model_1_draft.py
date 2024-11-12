@@ -25,7 +25,7 @@ class Model_1:
         self.days = int(self.data['parameters']['Days'][0]) - 1 #DO NOT FORGET TO REMOVE IT LATER I WENT OVER THE LIMIT FOR IT
         self.hours = int(self.data['parameters']['Hours'][0])
         self.d_weights = self.data['day_weights']['Weight'].to_numpy()
-        self.i = int(self.data['parameters']['Interest rate'][0])
+        self.i = self.data['parameters']['Interest rate'][0]
 
         #Capacity parameters
             #Household capacities
@@ -93,6 +93,7 @@ class Model_1:
         self.techs_o = np.array(['Diesel Generator',
                                  'Owned PV',
                                  'Owned Batteries'])
+        self.techs_pv = np.array(['Owned PV', 'Rented PV'])
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
 
     def solve(self, rent, elec_price):
@@ -114,26 +115,25 @@ class Model_1:
         1, while year 0 only holds initial capacities.
         '''
 
-        added_cap = m.addVars(self.techs, self.years + 1, name='addedCap')
-        added_cap_e = m.addVars(self.years + 1, name='addedCapE')
-        b_in = m.addVars(self.years + 1, self.days, self.hours, name='bIn')
-        b_out = m.addVars(self.years + 1, self.days, self.hours, name='bOut')
-        inst_cap = m.addVars(self.techs, self.years + 1, name='instCap')
-        inst_cap_e = m.addVars(self.years + 1, name='instCapE')
+        added_cap = m.addVars(self.techs, self.years + 1, name='addedCap', lb = 0)
+        added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0)
+        b_in = m.addVars(self.years + 1, self.days, self.hours, name='bIn', lb = 0)
+        b_out = m.addVars(self.years + 1, self.days, self.hours, name='bOut', lb = 0)
+        inst_cap = m.addVars(self.techs, self.years + 1, name='instCap', lb = 0)
+        inst_cap_e = m.addVars(self.years + 1, name='instCapE', lb = 0)
         disp = m.addVars(self.techs, self.years + 1,
                          self.days, self.hours,
-                         name='disp')
-        ret_cap = m.addVars(self.techs, self.years + 1, name='retiredCap')
-        ret_cap_e = m.addVars(self.years + 1, name='retiredCapE')
-        soc = m.addVars(self.years + 1, self.days, self.hours, name='SoC')
-        p_DGC = m.addVars(self.years + 1, name='priceDGC')
-        ud = m.addVars(self.years + 1, self.days,
-                       self.hours, name='unmetDemand')
-        h_weight = m.addVars(self.house, self.years + 1, name='houseWeight')
+                         name='disp', lb = 0)
+        ret_cap = m.addVars(self.techs, self.years + 1, name='retiredCap', lb = 0)
+        ret_cap_e = m.addVars(self.years + 1, name='retiredCapE',  lb = 0)
+        soc = m.addVars(self.years + 1, self.days, self.hours, name='SoC', lb = 0)
+        #p_DGC = m.addVars(self.years + 1, name='priceDGC')
+        ud = m.addVars(self.years + 1, self.days, self.hours, name='unmetDemand', lb = 0)
+        h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0)
 
         #case 1-specific decision variables
-        rent = m.addVar(name='rent')
-        ren_cap = m.addVars(self.years + 1, name='renCap')
+        #rent = m.addVar(name='rent')
+        ren_cap = m.addVars(self.years + 1, name='renCap', lb = 0)
 
         #heat rate binary variables
         #b = m.addVars(len(self.heat_r_k), self.years + 1,
@@ -252,7 +252,7 @@ class Model_1:
         # Generator retirement
         m.addConstrs(
             (
-                (ret_cap[g, self.life_0[g] - 1] == self.init_cap[g])
+                (ret_cap[g, self.life_0[g]] == self.init_cap[g])
                 for g in self.techs_o
             ),
             "Retirement of initial capacity"
@@ -261,7 +261,7 @@ class Model_1:
             (
                 (ret_cap[g, y] == 0)
                 for g in self.techs_o
-                for y in range(1, self.life_0[g] + 1)
+                for y in range(1, self.life_0[g] - 1)
             ),
             "Retirement before initial capacity"
         )
@@ -286,15 +286,14 @@ class Model_1:
         # Rented Capacity
         m.addConstrs(
             (
-                (inst_cap['Rented PV', y] == ren_cap[y])# instead of g the whole object
+                (inst_cap[('Rented PV', y)] == ren_cap[y])# instead of g the whole object
                 for y in range (1, self.years + 1)
             ),
             "Tracking rented capacity"
         )
-        m.addConstrs(
+        m.addConstr(
             (
-                (inst_cap['Rented PV', y] == 0)
-                for y in range(1, self.years + 1)
+                (inst_cap[('Rented PV', 0)] == 0)
             ),
             "Initial rented capacity"
         )
@@ -312,7 +311,7 @@ class Model_1:
         m.addConstrs(
             (
                 (disp['Diesel Generator', y, d, h] <=
-                inst_cap['Diesel Generator', y])
+                inst_cap[('Diesel Generator', y)])
                 for h in range(self.hours)
                 for d in range(self.days)
                 for y in range(1, self.years + 1)
@@ -323,7 +322,7 @@ class Model_1:
             (
                 (disp[g, y, d, h] <=
                 self.cap_fact[d][h] * inst_cap[g, y])
-                for g in ['Owned PV', "Rented PV"]
+                for g in self.techs_pv
                 for h in range(self.hours)
                 for d in range(self.days)
                 for y in range(1, self.years + 1)
@@ -530,22 +529,24 @@ class Model_1:
         )
 
         # Tariff constraints
-        m.addConstrs(
+        '''m.addConstrs(
             (
                 (p_DGC[y] <= self.max_tariff[y-1]) # still correct?
                 for y in range(1, self.years + 1)
             ),
             'maximum tariff'
-        )
+        )'''
+
+
 
         m.optimize()
-        '''
+
         #----------------------------------------------------------------------#
         #                                                                      #
         # Output                                                               #
         #                                                                      #
         #----------------------------------------------------------------------#
-
+        '''
         ret = np.zeros((len(self.techs), self.years + 1)) # retired capacity
         inst = np.zeros((len(self.techs), self.years + 1)) # installed capacity
         added = np.zeros((len(self.techs), self.years + 1)) # added capacity
