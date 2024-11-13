@@ -135,7 +135,7 @@ class Model_1:
 
         #case 1-specific decision variables
         #rent = m.addVar(name='rent')
-        ren_cap = m.addVars(self.years + 1, name='renCap', lb = 0)
+        #ren_cap = m.addVars(self.years + 1, name='renCap', lb = 0)
 
         #heat rate binary variables
         #b = m.addVars(len(self.heat_r_k), self.years + 1,
@@ -164,6 +164,7 @@ class Model_1:
                 for d in range(self.days)
                 for h in range(self.hours)
             ) * self.elec_price
+
             tcc[y] = quicksum(
                     (
                         added_cap[g, y] * self.ucc[g]
@@ -190,7 +191,7 @@ class Model_1:
                         inst_cap[g, y] * self.uofc[g]
                         for g in self.techs
                     )
-                ) + ren_cap[y] * self.rent
+                ) + inst_cap['Rented PV', y] * self.rent
 
         # Net Present Value of Total Profits
         tp_npv = quicksum(
@@ -198,7 +199,7 @@ class Model_1:
                 (
                     tr[y] - tcc[y] - tofc[y] - tcud[y]- tovc[y] #yearly profits
                 ) * ( 1 / ((1 + self.i) ** y)) # discount factor
-            ) for y in range(self.years)
+            ) for y in range(1, self.years + 1)
         )
 
         m.setObjective(tp_npv, GRB.MAXIMIZE)
@@ -208,6 +209,13 @@ class Model_1:
         # Constraints                                                          #
         #                                                                      #
         #----------------------------------------------------------------------#
+
+        m.addConstr(
+            (
+                tp_npv <= 1000000000
+            ),
+            "Cap Obj. Function"
+        )
 
         # Supply-Demand Balance
         m.addConstrs(
@@ -288,22 +296,25 @@ class Model_1:
         )
 
         # Rented Capacity
+        '''
         m.addConstrs(
             (
                 (inst_cap[('Rented PV', y)] == ren_cap[y])
                 for y in range (1, self.years + 1)
             ),
             "Tracking rented capacity"
-        )
+        )'''
+
         m.addConstr(
             (
                 (inst_cap[('Rented PV', 0)] == 0)
             ),
             "Initial rented capacity"
         )
+
         m.addConstrs(
             (
-                ren_cap[y] <=    # instead of g the whole object
+                inst_cap[('Rented PV', y)] <=    # instead of g the whole object
                 quicksum(h_weight[i, y] * self.avg_pv_cap_str[i]
                          for i in self.house)
                 for y in range(1, self.years + 1)
@@ -552,12 +563,13 @@ class Model_1:
         m.optimize()
 
 
+
         #----------------------------------------------------------------------#
         #                                                                      #
         # Output                                                               #
         #                                                                      #
         #----------------------------------------------------------------------#
-        '''
+
         ret = np.zeros((len(self.techs), self.years + 1)) # retired capacity
         inst = np.zeros((len(self.techs), self.years + 1)) # installed capacity
         added = np.zeros((len(self.techs), self.years + 1)) # added capacity
@@ -569,13 +581,13 @@ class Model_1:
         for y in range(self.years + 1):
             for g in self.techs:
                 ret[self.techs.tolist().index(g)][y] = ret_cap[g, y].X
-                inst[g][y] = inst_cap[g, y].X
-                added[g][y] = added_cap[g, y].X
-                rented[g][y] = ren_cap[g, y].X
+                inst[self.techs.tolist().index(g)][y] = inst_cap[g, y].X
+                added[self.techs.tolist().index(g)][y] = added_cap[g, y].X
+                rented[self.techs.tolist().index(g)][y] = inst_cap['Rented PV', y].X
             ret_e[y] = ret_cap_e[y].X
             inst_e[y] = inst_cap_e[y].X
             added_e[y] = added_cap_e[y].X
-
+        '''
         ret = pd.DataFrame(
             ret, columns=[i for i in range(self.years + 1)]
             )
@@ -588,21 +600,18 @@ class Model_1:
         rented = pd.DataFrame(
             rented, columns=[i for i in range(self.years + 1)]
             )
-        ret_e = pd.Series(
+        ret_e = pd.DataFrame(
             ret_e, columns=[i for i in range(self.years + 1)]
             )
-        inst_e = pd.Series(
+        inst_e = pd.DataFrame(
             inst_e, columns=[i for i in range(self.years + 1)]
             )
-        added_e = pd.Series(
+        added_e = pd.DataFrame(
             added_e, columns=[i for i in range(self.years + 1)]
             )
-
-        print(ret)
-        print(inst)
-        print(added)
-        print(rented)
-        print(ret_e)
-        print(inst_e)
-        print(added_e)
         '''
+        print('installed capacity')
+        print(inst)
+        print('added capacity')
+        print(added)
+
