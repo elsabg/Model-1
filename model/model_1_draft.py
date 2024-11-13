@@ -96,6 +96,8 @@ class Model_1:
         self.techs_pv = np.array(['Owned PV', 'Rented PV'])
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
 
+        self.ud_penalty = self.data['parameters']['Unmet demand penalty'][0]
+
     def solve(self, rent, elec_price):
         'Create and solve the model'
 
@@ -167,19 +169,21 @@ class Model_1:
                         added_cap[g, y] * self.ucc[g]
                     ) for g in self.techs
                 ) + added_cap_e[y] * self.ucc['Owned Batteries']
+
             tovc[y] = quicksum(
-                (
-                    disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                    for g in self.techs
-                    for d in range(self.days)
-                    for h in range(self.hours)
-                )
+                disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
+                for g in self.techs
+                for d in range(self.days)
+                for h in range(self.hours)
             ) + quicksum(
-                (
-                    self.heat_r_k * disp['Diesel Generator', y, d, h] * self.diesel_p[y-1] * self.d_weights[d] # check diesel index
-                    for h in range(self.hours)
-                    for d in range(self.days)
-                )
+                self.heat_r_k * disp['Diesel Generator', y, d, h] * self.diesel_p[y - 1] * self.d_weights[d]
+                for d in range(self.days)
+                for h in range(self.hours)
+            )
+            tcud[y] = quicksum(
+                ud[y, d, h] * self.d_weights[d] * self.ud_penalty
+                for d in range(self.days)
+                for h in range(self.hours)
             )
             tofc[y] = quicksum(
                     (
@@ -192,7 +196,7 @@ class Model_1:
         tp_npv = quicksum(
             (
                 (
-                    tr[y] - tcc[y] - tofc[y] - tovc[y] #yearly profits
+                    tr[y] - tcc[y] - tofc[y] - tcud[y]- tovc[y] #yearly profits
                 ) * ( 1 / ((1 + self.i) ** y)) # discount factor
             ) for y in range(self.years)
         )
@@ -252,7 +256,7 @@ class Model_1:
         # Generator retirement
         m.addConstrs(
             (
-                (ret_cap[g, self.life_0[g]] == self.init_cap[g])
+                (ret_cap[g, self.life_0[g] + 1] == self.init_cap[g])
                 for g in self.techs_o
             ),
             "Retirement of initial capacity"
@@ -261,7 +265,7 @@ class Model_1:
             (
                 (ret_cap[g, y] == 0)
                 for g in self.techs_o
-                for y in range(1, self.life_0[g] - 1)
+                for y in range(1, self.life_0[g])
             ),
             "Retirement before initial capacity"
         )
@@ -269,7 +273,7 @@ class Model_1:
             (
                 (ret_cap[g, y] == added_cap[g, y - self.life[g]])
                 for g in self.techs_o
-                for y in range(self.life[g] + 2, self.years + 1)
+                for y in range(self.life[g] + 1, self.years + 1)
             ),
             "Retirement after initial capacity"
         )
@@ -278,7 +282,7 @@ class Model_1:
             (
                 (ret_cap[g, y] == 0)
                 for g in self.techs_o
-                for y in range(self.life_0[g] + 1, min(self.life[g] + 1, self.years + 1)) # y not in (
+                for y in range(self.life_0[g] + 2, min(self.life[g], self.years + 1))
             ),
             "Retirement between initial capacity and life"
         )
@@ -286,7 +290,7 @@ class Model_1:
         # Rented Capacity
         m.addConstrs(
             (
-                (inst_cap[('Rented PV', y)] == ren_cap[y])# instead of g the whole object
+                (inst_cap[('Rented PV', y)] == ren_cap[y])
                 for y in range (1, self.years + 1)
             ),
             "Tracking rented capacity"
@@ -453,12 +457,12 @@ class Model_1:
         print(self.bat_eff)
         m.addConstrs(
             (
-                (soc[y, d, h] == soc[y-1, d, h]
+                (soc[y, d, h] == soc[y, d, h - 1]
                 + self.bat_eff * b_in[y, d, h]
                 - b_out[y, d, h] / self.bat_eff)
-                for y in range(2, self.years + 1)
+                for y in range(1, self.years + 1)
                 for d in range(self.days)
-                for h in range(self.hours)
+                for h in range(1, self.hours)
             ),
             'SoC tracking'
         )
@@ -516,7 +520,7 @@ class Model_1:
         m.addConstrs(
             (
                 (ret_cap_e[y] == 0)
-                for y in range(1, self.life_0_e + 1)
+                for y in range(1, self.life_0_e)
             ),
             "Retirement before initial capacity"
         )
@@ -528,6 +532,14 @@ class Model_1:
             "Retirement after initial capacity"
         )
 
+        m.addConstrs(
+            (
+                (ret_cap_e[y] == 0)
+                for y in range(self.life_0_e + 2, min(self.life_e, self.years + 1))
+            ),
+            "Retirement between initial capacity and life"
+        )
+
         # Tariff constraints
         '''m.addConstrs(
             (
@@ -537,9 +549,8 @@ class Model_1:
             'maximum tariff'
         )'''
 
-
-
         m.optimize()
+
 
         #----------------------------------------------------------------------#
         #                                                                      #
