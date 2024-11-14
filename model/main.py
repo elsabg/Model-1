@@ -21,15 +21,17 @@ from model_1_draft import Model_1
 model = Model_1(_file_name='model_inputs_testing.xlsx')
 model.load_data()
 
-
 #-------------------------------------------------------------------------------#
 #                                                                               #
 # test model run                                                                #
 #                                                                               #
 #-------------------------------------------------------------------------------#
+pv_rent = 50
+el_price = 0.5
 
-func.test_run_model_case_1(model)
+results = model.solve(rent=pv_rent, elec_price=el_price)
 
+func.output_data(results)
 #-------------------------------------------------------------------------------#
 #                                                                               #
 # model run case 1: PV capacity rent                                            #
