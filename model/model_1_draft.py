@@ -10,6 +10,9 @@ import pandas as pd
 import math
 from gurobipy import *
 
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_columns', None)
+
 class Model_1:
 
     def __init__(self, _file_name):
@@ -123,7 +126,7 @@ class Model_1:
         b_out = m.addVars(self.years + 1, self.days, self.hours, name='bOut', lb = 0)
         inst_cap = m.addVars(self.techs, self.years + 1, name='instCap', lb = 0)
         inst_cap_e = m.addVars(self.years + 1, name='instCapE', lb = 0)
-        disp = m.addVars(self.techs, self.years + 1,
+        disp = m.addVars(self.techs_g, self.years + 1,
                          self.days, self.hours,
                          name='disp', lb = 0)
         ret_cap = m.addVars(self.techs, self.years + 1, name='retiredCap', lb = 0)
@@ -159,8 +162,8 @@ class Model_1:
 
         for y in range(1, self.years + 1):
             tr[y] = quicksum(
-                (disp[g, y, d, h] * self.d_weights[d])
-                for g in self.techs
+                ((disp[g, y, d, h] + b_out[y, d, h]- b_in[y, d, h]) * self.d_weights[d])
+                for g in self.techs_g
                 for d in range(self.days)
                 for h in range(self.hours)
             ) * self.elec_price
@@ -173,7 +176,7 @@ class Model_1:
 
             tovc[y] = quicksum(
                 disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                for g in self.techs
+                for g in self.techs_g
                 for d in range(self.days)
                 for h in range(self.hours)
             ) + quicksum(
@@ -210,18 +213,11 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        m.addConstr(
-            (
-                tp_npv <= 1000000000
-            ),
-            "Cap Obj. Function"
-        )
-
         # Supply-Demand Balance
         m.addConstrs(
             (
                 (quicksum(
-                    disp[g, y, d, h] for g in self.techs)
+                    disp[g, y, d, h] for g in self.techs_g)
                     + ud[y, d, h] + b_out[y, d, h] ==
                 quicksum(
                     h_weight[i, y] * self.demand[i][d][h]
@@ -314,7 +310,7 @@ class Model_1:
 
         m.addConstrs(
             (
-                inst_cap[('Rented PV', y)] <=    # instead of g the whole object
+                inst_cap[('Rented PV', y)] ==    # instead of g the whole object
                 quicksum(h_weight[i, y] * self.avg_pv_cap_str[i]
                          for i in self.house)
                 for y in range(1, self.years + 1)
@@ -573,27 +569,80 @@ class Model_1:
         ret = np.zeros((len(self.techs), self.years + 1)) # retired capacity
         inst = np.zeros((len(self.techs), self.years + 1)) # installed capacity
         added = np.zeros((len(self.techs), self.years + 1)) # added capacity
-        rented = np.zeros((len(self.techs), self.years + 1)) # rented capacity
+        rented = np.zeros((self.years + 1)) # rented capacity
         ret_e = np.zeros((self.years + 1)) # retired energy capacity
         inst_e = np.zeros((self.years + 1)) # installed energy capacity
         added_e = np.zeros((self.years + 1)) # added energy capacity
+        disp_gen = np.zeros((self.days, self.hours))
+        unmetD = np.zeros((self.days, self.hours))
+        bat_in = np.zeros((self.days, self.hours))
+        bat_out = np.zeros((self.days, self.hours))
+        num_households = np.zeros((len(self.house), self.years + 1))
 
         for y in range(self.years + 1):
             for g in self.techs:
                 ret[self.techs.tolist().index(g)][y] = ret_cap[g, y].X
                 inst[self.techs.tolist().index(g)][y] = inst_cap[g, y].X
                 added[self.techs.tolist().index(g)][y] = added_cap[g, y].X
-                rented[self.techs.tolist().index(g)][y] = inst_cap['Rented PV', y].X
+            rented[y] = inst_cap['Rented PV', y].X
             ret_e[y] = ret_cap_e[y].X
             inst_e[y] = inst_cap_e[y].X
             added_e[y] = added_cap_e[y].X
+
+        for d in range(self.days):
+            for h in range(self.hours):
+                disp_gen[d, h] = disp['Diesel Generator', 1, d, h].X
+                unmetD[d, h] = ud[1, d, h].X
+                bat_in[d, h] = b_in[1, d, h].X
+                bat_out[d, h] = b_out[1, d, h].X
+
+        for house in self.house:
+            for y in range(self.years + 1):
+                num_households[self.house.tolist().index(house)][y] = h_weight[house, y].X
+
+
+        disp_gen = pd.DataFrame(
+            disp_gen, columns=[i for i in range(self.hours)]
+        )
+
+        unmetD = pd.DataFrame(
+            unmetD, columns=[i for i in range(self.hours)]
+        )
+
+        bat_in = pd.DataFrame(
+            bat_in, columns=[i for i in range(self.hours)]
+        )
+
+        bat_out = pd.DataFrame(
+            bat_out, columns=[i for i in range(self.hours)]
+        )
+
+        num_households = pd.DataFrame(
+            num_households, columns=[i for i in range(self.years + 1)]
+        )
+
+        inst = pd.DataFrame(
+            inst, columns=[i for i in range(self.years + 1)]
+        )
+
+        added = pd.DataFrame(
+            added, columns=[i for i in range(self.years + 1)]
+        )
+
+
+
+        ret = pd.DataFrame(
+            ret, columns=[i for i in range(self.years + 1)]
+        )
         '''
+        rented = pd.DataFrame(
+            rented, columns=[i for i in range(self.years + 1)]
+        )
+        
         ret = pd.DataFrame(
             ret, columns=[i for i in range(self.years + 1)]
             )
-        inst = pd.DataFrame(
-            inst, columns=[i for i in range(self.years + 1)]
-            )
+        
         added = pd.DataFrame(
             added, columns=[i for i in range(self.years + 1)]
             )
@@ -614,4 +663,15 @@ class Model_1:
         print(inst)
         print('added capacity')
         print(added)
-
+        print('retired capacity')
+        print(ret)
+        print('disp year 1')
+        print(disp_gen)
+        print('unmet demand')
+        print(unmetD)
+        print('battery in')
+        print(bat_in)
+        print('battery out')
+        print(bat_out)
+        print('num households')
+        print(num_households)
