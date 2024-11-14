@@ -18,7 +18,7 @@ def run_model_case_1(model, max_govtariff, max_pvrent):
     for i in el_price:
         for j in pv_rent:
             model.solve(rent=j, elec_price=i)
-            write_output_data(model)
+
 
 
 
@@ -61,19 +61,19 @@ def output_data(resultsArray):
 
 
     print('\n-----------installed capacity-----------\n')
-    print(inst)
+    print(inst.round(2))
     print('\n-----------added capacity-----------\n')
-    print(added)
+    print(added.round(2))
     print('\n-----------retired capacity-----------\n')
-    print(ret)
-    print('\n-----------dispatched Energy year 1-----------\n')
-    print(disp_gen)
+    print(ret.round(2))
+    print('\n-----------dispatched Energy Generator year 1-----------\n')
+    print(disp_gen.round(2))
     print('\n-----------unmet Demand year 1-----------\n')
-    print(unmetD)
+    print(unmetD.round(2))
     print('\n-----------battery Input year 1-----------\n')
-    print(bat_in)
+    print(bat_in.round(2))
     print('\n-----------battery Output year 1-----------\n')
-    print(bat_out)
+    print(bat_out.round(2))
     print('\n-----------Number of connected household types-----------\n')
     print(num_households)
     '''write output data to excel file'''

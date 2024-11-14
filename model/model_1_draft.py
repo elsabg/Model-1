@@ -173,7 +173,7 @@ class Model_1:
 
         ud = m.addVars(self.years + 1, self.days, self.hours, name='unmetDemand', lb = 0)
 
-        h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0)
+        h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0, vtype=GRB.INTEGER)
 
         '''
         #heat rate binary variables
@@ -388,11 +388,13 @@ class Model_1:
         )
         m.addConstrs(
             (
-                (soc[y, d, 0] == soc[y, d, 23])
+                (soc[y, d, 0] == soc[y, d, 23]
+                 + self.bat_eff * b_in[y, d, 0]
+                 - b_out[y, d, 0] / self.bat_eff)
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
             ),
-            ' SoC of representative periods'
+            ' SoC of hour 0'
         )
         m.addConstrs(
             (

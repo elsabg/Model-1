@@ -26,7 +26,7 @@ model.load_data()
 # test model run                                                                #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-pv_rent = 50
+pv_rent = 100
 el_price = 0.5
 
 results = model.solve(rent=pv_rent, elec_price=el_price)
