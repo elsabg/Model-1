@@ -24,9 +24,9 @@ def test_run_model_case_1(model):
     '''test run with fixed values'''
 
     pv_rent = 50
-    el_price = 0.2
+    el_price = 0.5
     model.solve(rent=pv_rent, elec_price=el_price)
-    write_output_data(model)
+    #write_output_data(model)
 
 def write_output_data(model):
     '''write output data to excel file'''
