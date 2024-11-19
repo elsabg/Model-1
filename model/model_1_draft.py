@@ -124,6 +124,8 @@ class Model_1:
         self.i = self.data['parameters']['Interest rate'][0]
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
 
+        self.cap_steps = self.data['capacity_steps']['Diesel Generator'].to_numpy()
+
         #------------------------------------------------------------------------------#
         # Sets                                                                         #
         #------------------------------------------------------------------------------#
@@ -175,6 +177,7 @@ class Model_1:
 
         h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0, vtype=GRB.INTEGER)
 
+        bin_cap_steps = m.addVars(len(self.cap_steps), self.years +1, name = 'binCapSteps', vtype=GRB.INTEGER, lb = 0)
         '''
         #heat rate binary variables
         #b = m.addVars(len(self.heat_r_k), self.years + 1,
@@ -349,6 +352,15 @@ class Model_1:
             "Initial capacity"
         )
 
+        m.addConstrs(
+            (
+                (added_cap['Diesel Generator', y] ==
+                    quicksum(bin_cap_steps[i, y] * self.cap_steps[i] for i in range(len(self.cap_steps))))
+                for y in range(1, self.years + 1)
+            ),
+            "Steps for added diesel generator capacity"
+        )
+
         # ----------------------------------------------------------------------#
         # Rent PV Capacity                                                     #
         # ----------------------------------------------------------------------#
@@ -447,7 +459,7 @@ class Model_1:
             (
                 (ret_cap[g, y] == 0)
                 for g in self.techs_o
-                for y in range(1, self.life_0[g])
+                for y in range(1, self.life_0[g] + 1)   # range(self.life_0) returns values only up to life_0 - 1
             ),
             "Retirement before initial capacity"
         )
@@ -464,7 +476,7 @@ class Model_1:
             (
                 (ret_cap[g, y] == 0)
                 for g in self.techs_o
-                for y in range(self.life_0[g] + 2, min(self.life[g], self.years + 1))
+                for y in range(self.life_0[g] + 2, min(self.life[g] + 1, self.years + 1))
             ),
             "Retirement between initial capacity and life"
         )
@@ -482,7 +494,7 @@ class Model_1:
         m.addConstrs(
             (
                 (ret_cap_e[y] == 0)
-                for y in range(1, self.life_0_e)
+                for y in range(1, self.life_0_e + 1)
             ),
             "Retirement before initial capacity"
         )
@@ -497,7 +509,7 @@ class Model_1:
         m.addConstrs(
             (
                 (ret_cap_e[y] == 0)
-                for y in range(self.life_0_e + 2, min(self.life_e, self.years + 1))
+                for y in range(self.life_0_e + 2, min(self.life_e + 1, self.years + 1))
             ),
             "Retirement between initial capacity and life"
         )
@@ -606,6 +618,10 @@ class Model_1:
         )'''
 
         m.optimize()
+
+        for y in range(self.life['Owned Batteries'] + 1, self.years + 1):
+            print(y)
+
 
         #----------------------------------------------------------------------#
         #                                                                      #
