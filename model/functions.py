@@ -8,27 +8,17 @@ Created on Tue Oct 21 13:42:03 2024
 import numpy as np
 import pandas as pd
 
-def run_model_case_1(model, max_govtariff, max_pvrent):
-    '''Run model case 1 for a range of government tariffs and PV rents'''
-
-    el_price = np.linspace(0, max_govtariff, 20)
-    pv_rent = np.linspace(1, max_pvrent, 20)
-
-
-    for i in el_price:
-        for j in pv_rent:
-            model.solve(rent=j, elec_price=i)
-
-
-
-
 def output_data(resultsArray):
     '''Process output data'''
 
-    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households = resultsArray
+    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in = resultsArray
 
     disp_gen = pd.DataFrame(
         disp_gen, columns=[i for i in range(disp_gen.shape[1])]
+    )
+
+    feed_in = pd.DataFrame(
+        feed_in, columns=[i for i in range(feed_in.shape[1])]
     )
 
     unmetD = pd.DataFrame(
@@ -68,6 +58,8 @@ def output_data(resultsArray):
     print(ret.round(2))
     print('\n-----------dispatched Energy Generator year 1-----------\n')
     print(disp_gen.round(2))
+    print('\n-----------feed in year 1-----------\n')
+    print(feed_in.round(2))
     print('\n-----------unmet Demand year 1-----------\n')
     print(unmetD.round(2))
     print('\n-----------battery Input year 1-----------\n')

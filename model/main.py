@@ -10,7 +10,7 @@ import pandas as pd
 
 import functions as func
 
-from model_1_draft import Model_1
+from model_1 import Model_1
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
@@ -26,24 +26,12 @@ model.load_data()
 # test model run                                                                #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-pv_rent = 100
-el_price = 0.5
+fit = 0.2
+el_price = 0.4
 
-results = model.solve(rent=pv_rent, elec_price=el_price)
+results = model.solve(fit=fit, elec_price=el_price)
 
 func.output_data(results)
-#-------------------------------------------------------------------------------#
-#                                                                               #
-# model run case 1: PV capacity rent                                            #
-#                                                                               #
-#-------------------------------------------------------------------------------#
-
-#read max_govTariff and max pvrent out of 'model_inputs.xlsx'
-'''max_values = pd.read_excel('model_inputs.xlsx', decimal=',', sheet_name='tariffs')
-maxgovtariff = max_values['Ministry Tariff'][0] # write maxgovtariff and maxpvrent in model inputs
-maxpvrent = max_values['PV Rent'][0]
-'''
-#func.run_model_case_1(model, maxgovtariff, maxpvrent)
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
