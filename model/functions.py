@@ -87,7 +87,7 @@ def plot_data(resultsArray):
     ax.bar(np.arange(24), bat_out[0], 0.5, label='Battery Output', color = 'red')
     ax.bar(np.arange(24) + 0.5, feed_in[0], 0.5, label='Feed in', color = 'orange')
     ax.bar(np.arange(24), unmetD[0], 0.5, label='Unmet Demand', color = 'blue')
-    ax.plot(np.arange(24), total_demand[0], label='Total Demand')
+    ax.plot(np.arange(24), total_demand[0], label='Total Demand', color = 'black')
 
     ax.set_xlabel('Hour')
     ax.set_ylabel('Energy')

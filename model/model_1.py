@@ -179,8 +179,8 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb = 0)
-        added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0)
+        added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb = 0, vtype = GRB.INTEGER)
+        added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0, vtype = GRB.INTEGER)
 
         inst_cap = m.addVars(self.techs_o, self.years + 1, name='instCap', lb=0)
         inst_cap_e = m.addVars(self.years + 1, name='instCapE', lb=0)
