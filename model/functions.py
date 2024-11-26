@@ -14,8 +14,9 @@ def output_data(resultsArray):
 
     ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in, total_demand = resultsArray
 
+    '''
     disp_gen = pd.DataFrame(
-        disp_gen, columns=[i for i in range(disp_gen.shape[1])]
+        disp_gen, columns=[i for i in range(disp_gen.shape[0])]
     )
 
     feed_in = pd.DataFrame(
@@ -33,7 +34,7 @@ def output_data(resultsArray):
     bat_out = pd.DataFrame(
         bat_out, columns=[i for i in range(bat_out.shape[1])]
     )
-
+    '''
     num_households = pd.DataFrame(
         num_households, columns=[i for i in range(num_households.shape[1])]
     )
@@ -54,6 +55,8 @@ def output_data(resultsArray):
     inst.index = names
     added.index = names
     ret.index = names
+    names_housetypes = ['Consumer Residential', 'Prosumer Residential', 'Solar Farm', 'Water Pumping Station', 'Prosumer Business']
+    num_households.index = names_housetypes
 
 
     print('\n-----------installed capacity-----------\n')
@@ -62,19 +65,8 @@ def output_data(resultsArray):
     print(added.round(2))
     print('\n-----------retired capacity-----------\n')
     print(ret.round(2))
-    print('\n-----------dispatched Energy Generator year 1-----------\n')
-    print(disp_gen.round(2))
-    print('\n-----------feed in year 1-----------\n')
-    print(feed_in.round(2))
-    print('\n-----------unmet Demand year 1-----------\n')
-    print(unmetD.round(2))
-    print('\n-----------battery Input year 1-----------\n')
-    print(bat_in.round(2))
-    print('\n-----------battery Output year 1-----------\n')
-    print(bat_out.round(2))
     print('\n-----------Number of connected household types-----------\n')
     print(num_households)
-    '''write output data to excel file'''
     return
 
 def plot_data(resultsArray):
@@ -83,15 +75,23 @@ def plot_data(resultsArray):
     ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in, total_demand = resultsArray
 
     fig, ax = plt.subplots()
-    ax.bar(np.arange(24), bat_in[0], 0.5, label='Battery Input', color = 'green')
-    ax.bar(np.arange(24), bat_out[0], 0.5, label='Battery Output', color = 'red')
-    ax.bar(np.arange(24) + 0.5, feed_in[0], 0.5, label='Feed in', color = 'orange')
-    ax.bar(np.arange(24), unmetD[0], 0.5, label='Unmet Demand', color = 'blue')
-    ax.plot(np.arange(24), total_demand[0], label='Total Demand', color = 'black')
+    hours = np.arange(24)
+
+    # Create the bottom bar
+    p1 = ax.bar(hours, disp_gen, label='Dispatched Generation', color='blue')
+
+    # Stack the other bars on top
+    p2 = ax.bar(hours, bat_out, bottom=disp_gen, label='Battery Output', color='red')
+    p3 = ax.bar(hours, feed_in, bottom=disp_gen + bat_out, label='Feed in', color='orange')
+    p4 = ax.bar(hours, unmetD, bottom=disp_gen + bat_out + feed_in, label='Unmet Demand', color='purple')
+    p5 = ax.bar(hours, -bat_in, label='Battery Input', color='green')
+
+    ax.plot(hours, total_demand[2], label='Total Demand', color='black', linestyle='-', marker='o')
 
     ax.set_xlabel('Hour')
     ax.set_ylabel('Energy')
-    ax.set_title('Generation and res. Load Profile over a day (year 12)')
+    ax.set_title('Stacked Bar Chart of Energy Data over a Winter Day (Year 1)')
+    ax.legend(loc='upper left')
 
     ax.legend()
     plt.show()

@@ -87,7 +87,7 @@ class Model_1:
         self.ud_penalty = self.data['parameters']['Unmet demand penalty'][0]
 
         #fixed heat rate value
-        self.heat_r_v = 0.25
+        self.heat_r_v = 0.42
 
         #heat rate curve
         self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
@@ -224,8 +224,7 @@ class Model_1:
 
             # Revenue
             tr[y] = quicksum(
-                ((disp[g, y, d, h] + b_out[y, d, h] - b_in[y, d, h]) * self.d_weights[d])
-                for g in self.techs_g
+                ((quicksum(disp[g, y, d, h] for g in self.techs_g) + b_out[y, d, h] - b_in[y, d, h]) * self.d_weights[d])
                 for d in range(self.days)
                 for h in range(self.hours)
             ) * self.elec_price
@@ -682,12 +681,12 @@ class Model_1:
         ret = np.zeros((len(self.techs_o), self.years + 1)) # retired capacity
         inst = np.zeros((len(self.techs_o), self.years + 1)) # installed capacity
         added = np.zeros((len(self.techs_o), self.years + 1)) # added capacity
-        disp_gen = np.zeros((self.days, self.hours))
-        unmetD = np.zeros((self.days, self.hours))
-        bat_in = np.zeros((self.days, self.hours))
-        bat_out = np.zeros((self.days, self.hours))
+        disp_gen = np.zeros(self.hours)
+        unmetD = np.zeros(self.hours)
+        bat_in = np.zeros(self.hours)
+        bat_out = np.zeros(self.hours)
         num_households = np.zeros((len(self.house), self.years + 1))
-        feed_in_energy = np.zeros((self.days, self.hours))
+        feed_in_energy = np.zeros(self.hours)
 
         for y in range(self.years + 1):
             for g in self.techs_o:
@@ -695,13 +694,13 @@ class Model_1:
                 inst[self.techs_o.tolist().index(g)][y] = inst_cap[g, y].X
                 added[self.techs_o.tolist().index(g)][y] = added_cap[g, y].X
 
-        for d in range(self.days):
-            for h in range(self.hours):
-                disp_gen[d][h] = disp['Diesel Generator', 1, d, h].X
-                unmetD[d][h] = ud[12, d, h].X
-                bat_in[d][h] = b_in[12, d, h].X
-                bat_out[d][h] = b_out[12, d, h].X
-                feed_in_energy[d][h] = disp['Feed In Prosumers', 12, d, h].X
+        d = 2
+        for h in range(self.hours):
+            disp_gen[h] = disp['Diesel Generator', 1, d, h].X
+            unmetD[h] = ud[1, d, h].X
+            bat_in[h] = b_in[1, d, h].X
+            bat_out[h] = b_out[1, d, h].X
+            feed_in_energy[h] = disp['Feed In Prosumers', 1, d, h].X
 
         for house in self.house:
             for y in range(self.years + 1):
