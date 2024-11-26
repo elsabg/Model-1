@@ -233,8 +233,8 @@ class Model_1:
             tcc[y] = quicksum(
                     (
                         added_cap[g, y] * self.ucc[g]
-                    ) for g in self.techs_g_o
-                ) + added_cap_e[y] * self.ucc['Owned Batteries']
+                    ) for g in self.techs_o
+                ) + added_cap_e[y] * self.ucc['Owned Batteries Energy']
 
 
             # Operation Variable Costs with fixed DG heat rate value
@@ -558,7 +558,7 @@ class Model_1:
         m.addConstrs(
             (
                 ((ret_cap_e[y] == added_cap_e[y - self.life_e])
-                 for y in range(self.life_0_e + 2, self.years + 1))
+                 for y in range(self.life_e + 1, self.years + 1))
             ),
             "Retirement after initial capacity"
         )
@@ -664,8 +664,8 @@ class Model_1:
             ),
             'heat rate 4.2'
         )
-        '''
 
+        '''
         #----------------------------------------------------------------------#
         # Optimization                                                         #
         #----------------------------------------------------------------------#
@@ -678,9 +678,9 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        ret = np.zeros((len(self.techs_o), self.years + 1)) # retired capacity
-        inst = np.zeros((len(self.techs_o), self.years + 1)) # installed capacity
-        added = np.zeros((len(self.techs_o), self.years + 1)) # added capacity
+        ret = np.zeros((4, self.years + 1)) # retired capacity
+        inst = np.zeros((4, self.years + 1)) # installed capacity
+        added = np.zeros((4, self.years + 1)) # added capacity
         disp_gen = np.zeros(self.hours)
         unmetD = np.zeros(self.hours)
         bat_in = np.zeros(self.hours)
@@ -693,6 +693,10 @@ class Model_1:
                 ret[self.techs_o.tolist().index(g)][y] = ret_cap[g, y].X
                 inst[self.techs_o.tolist().index(g)][y] = inst_cap[g, y].X
                 added[self.techs_o.tolist().index(g)][y] = added_cap[g, y].X
+            ret[3][y] = ret_cap_e[y].X
+            inst[3][y] = inst_cap_e[y].X
+            added[3][y] = added_cap_e[y].X
+
 
         d = 2
         for h in range(self.hours):

@@ -51,7 +51,7 @@ def output_data(resultsArray):
         ret, columns=[i for i in range(ret.shape[1])]
     )
 
-    names = ['Diesel Generator', 'Owned PV', 'Owned Batteries']
+    names = ['Diesel Generator', 'Owned PV', 'Batteries (kw)', 'Batteries Capacity (kWh)']
     inst.index = names
     added.index = names
     ret.index = names
