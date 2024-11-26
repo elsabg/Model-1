@@ -226,7 +226,7 @@ class Model_1:
             tr[y] = quicksum(
                 ((disp[g, y, d, h] + b_out[y, d, h] - b_in[y, d, h]) * self.d_weights[d])
                 for g in self.techs_g
-                for d in range(self.days)
+                for d in range(self.days )
                 for h in range(self.hours)
             ) * self.elec_price
 

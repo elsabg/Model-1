@@ -18,7 +18,7 @@ from model_1 import Model_1
 #                                                                               #
 #-------------------------------------------------------------------------------#
 
-model = Model_1(_file_name='model_inputs_testing.xlsx')
+model = Model_1(_file_name='model_inputs_feedin.xlsx')
 model.load_data()
 
 #-------------------------------------------------------------------------------#
