@@ -29,7 +29,7 @@ class Model_1:
         #-------------------------------------------------------------------------------#
 
         self.years = int(self.data['parameters']['Planning horizon'][0])
-        self.days = int(self.data['parameters']['Days'][0]) - 1 #DO NOT FORGET TO REMOVE IT LATER I WENT OVER THE LIMIT FOR IT
+        self.days = int(self.data['parameters']['Days'][0]) - 1 #DO NOT FORGET TO REMOVE IT LATER
         self.hours = int(self.data['parameters']['Hours'][0])
         self.d_weights = self.data['day_weights']['Weight'].to_numpy()
 
