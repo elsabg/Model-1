@@ -82,9 +82,11 @@ class Model_1:
         self.ucc = self.tech_df['UCC'].to_dict()
         self.uofc = self.tech_df['UOFC'].to_dict()
         self.uovc = self.tech_df['UOVC'].to_dict()
-
+        
+        '''
         #Unmet demand
         self.ud_penalty = self.data['parameters']['Unmet demand penalty'][0]
+        '''
 
         #fixed heat rate value
         self.heat_r_v = 0.25
@@ -153,10 +155,8 @@ class Model_1:
         # Sets                                                                         #
         #------------------------------------------------------------------------------#
 
-        self.techs = self.data['tech'].iloc[:-1, 0].to_numpy()
-        self.techs_g = self.techs[:3] # ['Diesel Generator', 'Owned PV', 'Feed In Prosumers']
-        self.techs_g_o = self.techs[:2] # ['Diesel Generator', 'Owned PV']
-        self.techs_o = np.array(['Diesel Generator', 'Owned PV', 'Owned Batteries'])
+        self.techs = self.data['tech'].iloc[:-1, 0].to_numpy() # ['Disel Generator', 'Owned PV', 'Owned Batteries']
+        self.techs_g = self.techs[:2] # ['Diesel Generator', 'Owned PV']
 
 
 
@@ -166,7 +166,7 @@ class Model_1:
         self.fit = fit
         self.elec_price = elec_price
 
-        m = Model('Model_1_case_1')
+        m = Model('Model_1')
 
         '''
         Year 0 is outside of the planning horizon. The decisions start at year
@@ -179,10 +179,10 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb = 0, vtype = GRB.INTEGER)
+        added_cap = m.addVars(self.techs, self.years + 1, name='addedCap', lb = 0, vtype = GRB.INTEGER)
         added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0, vtype = GRB.INTEGER)
 
-        inst_cap = m.addVars(self.techs_o, self.years + 1, name='instCap', lb=0)
+        inst_cap = m.addVars(self.techs, self.years + 1, name='instCap', lb=0)
         inst_cap_e = m.addVars(self.years + 1, name='instCapE', lb=0)
 
         disp = m.addVars(self.techs_g, self.years + 1, self.days, self.hours, name='disp', lb=0)
@@ -192,7 +192,7 @@ class Model_1:
         b_in = m.addVars(self.years + 1, self.days, self.hours, name='bIn', lb = 0)
         b_out = m.addVars(self.years + 1, self.days, self.hours, name='bOut', lb = 0)
 
-        ret_cap = m.addVars(self.techs_o, self.years + 1, name='retiredCap', lb = 0)
+        ret_cap = m.addVars(self.techs, self.years + 1, name='retiredCap', lb = 0)
         ret_cap_e = m.addVars(self.years + 1, name='retiredCapE',  lb = 0)
 
         soc = m.addVars(self.years + 1, self.days, self.hours, name='SoC', lb = 0)
@@ -288,20 +288,21 @@ class Model_1:
                     for g in self.techs_o
                 )
             )
-
+            
+            '''
             # Cost of Unmet Demand
             tcud[y] = quicksum(
                 ud[y, d, h] * self.d_weights[d] * self.ud_penalty
                 for d in range(self.days)
                 for h in range(self.hours)
             )
-
+            '''
 
         # Net Present Value of Total Profits
         tp_npv = quicksum(
             (
                 (
-                    tr[y] - tcc[y] - tofc[y] - tcud[y]- tovc[y] #yearly profits
+                    tr[y] - tcc[y] - tofc[y] - tovc[y] #yearly profits without unmet demand penalty
                 ) * ( 1 / ((1 + self.i) ** y)) # discount factor
             ) for y in range(1, self.years + 1)
         )
