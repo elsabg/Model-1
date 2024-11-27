@@ -236,7 +236,7 @@ class Model_1:
                     ) for g in self.techs_o
                 ) + added_cap_e[y] * self.ucc['Owned Batteries Energy']
 
-
+            '''
             # Operation Variable Costs with fixed DG heat rate value
             tovc[y] = quicksum(
                 disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
@@ -256,8 +256,8 @@ class Model_1:
                 for d in range(self.days)
                 for h in range(self.hours)
             )
-
             '''
+
             # Operation Variable Costs with DG heat rate curve
             tovc[y] = (quicksum(
                 disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
@@ -278,7 +278,7 @@ class Model_1:
                 for d in range(self.days)
                 for h in range(self.hours)
             ))
-            '''
+
 
             # Operation Fixed Costs
             tofc[y] = quicksum(
@@ -575,7 +575,7 @@ class Model_1:
         # Heat Rate Curve                                                      #
         #----------------------------------------------------------------------#
 
-        '''
+
         bigM = 700 # find the max value of bigM
 
         m.addConstrs(
@@ -609,6 +609,7 @@ class Model_1:
             ),
             'heat rate 2.1'
         )
+        '''
         m.addConstrs(
             (
                 (disp['Diesel Generator', y, d, h] <=
