@@ -685,6 +685,7 @@ class Model_1:
         unmetD = np.zeros(self.hours)
         bat_in = np.zeros(self.hours)
         bat_out = np.zeros(self.hours)
+        state_of_charge = np.zeros((self.hours))
         num_households = np.zeros((len(self.house), self.years + 1))
         feed_in_energy = np.zeros(self.hours)
 
@@ -700,11 +701,12 @@ class Model_1:
 
         d = 2
         for h in range(self.hours):
-            disp_gen[h] = disp['Diesel Generator', 1, d, h].X
-            unmetD[h] = ud[1, d, h].X
-            bat_in[h] = b_in[1, d, h].X
-            bat_out[h] = b_out[1, d, h].X
-            feed_in_energy[h] = disp['Feed In Prosumers', 1, d, h].X
+            disp_gen[h] = disp['Diesel Generator', 10, d, h].X
+            unmetD[h] = ud[10, d, h].X
+            bat_in[h] = b_in[10, d, h].X
+            bat_out[h] = b_out[10, d, h].X
+            feed_in_energy[h] = disp['Feed In Prosumers', 10, d, h].X
+            state_of_charge[h] = soc[10, d, h].X
 
         for house in self.house:
             for y in range(self.years + 1):
@@ -716,10 +718,10 @@ class Model_1:
         for house in self.house:
             for d in range(self.days):
                 for h in range(self.hours):
-                    total_demand[d][h] += self.res_demand[house][d][h] * num_households[self.house.tolist().index(house)][12]
+                    total_demand[d][h] += self.res_demand[house][d][h] * num_households[self.house.tolist().index(house)][10]
 
 
 
-        return_array = [ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in_energy, total_demand]
+        return_array = [ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in_energy, total_demand, state_of_charge]
 
         return return_array

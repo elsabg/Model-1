@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 def output_data(resultsArray):
     '''Process output data'''
 
-    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in, total_demand = resultsArray
+    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in, total_demand, state_of_charge = resultsArray
 
     '''
     disp_gen = pd.DataFrame(
@@ -72,28 +72,40 @@ def output_data(resultsArray):
 def plot_data(resultsArray):
     '''plot some output data'''
 
-    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in, total_demand = resultsArray
+    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in, total_demand, state_of_charge = resultsArray
 
-    fig, ax = plt.subplots()
+    fig1, ax1 = plt.subplots()
     hours = np.arange(24)
 
     # Create the bottom bar
-    p1 = ax.bar(hours, disp_gen, label='Dispatched Generation', color='blue')
+    p1 = ax1.bar(hours, disp_gen, label='Dispatched Generation', color='blue')
 
     # Stack the other bars on top
-    p2 = ax.bar(hours, bat_out, bottom=disp_gen, label='Battery Output', color='red')
-    p3 = ax.bar(hours, feed_in, bottom=disp_gen + bat_out, label='Feed in', color='orange')
-    p4 = ax.bar(hours, unmetD, bottom=disp_gen + bat_out + feed_in, label='Unmet Demand', color='purple')
-    p5 = ax.bar(hours, -bat_in, label='Battery Input', color='green')
+    p2 = ax1.bar(hours, bat_out, bottom=disp_gen, label='Battery Output', color='red')
+    p3 = ax1.bar(hours, feed_in, bottom=disp_gen + bat_out, label='Feed in', color='orange')
+    p4 = ax1.bar(hours, unmetD, bottom=disp_gen + bat_out + feed_in, label='Unmet Demand', color='purple')
+    p5 = ax1.bar(hours, -bat_in, label='Battery Input', color='green')
 
-    ax.plot(hours, total_demand[2], label='Total Demand', color='black', linestyle='-', marker='o')
+    ax1.plot(hours, total_demand[2], label='Total Demand', color='black', linestyle='-', marker='o')
 
-    ax.set_xlabel('Hour')
-    ax.set_ylabel('Energy')
-    ax.set_title('Stacked Bar Chart of Energy Data over a Winter Day (Year 1)')
-    ax.legend(loc='upper left')
+    ax1.set_xlabel('Hour')
+    ax1.set_ylabel('Energy')
+    ax1.set_title('Stacked Bar Chart of Energy Data over a Summer Day (Year 10)')
+    ax1.legend(loc='upper left')
 
-    ax.legend()
+    ax1.legend()
+
+    fig2, ax2 = plt.subplots()
+    ax2.plot(hours, state_of_charge, label='State of Charge', color='blue', linestyle='-', marker='o')
+
+    q1 = ax2.bar(hours, bat_in, label='Battery Input', color='green')
+    p2 = ax2.bar(hours, -bat_out, label='Battery Output', color='red')
+    ax2.set_xlabel('Hour')
+    ax2.set_ylabel('State of Charge')
+    ax2.set_title('State of Charge over a Winter Day (Year 10)')
+    ax2.legend(loc='upper left')
+
+    #plt.tight_layout()
     plt.show()
 
 
