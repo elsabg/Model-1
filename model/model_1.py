@@ -205,7 +205,7 @@ class Model_1:
         int_cap_steps = m.addVars(len(self.cap_steps), self.years + 1, name = 'binCapSteps', vtype=GRB.INTEGER, lb = 0)
 
         bin_heat_rate = m.addVars(len(self.heat_r_k), self.years,
-                      self.days, self.hours // 3,
+                      self.days, self.hours // 2,
                       vtype=GRB.BINARY, name='binHeatRate')
 
 
@@ -249,7 +249,7 @@ class Model_1:
                     for d in range(self.days)
                     for h in range(self.hours)
                 ) + quicksum(
-                    quicksum(self.heat_r_k[i] * bin_heat_rate[i, y - 1, d, h // 3] for i in range(len(self.heat_r_k)))
+                    quicksum(self.heat_r_k[i] * bin_heat_rate[i, y - 1, d, h // 2] for i in range(len(self.heat_r_k)))
                     * disp['Diesel Generator', y, d, h] * self.diesel_p[y - 1] * self.d_weights[d]
                     for d in range(self.days)
                     for h in range(self.hours)
@@ -583,29 +583,29 @@ class Model_1:
                     quicksum(bin_heat_rate[i, y, d, h] for i in range(len(self.heat_r_k))) == 1
                     for y in range(self.years)
                     for d in range(self.days)
-                    for h in range(self.hours // 3)
+                    for h in range(self.hours // 2)
                 ),
                 "Sum Binary set = 1"
             )
             m.addConstrs(
                 (
-                    (disp['Diesel Generator', y, d, h * 3] <=
+                    (disp['Diesel Generator', y, d, h * 2] <=
                      inst_cap['Diesel Generator', y] * 0.25
                      + bigM * (1 - bin_heat_rate[0, y, d, h]))
                     for y in range(self.years)
                     for d in range(self.days)
-                    for h in range(self.hours // 3)
+                    for h in range(self.hours // 2)
                 ),
                 'heat rate 1.2'
             )
             m.addConstrs(
                 (
-                    (disp['Diesel Generator', y, d, h * 3] >=
+                    (disp['Diesel Generator', y, d, h * 2] >=
                      inst_cap['Diesel Generator', y] * 0.25
                      - bigM * (1 - bin_heat_rate[1, y, d, h]))
                     for y in range(self.years)
                     for d in range(self.days)
-                    for h in range(self.hours // 3)
+                    for h in range(self.hours // 2)
                 ),
                 'heat rate 2.1'
             )
@@ -691,7 +691,7 @@ class Model_1:
         state_of_charge = np.zeros(self.hours)
         num_households = np.zeros((len(self.house), self.years + 1))
         feed_in_energy = np.zeros(self.hours)
-        heat_rate_binaries = np.zeros((len(self.heat_r_k), self.hours // 3))
+        heat_rate_binaries = np.zeros((len(self.heat_r_k), self.hours // 2))
 
         for y in range(self.years + 1):
             for g in self.techs_o:
@@ -712,7 +712,7 @@ class Model_1:
             feed_in_energy[h] = disp['Feed In Prosumers', 10, d, h].X
             state_of_charge[h] = soc[10, d, h].X
             for i in range(len(self.heat_r_k)):
-                heat_rate_binaries[i][h // 3] = bin_heat_rate[i, 10, d, h // 3].X
+                heat_rate_binaries[i][h // 2] = bin_heat_rate[i, 10, d, h // 2].X
 
         for house in self.house:
             for y in range(self.years + 1):
