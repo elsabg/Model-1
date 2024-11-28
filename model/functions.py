@@ -51,6 +51,7 @@ def output_data(resultsArray):
         ret, columns=[i for i in range(ret.shape[1])]
     )
 
+
     names = ['Diesel Generator', 'Owned PV', 'Batteries (kw)', 'Batteries Capacity (kWh)']
     inst.index = names
     added.index = names
@@ -67,6 +68,9 @@ def output_data(resultsArray):
     print(ret.round(2))
     print('\n-----------Number of connected household types-----------\n')
     print(num_households)
+    print('\n-----------Dispatched Generation-----------\n')
+    print(disp_gen.round(2))
+
     return
 
 def plot_data(resultsArray):
