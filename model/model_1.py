@@ -103,41 +103,37 @@ class Model_1:
         #Household Types
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
 
-        #Demand
+        # Demand
         self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
         self.demand_2 = self.data['elec_demand (2)'].iloc[:, 1:].to_numpy()
         self.demand_3 = self.data['elec_demand (3)'].iloc[:, 1:].to_numpy()
         self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
         self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
 
-
-        # Residual Demand (without PV)
-        self.res_demand = {
+        self.demand = {
             'Type 1': self.demand_1.tolist(),
             'Type 2': self.demand_2.tolist(),
             'Type 3': self.demand_3.tolist(),
             'Type 4': self.demand_4.tolist(),
             'Type 5': self.demand_5.tolist()
         }
-
-        # feed in energy from prosumers
-        self.pros_feedin = {
+        
+        
+        # Surplus
+        # Positive surplus can be fed-in, negative surplus is additional demand
+        self.surplus = {
             'Type 1': self.demand_1.tolist(),
             'Type 2': self.demand_2.tolist(),
             'Type 3': self.demand_3.tolist(),
             'Type 4': self.demand_4.tolist(),
             'Type 5': self.demand_5.tolist()
         }
-
-        for h_type in self.res_demand:
-            for i in range(len(self.res_demand[h_type])):
-                for j in range(len(self.res_demand[h_type][i])):
-                    self.res_demand[h_type][i][j] = max(0, (self.res_demand[h_type][i][j]
-                        - self.cap_fact[i][j] * self.avg_pv_cap_str[h_type]))
-
-                    self.pros_feedin[h_type][i][j] = max(0, (self.cap_fact[i][j] * self.avg_pv_cap_str[h_type]
-                        - self.res_demand[h_type][i][j]))
-
+        for h in self.surplus: # house type
+            for i in range(len(self.surplus[h])): # days
+                for j in range(len(self.surplus[h][i])): #hours
+                    self.surplus[h][i][j] = (self.cap_fact[i][j] 
+                                             * self.avg_pv_cap_str[h]
+                                             - self.surplus[h][i][j])
 
         #----------------------------------------------------------------------#
         # Battery and other Parameters                                         #
@@ -238,10 +234,10 @@ class Model_1:
         for y in range(1, self.years + 1):
 
             # Revenue
-            tr[y] = self.elec_price 
-            * quicksum(((quicksum(disp[g, y, d, h] for g in self.techs_g) 
-                         + b_out[y, d, h] - b_in[y, d, h]) 
-                        * self.d_weights[d])
+            tr[y] = self.elec_price * quicksum((
+                (quicksum(disp[g, y, d, h] for g in self.techs_g) 
+                 + b_out[y, d, h] - b_in[y, d, h]) 
+                * self.d_weights[d])
                 for d in range(self.days )
                 for h in range(self.hours)
             )
@@ -259,11 +255,13 @@ class Model_1:
                 for d in range(self.days)
                 for h in range(self.hours)
             ) + quicksum(
-                (b_out[y, d, h] + b_in[y, d, h]) * self.d_weights[d] * self.uovc['Owned Batteries']
+                (b_out[y, d, h] + b_in[y, d, h]) 
+                * self.d_weights[d] * self.uovc['Owned Batteries']
                 for d in range(self.days)
                 for h in range(self.hours)
             ) + quicksum(
-                self.heat_r_v * disp['Diesel Generator', y, d, h] * self.diesel_p[y - 1] * self.d_weights[d]
+                self.heat_r_v * disp['Diesel Generator', y, d, h] 
+                * self.diesel_p[y - 1] * self.d_weights[d]
                 for d in range(self.days)
                 for h in range(self.hours)
             ) + quicksum(
@@ -320,22 +318,30 @@ class Model_1:
         #----------------------------------------------------------------------#
         # Demand and Dispatch                                                  #
         #----------------------------------------------------------------------#
-
-        m.addConstrs(
-            (
-                (quicksum(
-                    disp[g, y, d, h] for g in self.techs_g)
-                    + ud[y, d, h] + b_out[y, d, h] ==
-                quicksum(
-                    h_weight[i, y] * self.res_demand[i][d][h]
-                    for i in self.house) + b_in[y, d, h])
-                for h in range(self.hours)
-                for d in range(self.days)
-                for y in range(1, self.years + 1)
-            ),
-            "Supply-demand balance"
-        )
-
+        m.addConstrts(((b_out[y, d, h] 
+                        + quicksum(disp[g, y, d, h] for g in self.techs_g) 
+                        + quicksum(min(feed_in[y, d, h], 
+                                       h_weight[i, y] 
+                                       * self.surplus[i, y, d, h])
+                                  for i in self.house) == # no unmet demand 
+                        b_in[y, d, h]) 
+                       for h in range(self.hours)
+                       for d in range(self.days)
+                       for y in range(1, self.years + 1)
+                       ),
+                      "Supply-demand balance"
+            )
+        
+        m.addConstrts(((feed_in[i, y, d, h] <=
+                       max(0, h_weight[i, y] * self.surplus[i, y, d, h]))
+                       for i in self.house
+                       for h in range(self.hours)
+                       for d in range(self.days)
+                       for y in range(1, self.years + 1)
+                       ),
+                      "Feed in cap"
+            )
+        
         m.addConstrs(
             (
                 (disp['Diesel Generator', y, d, h] <=
