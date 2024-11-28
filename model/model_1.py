@@ -88,7 +88,7 @@ class Model_1:
         self.ud_penalty = self.data['parameters']['Unmet demand penalty'][0]
 
         #fixed heat rate value
-        self.heat_r_v = 0.35
+        self.heat_r_v = 0.30
 
         #heat rate curve
         self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
@@ -206,7 +206,7 @@ class Model_1:
 
         ud = m.addVars(self.years + 1, self.days, self.hours, name='unmetDemand', lb = 0)
 
-        h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0, vtype=GRB.INTEGER)
+        # h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0, vtype=GRB.INTEGER)
 
         int_cap_steps = m.addVars(len(self.cap_steps), self.years + 1, name = 'binCapSteps', vtype=GRB.INTEGER, lb = 0)
 
@@ -329,7 +329,7 @@ class Model_1:
                     disp[g, y, d, h] for g in self.techs_g)
                     + ud[y, d, h] + b_out[y, d, h] ==
                 quicksum(
-                    h_weight[i, y] * self.res_demand[i][d][h]
+                    self.max_house_str[i] * self.res_demand[i][d][h]
                     for i in self.house) + b_in[y, d, h])
                 for h in range(self.hours)
                 for d in range(self.days)
@@ -377,15 +377,6 @@ class Model_1:
                 for h in range(self.hours)
             ),
             "Maximum battery output"
-        )
-
-        m.addConstrs(
-            (
-                h_weight[i, y] <= self.max_house_str[i]
-                for i in self.house
-                for y in range(1, self.years + 1)
-            ),
-            "Maximum connected houses"
         )
 
         #----------------------------------------------------------------------#
@@ -436,7 +427,7 @@ class Model_1:
 
         m.addConstrs(
             (
-                feed_in[i, y, d, h] <= h_weight[i, y] * self.pros_feedin[i][d][h]
+                feed_in[i, y, d, h] <= self.max_house_str[i] * self.pros_feedin[i][d][h]
                 for i in self.house
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
@@ -678,7 +669,7 @@ class Model_1:
 
         for house in self.house:
             for y in range(self.years + 1):
-                num_households[self.house.tolist().index(house)][y] = np.abs(h_weight[house, y].X)
+                num_households[self.house.tolist().index(house)][y] = np.abs(self.max_house_str[house])
 
 
         total_demand = np.zeros((self.days, self.hours))
