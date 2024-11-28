@@ -18,7 +18,7 @@ from model_1 import Model_1
 #                                                                               #
 #-------------------------------------------------------------------------------#
 
-model = Model_1(_file_name='model_inputs_testing.xlsx')
+model = Model_1(_file_name='model_inputs_testing_v2.xlsx')
 model.load_data()
 
 #-------------------------------------------------------------------------------#
@@ -28,8 +28,8 @@ model.load_data()
 #-------------------------------------------------------------------------------#
 fit = 0.2
 el_price = 0.4
-
-results = model.solve(fit=fit, elec_price=el_price)
+heatrate_c_run = input("Run model with heatrate curve? (No: [Enter], Yes: y):")
+results = model.solve(fit=fit, elec_price=el_price, heatrate_c_run = heatrate_c_run)
 
 func.output_data(results)
 func.plot_data(results)
