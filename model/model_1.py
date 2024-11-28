@@ -24,18 +24,18 @@ class Model_1:
         self.data = pd.read_excel(self._file_name, decimal=',', sheet_name=None)
         self.tech_df = self.data['tech'].set_index('Unnamed: 0')
 
-        #-------------------------------------------------------------------------------#
-        # Time Parameters                                                               #
-        #-------------------------------------------------------------------------------#
+        #----------------------------------------------------------------------#
+        # Time Parameters                                                      #
+        #----------------------------------------------------------------------#
 
         self.years = int(self.data['parameters']['Planning horizon'][0])
         self.days = int(self.data['parameters']['Days'][0])
         self.hours = int(self.data['parameters']['Hours'][0])
         self.d_weights = self.data['day_weights']['Weight'].to_numpy()
 
-        #-------------------------------------------------------------------------------#
-        # Capacity Parameters                                                           #
-        #-------------------------------------------------------------------------------#
+        #----------------------------------------------------------------------#
+        # Capacity Parameters                                                  #
+        #----------------------------------------------------------------------#
 
         #Initial Generation Capacities
         self.init_cap = self.tech_df['Initial capacity'].iloc[:-1].to_dict()
@@ -62,9 +62,9 @@ class Model_1:
             'Type 5': self.avg_pv_cap[4]
         }
 
-        #-------------------------------------------------------------------------------#
-        # Lifetime                                                                      #
-        #-------------------------------------------------------------------------------#
+        #----------------------------------------------------------------------#
+        # Lifetime                                                             #
+        #----------------------------------------------------------------------#
 
         #Remaining lifetime
         self.life_0 = self.tech_df['Remaining lifetime'].iloc[:-1].to_dict()
@@ -74,9 +74,9 @@ class Model_1:
         self.life = self.tech_df['Lifetime'].iloc[:-1].to_dict()
         self.life_e = (self.data['tech']['Lifetime'].to_numpy())[-1]
 
-        #-------------------------------------------------------------------------------#
-        # Costs                                                                         #
-        #-------------------------------------------------------------------------------#
+        #----------------------------------------------------------------------#
+        # Costs                                                                #
+        #----------------------------------------------------------------------#
 
         #Technology costs
         self.ucc = self.tech_df['UCC'].to_dict()
@@ -96,9 +96,9 @@ class Model_1:
 
         self.diesel_p = self.data['tariffs']['Diesel Price'].to_numpy()
 
-        #-------------------------------------------------------------------------------#
-        # Electricity Demand                                                            #
-        #-------------------------------------------------------------------------------#
+        #----------------------------------------------------------------------#
+        # Electricity Demand                                                   #
+        #----------------------------------------------------------------------#
 
         #Household Types
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
@@ -139,9 +139,9 @@ class Model_1:
                         - self.res_demand[h_type][i][j]))
 
 
-        #-------------------------------------------------------------------------------#
-        # Battery and other Parameters                                                  #
-        #-------------------------------------------------------------------------------#
+        #----------------------------------------------------------------------#
+        # Battery and other Parameters                                         #
+        #----------------------------------------------------------------------#
 
         self.min_soc = self.data['parameters']['min SoC'][0]
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
@@ -149,14 +149,17 @@ class Model_1:
         self.i = self.data['parameters']['Interest rate'][0]
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
 
-        self.cap_steps = self.data['capacity_steps']['Diesel Generator'].to_numpy()
+        self.cap_steps = self.data['capacity_steps'][
+            'Diesel Generator'].to_numpy()
 
-        #------------------------------------------------------------------------------#
-        # Sets                                                                         #
-        #------------------------------------------------------------------------------#
+        #----------------------------------------------------------------------#
+        # Sets                                                                 #
+        #----------------------------------------------------------------------#
 
-        self.techs = self.data['tech'].iloc[:-1, 0].to_numpy() # ['Disel Generator', 'Owned PV', 'Owned Batteries']
-        self.techs_g = self.techs[:2] # ['Diesel Generator', 'Owned PV']
+        # All technologies (['Disel Generator', 'Owned PV', 'Owned Batteries'])
+        self.techs = self.data['tech'].iloc[:-1, 0].to_numpy() 
+        # Generation technologies (['Diesel Generator', 'Owned PV'])
+        self.techs_g = self.techs[:2] 
 
 
 
@@ -179,29 +182,41 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        added_cap = m.addVars(self.techs, self.years + 1, name='addedCap', lb = 0, vtype = GRB.INTEGER)
-        added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0, vtype = GRB.INTEGER)
+        added_cap = m.addVars(self.techs, self.years + 1, 
+                              name='addedCap', lb = 0, vtype = GRB.INTEGER)
+        added_cap_e = m.addVars(self.years + 1, 
+                                name='addedCapE', lb = 0, vtype = GRB.INTEGER)
 
         inst_cap = m.addVars(self.techs, self.years + 1, name='instCap', lb=0)
         inst_cap_e = m.addVars(self.years + 1, name='instCapE', lb=0)
 
-        disp = m.addVars(self.techs_g, self.years + 1, self.days, self.hours, name='disp', lb=0)
+        disp = m.addVars(self.techs_g, self.years + 1, self.days, self.hours, 
+                         name='disp', lb=0)
 
-        feed_in = m.addVars(self.house, self.years + 1, self.days, self.hours, name='feedIn', lb = 0)
+        feed_in = m.addVars(self.house, self.years + 1, self.days, self.hours, 
+                            name='feedIn', lb = 0)
 
-        b_in = m.addVars(self.years + 1, self.days, self.hours, name='bIn', lb = 0)
-        b_out = m.addVars(self.years + 1, self.days, self.hours, name='bOut', lb = 0)
+        b_in = m.addVars(self.years + 1, self.days, self.hours, 
+                         name='bIn', lb = 0)
+        b_out = m.addVars(self.years + 1, self.days, self.hours, 
+                          name='bOut', lb = 0)
 
-        ret_cap = m.addVars(self.techs, self.years + 1, name='retiredCap', lb = 0)
+        ret_cap = m.addVars(self.techs, self.years + 1, 
+                            name='retiredCap', lb = 0)
         ret_cap_e = m.addVars(self.years + 1, name='retiredCapE',  lb = 0)
 
-        soc = m.addVars(self.years + 1, self.days, self.hours, name='SoC', lb = 0)
+        soc = m.addVars(self.years + 1, self.days, self.hours, 
+                        name='SoC', lb = 0)
 
-        ud = m.addVars(self.years + 1, self.days, self.hours, name='unmetDemand', lb = 0)
+        ud = m.addVars(self.years + 1, self.days, self.hours, 
+                       name='unmetDemand', lb = 0)
 
-        h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0, vtype=GRB.INTEGER)
+        h_weight = m.addVars(self.house, self.years + 1, 
+                             name='houseWeight', lb = 0, vtype=GRB.INTEGER)
 
-        int_cap_steps = m.addVars(len(self.cap_steps), self.years +1, name = 'binCapSteps', vtype=GRB.INTEGER, lb = 0)
+        int_cap_steps = m.addVars(len(self.cap_steps), self.years +1, 
+                                  name = 'binCapSteps', vtype=GRB.INTEGER, 
+                                  lb = 0)
 
         bin_heat_rate = m.addVars(len(self.heat_r_k), self.years + 1,
                       self.days, self.hours,
@@ -223,25 +238,24 @@ class Model_1:
         for y in range(1, self.years + 1):
 
             # Revenue
-            tr[y] = quicksum(
-                ((disp[g, y, d, h] + b_out[y, d, h] - b_in[y, d, h]) * self.d_weights[d])
-                for g in self.techs_g
+            tr[y] = self.elec_price 
+            * quicksum(((quicksum(disp[g, y, d, h] for g in self.techs_g) 
+                         + b_out[y, d, h] - b_in[y, d, h]) 
+                        * self.d_weights[d])
                 for d in range(self.days )
                 for h in range(self.hours)
-            ) * self.elec_price
+            )
 
             # Capital Costs
             tcc[y] = quicksum(
-                    (
-                        added_cap[g, y] * self.ucc[g]
-                    ) for g in self.techs_g_o
-                ) + added_cap_e[y] * self.ucc['Owned Batteries']
+                (added_cap[g, y] * self.ucc[g]) for g in self.techs) 
+            + added_cap_e[y] * self.ucc['Owned Batteries']
 
-
+            '''
             # Operation Variable Costs with fixed DG heat rate value
             tovc[y] = quicksum(
                 disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                for g in self.techs_g_o
+                for g in self.techs_g
                 for d in range(self.days)
                 for h in range(self.hours)
             ) + quicksum(
@@ -260,33 +274,24 @@ class Model_1:
 
             '''
             # Operation Variable Costs with DG heat rate curve
-            tovc[y] = (quicksum(
-                disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                for g in self.techs_g_o
-                for d in range(self.days)
-                for h in range(self.hours)
-            ) + quicksum(
-                (b_out[y, d, h] + b_in[y, d, h]) * self.d_weights[d] * self.uovc['Owned Batteries']
-                for d in range(self.days)
-                for h in range(self.hours)
-            ) + quicksum(
-                quicksum(self.heat_r_k[i] * bin_heat_rate[i, y, d, h] for i in range(len(self.heat_r_k)))
-                    * disp['Diesel Generator', y, d, h] * self.diesel_p[y - 1] * self.d_weights[d]
-                for d in range(self.days)
-                for h in range(self.hours)
-            ) + quicksum(
-                quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit
-                for d in range(self.days)
-                for h in range(self.hours)
-            ))
-            '''
+            tovc[y] = (quicksum((quicksum((self.uovc[g] * disp[g, y, d, h]) 
+                                        for g in self.techs_g)
+                               + quicksum((self.fit * feed_in[i, y, d, h]) 
+                                          for i in self.house)
+                               + self.uovc['Owned Batteries'] 
+                               * (B_out[y, d, h] + B_in[y, d, h])) 
+                               * self.d_weights[d]
+                               for h in range(self.hours)
+                               for d in range(self.days))
+                       + quicksum(heat_rate * disp['Diesel Generator', y, d, h]
+                                  * self.diesel_p * self.d_weights[d]
+                                  for h in range(self.hours)
+                                  for d in range(self.days))
+                       )
 
             # Operation Fixed Costs
-            tofc[y] = quicksum(
-                (
-                    inst_cap[g, y] * self.uofc[g]
-                    for g in self.techs_o
-                )
+            tofc[y] = quicksum((inst_cap[g, y] * self.uofc[g]) 
+                               for g in self.techs
             )
             
             '''
@@ -298,13 +303,10 @@ class Model_1:
             )
             '''
 
-        # Net Present Value of Total Profits
-        tp_npv = quicksum(
-            (
-                (
-                    tr[y] - tcc[y] - tofc[y] - tovc[y] #yearly profits without unmet demand penalty
-                ) * ( 1 / ((1 + self.i) ** y)) # discount factor
-            ) for y in range(1, self.years + 1)
+        # Net Present Value of Total Profits without unmet demand penalty
+        tp_npv = quicksum(((tr[y] - tcc[y] - tofc[y] - tovc[y]) 
+                           * ( 1 / ((1 + self.i) ** y))) #discount factor
+                          for y in range(1, self.years + 1)
         )
 
         m.setObjective(tp_npv, GRB.MAXIMIZE)
@@ -393,7 +395,7 @@ class Model_1:
                 (inst_cap[g, y] ==
                 inst_cap[g, y-1] + added_cap[g, y]
                 - ret_cap[g, y])
-                for g in self.techs_o
+                for g in self.techs
                 for y in range(1, self.years + 1)
             ),
             "Tracking capacity"
