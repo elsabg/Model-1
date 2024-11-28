@@ -59,7 +59,8 @@ def output_data(resultsArray):
     names_housetypes = ['Consumer Residential', 'Prosumer Residential', 'Solar Farm', 'Water Pumping Station', 'Prosumer Business']
     num_households.index = names_housetypes
 
-
+    print('\n-----------Dispatched Generation-----------\n')
+    print(disp_gen.round(2))
     print('\n-----------installed capacity-----------\n')
     print(inst.round(2))
     print('\n-----------added capacity-----------\n')
@@ -68,9 +69,6 @@ def output_data(resultsArray):
     print(ret.round(2))
     print('\n-----------Number of connected household types-----------\n')
     print(num_households)
-    print('\n-----------Dispatched Generation-----------\n')
-    print(disp_gen.round(2))
-
     return
 
 def plot_data(resultsArray):
