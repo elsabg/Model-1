@@ -341,11 +341,9 @@ class Model_1:
                        ),
                       "Feed in cap"
             )
-<<<<<<< HEAD
+
         #------------------------------------------------------------------
-=======
-        
->>>>>>> origin/math_rework
+
         m.addConstrs(
             (
                 (disp['Diesel Generator', y, d, h] <=
