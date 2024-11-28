@@ -51,7 +51,6 @@ def output_data(resultsArray):
         ret, columns=[i for i in range(ret.shape[1])]
     )
 
-
     names = ['Diesel Generator', 'Owned PV', 'Batteries (kw)', 'Batteries Capacity (kWh)']
     inst.index = names
     added.index = names
@@ -92,7 +91,7 @@ def plot_data(resultsArray):
 
     ax1.set_xlabel('Hour')
     ax1.set_ylabel('Energy')
-    ax1.set_title('Stacked Bar Chart of Energy Data over a Summer Day (Year 10)')
+    ax1.set_title('Stacked Bar Chart of Energy Data over a Winter Day (Year 10)')
     ax1.legend(loc='upper left')
 
     ax1.legend()
