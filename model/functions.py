@@ -87,7 +87,7 @@ def plot_data(resultsArray):
     p4 = ax1.bar(hours, unmetD, bottom=disp_gen + bat_out + feed_in, label='Unmet Demand', color='purple')
     p5 = ax1.bar(hours, -bat_in, label='Battery Input', color='green')
 
-    ax1.plot(hours, total_demand[2], label='Total Demand', color='black', linestyle='-', marker='o')
+    ax1.plot(hours, total_demand[0], label='Total Demand', color='black', linestyle='-', marker='o')
 
     ax1.set_xlabel('Hour')
     ax1.set_ylabel('Energy')

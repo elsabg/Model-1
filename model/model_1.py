@@ -10,6 +10,8 @@ import pandas as pd
 from fontTools.misc.bezierTools import epsilon
 from gurobipy import *
 
+import customer_demand as cd
+
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 
@@ -128,14 +130,9 @@ class Model_1:
             'Type 5': self.demand_5.tolist()
         }
 
-        for h_type in self.res_demand:
-            for i in range(len(self.res_demand[h_type])):
-                for j in range(len(self.res_demand[h_type][i])):
-                    self.res_demand[h_type][i][j] = max(0, (self.res_demand[h_type][i][j]
-                        - self.cap_fact[i][j] * self.avg_pv_cap_str[h_type]))
+        cd.calc_res_demand(self)
+        cd.calc_pros_feedin(self)
 
-                    self.pros_feedin[h_type][i][j] = max(0, (self.cap_fact[i][j] * self.avg_pv_cap_str[h_type]
-                        - self.res_demand[h_type][i][j]))
 
 
         #-------------------------------------------------------------------------------#
@@ -329,8 +326,7 @@ class Model_1:
                     disp[g, y, d, h] for g in self.techs_g)
                     + ud[y, d, h] + b_out[y, d, h] ==
                 quicksum(
-                    self.max_house_str[i] * self.res_demand[i][d][h]
-                    for i in self.house) + b_in[y, d, h])
+                    [cd.mc_demand(self, d, h) + b_in[y, d, h]]))
                 for h in range(self.hours)
                 for d in range(self.days)
                 for y in range(1, self.years + 1)
@@ -654,7 +650,7 @@ class Model_1:
             added[3][y] = added_cap_e[y].X
 
 
-        day = 2
+        day = 0
         year = 10
         for h in range(self.hours):
             disp_gen[h] = disp['Diesel Generator', year, day, h].X
