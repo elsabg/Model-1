@@ -252,7 +252,7 @@ class Model_1:
                 for d in range(self.days)
                 for h in range(self.hours)
             ) + quicksum(
-                quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit
+                quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit * self.d_weights[d]
                 for d in range(self.days)
                 for h in range(self.hours)
             )
@@ -274,7 +274,7 @@ class Model_1:
                 for d in range(self.days)
                 for h in range(self.hours)
             ) + quicksum(
-                quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit
+                quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit * self.d_weights[d]
                 for d in range(self.days)
                 for h in range(self.hours)
             ))
