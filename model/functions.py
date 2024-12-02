@@ -58,7 +58,8 @@ def output_data(resultsArray):
     names_housetypes = ['Consumer Residential', 'Prosumer Residential', 'Solar Farm', 'Water Pumping Station', 'Prosumer Business']
     num_households.index = names_housetypes
 
-
+    print('\n-----------Dispatched Generation-----------\n')
+    print(disp_gen.round(2))
     print('\n-----------installed capacity-----------\n')
     print(inst.round(2))
     print('\n-----------added capacity-----------\n')
@@ -90,7 +91,7 @@ def plot_data(resultsArray):
 
     ax1.set_xlabel('Hour')
     ax1.set_ylabel('Energy')
-    ax1.set_title('Stacked Bar Chart of Energy Data over a Summer Day (Year 10)')
+    ax1.set_title('Stacked Bar Chart of Energy Data over a Winter Day (Year 10)')
     ax1.legend(loc='upper left')
 
     ax1.legend()

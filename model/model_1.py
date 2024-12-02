@@ -7,6 +7,7 @@ Created on Tue Oct  8 21:51:57 2024
 
 import numpy as np
 import pandas as pd
+from fontTools.misc.bezierTools import epsilon
 from gurobipy import *
 
 pd.set_option('display.max_rows', None)
@@ -87,7 +88,7 @@ class Model_1:
         self.ud_penalty = self.data['parameters']['Unmet demand penalty'][0]
 
         #fixed heat rate value
-        self.heat_r_v = 0.42
+        self.heat_r_v = 0.35
 
         #heat rate curve
         self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
@@ -143,6 +144,7 @@ class Model_1:
 
         self.min_soc = self.data['parameters']['min SoC'][0]
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
+        self.cap_power_ratio = 6    # 6 hours of storage
 
         self.i = self.data['parameters']['Interest rate'][0]
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
@@ -160,14 +162,15 @@ class Model_1:
 
 
 
-    def solve(self, fit, elec_price):
+    def solve(self, fit, elec_price, heatrate_c_run):
         'Create and solve the model'
 
         self.fit = fit
         self.elec_price = elec_price
+        self.heatrate_c_run = heatrate_c_run
 
         m = Model('Model_1_case_1')
-
+        m.setParam('MIPGap', 0.015)
         '''
         Year 0 is outside of the planning horizon. The decisions start at year
         1, while year 0 only holds initial capacities.
@@ -179,7 +182,11 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb = 0, vtype = GRB.INTEGER)
+        added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb=0, vtype=GRB.INTEGER)
+        for y in range(self.years + 1):
+            added_cap['Owned Batteries', y].vtype = GRB.CONTINUOUS
+
+        #added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb = 0, vtype = GRB.INTEGER)
         added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0, vtype = GRB.INTEGER)
 
         inst_cap = m.addVars(self.techs_o, self.years + 1, name='instCap', lb=0)
@@ -201,9 +208,9 @@ class Model_1:
 
         h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0, vtype=GRB.INTEGER)
 
-        int_cap_steps = m.addVars(len(self.cap_steps), self.years +1, name = 'binCapSteps', vtype=GRB.INTEGER, lb = 0)
+        int_cap_steps = m.addVars(len(self.cap_steps), self.years + 1, name = 'binCapSteps', vtype=GRB.INTEGER, lb = 0)
 
-        bin_heat_rate = m.addVars(len(self.heat_r_k), self.years + 1,
+        bin_heat_rate = m.addVars(len(self.heat_r_k), self.years,
                       self.days, self.hours,
                       vtype=GRB.BINARY, name='binHeatRate')
 
@@ -233,52 +240,51 @@ class Model_1:
             tcc[y] = quicksum(
                     (
                         added_cap[g, y] * self.ucc[g]
-                    ) for g in self.techs_o
+                    ) for g in self.techs_g_o
                 ) + added_cap_e[y] * self.ucc['Owned Batteries Energy']
 
-
-            # Operation Variable Costs with fixed DG heat rate value
-            tovc[y] = quicksum(
-                disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                for g in self.techs_g_o
-                for d in range(self.days)
-                for h in range(self.hours)
-            ) + quicksum(
-                (b_out[y, d, h] + b_in[y, d, h]) * self.d_weights[d] * self.uovc['Owned Batteries']
-                for d in range(self.days)
-                for h in range(self.hours)
-            ) + quicksum(
-                self.heat_r_v * disp['Diesel Generator', y, d, h] * self.diesel_p[y - 1] * self.d_weights[d]
-                for d in range(self.days)
-                for h in range(self.hours)
-            ) + quicksum(
-                quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit * self.d_weights[d]
-                for d in range(self.days)
-                for h in range(self.hours)
-            )
-
-            '''
-            # Operation Variable Costs with DG heat rate curve
-            tovc[y] = (quicksum(
-                disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                for g in self.techs_g_o
-                for d in range(self.days)
-                for h in range(self.hours)
-            ) + quicksum(
-                (b_out[y, d, h] + b_in[y, d, h]) * self.d_weights[d] * self.uovc['Owned Batteries']
-                for d in range(self.days)
-                for h in range(self.hours)
-            ) + quicksum(
-                quicksum(self.heat_r_k[i] * bin_heat_rate[i, y, d, h] for i in range(len(self.heat_r_k)))
+            if self.heatrate_c_run == 'y':
+                # Operation Variable Costs with DG heat rate curve
+                tovc[y] = (quicksum(
+                    disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
+                    for g in self.techs_g_o
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ) + quicksum(
+                    (b_out[y, d, h] + b_in[y, d, h]) * self.d_weights[d] * self.uovc['Owned Batteries']
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ) + quicksum(
+                    quicksum(self.heat_r_k[i] * bin_heat_rate[i, y - 1, d, h] for i in range(len(self.heat_r_k)))
                     * disp['Diesel Generator', y, d, h] * self.diesel_p[y - 1] * self.d_weights[d]
-                for d in range(self.days)
-                for h in range(self.hours)
-            ) + quicksum(
-                quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit * self.d_weights[d]
-                for d in range(self.days)
-                for h in range(self.hours)
-            ))
-            '''
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ) + quicksum(
+                    quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ))
+            else:
+                # Operation Variable Costs with fixed DG heat rate value
+                tovc[y] = quicksum(
+                    disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
+                    for g in self.techs_g_o
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ) + quicksum(
+                    (b_out[y, d, h] + b_in[y, d, h]) * self.d_weights[d] * self.uovc['Owned Batteries']
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ) + quicksum(
+                    self.heat_r_v * disp['Diesel Generator', y, d, h] * self.diesel_p[y - 1] * self.d_weights[d]
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ) + quicksum(
+                    quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                )
+
 
             # Operation Fixed Costs
             tofc[y] = quicksum(
@@ -501,6 +507,15 @@ class Model_1:
             "Initial storage capacity"
         )
 
+        m.addConstrs(
+            (
+                added_cap['Owned Batteries', y] ==
+                added_cap_e[y] / self.cap_power_ratio
+                for y in range(1, self.years + 1)
+            ),
+            "Set Battery Power through added capacity"
+        )
+
         #----------------------------------------------------------------------#
         # Generation Retirement                                                #
         #----------------------------------------------------------------------#
@@ -575,97 +590,45 @@ class Model_1:
         # Heat Rate Curve                                                      #
         #----------------------------------------------------------------------#
 
-        '''
-        bigM = 700 # find the max value of bigM
+        if self.heatrate_c_run == 'y':
+            bigM = 700  # find the max value of bigM
 
-        m.addConstrs(
-            (
-                quicksum(bin_heat_rate[i, y, d, h] for i in range(len(self.heat_r_k))) == 1
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(self.hours)
-            ),
-            "Sum Binary set = 1"
-        )
-        m.addConstrs(
-            (
-                (disp['Diesel Generator', y, d, h] <=
-                inst_cap['Diesel Generator', y] * 0.25
-                + bigM * (1-bin_heat_rate[0, y, d, h]))
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(self.hours)
-            ),
-            'heat rate 1.2'
-        )
-        m.addConstrs(
-            (
-                (disp['Diesel Generator', y, d, h] >=
-                inst_cap['Diesel Generator', y] * 0.25
-                - bigM * (1-bin_heat_rate[1, y, d, h]))
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(self.hours)
-            ),
-            'heat rate 2.1'
-        )
-        m.addConstrs(
-            (
-                (disp['Diesel Generator', y, d, h] <=
-                inst_cap['Diesel Generator', y] * 0.5
-                + bigM * (1-bin_heat_rate[1, y, d, h]))
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(self.hours)
-            ),
-            'heat rate 2.2'
-        )
-        m.addConstrs(
-            (
-                (disp['Diesel Generator', y, d, h] >=
-                inst_cap['Diesel Generator', y] * 0.5
-                - bigM * (1-bin_heat_rate[2, y, d, h]))
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(self.hours)
-            ),
-            'heat rate 3.1'
-        )
-        m.addConstrs(
-            (
-                (disp['Diesel Generator', y, d, h] <=
-                inst_cap['Diesel Generator', y] * 0.75
-                + bigM * (1-bin_heat_rate[2, y, d, h]))
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(self.hours)
-            ),
-            'heat rate 3.2'
-        )
-        m.addConstrs(
-            (
-                (disp['Diesel Generator', y, d, h] >=
-                inst_cap['Diesel Generator', y] * 0.75
-                - bigM * (1-bin_heat_rate[3, y, d, h]))
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(self.hours)
-            ),
-            'heat rate 4.1'
-        )
-        m.addConstrs(
-            (
-                (disp['Diesel Generator', y, d, h] <=
-                inst_cap['Diesel Generator', y]
-                + bigM * (1 - bin_heat_rate[3, y, d, h]))
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(self.hours)
-            ),
-            'heat rate 4.2'
-        )
+            m.addConstrs(
+                (
+                    quicksum(bin_heat_rate[i, y, d, h] for i in range(len(self.heat_r_k))) == 1
+                    for y in range(self.years)
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ),
+                "Sum Binary set = 1"
+            )
+            # epsilon = 1e-6  # Small positive value
+            m.addConstrs(
+                (
+                    (disp['Diesel Generator', y, d, h] <=
+                     inst_cap['Diesel Generator', y] * 0.25
+                     + bigM * (1 - bin_heat_rate[0, y, d, h]) - epsilon)
+                    for y in range(self.years)
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ),
+                'heat rate 1.2'
+            )
 
-        '''
+
+            m.addConstrs(
+                (
+                    (disp['Diesel Generator', y, d, h] >=
+                     inst_cap['Diesel Generator', y] * 0.25
+                     - bigM * (1 - bin_heat_rate[1, y, d, h]))
+                    for y in range(self.years)
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ),
+                'heat rate 2.1'
+            )
+
+
         #----------------------------------------------------------------------#
         # Optimization                                                         #
         #----------------------------------------------------------------------#
@@ -685,9 +648,10 @@ class Model_1:
         unmetD = np.zeros(self.hours)
         bat_in = np.zeros(self.hours)
         bat_out = np.zeros(self.hours)
-        state_of_charge = np.zeros((self.hours))
+        state_of_charge = np.zeros(self.hours)
         num_households = np.zeros((len(self.house), self.years + 1))
         feed_in_energy = np.zeros(self.hours)
+        heat_rate_binary = np.zeros((len(self.heat_r_k), self.hours))
 
         for y in range(self.years + 1):
             for g in self.techs_o:
@@ -699,14 +663,18 @@ class Model_1:
             added[3][y] = added_cap_e[y].X
 
 
-        d = 2
+        day = 2
+        year = 10
         for h in range(self.hours):
-            disp_gen[h] = disp['Diesel Generator', 10, d, h].X
-            unmetD[h] = ud[10, d, h].X
-            bat_in[h] = b_in[10, d, h].X
-            bat_out[h] = b_out[10, d, h].X
-            feed_in_energy[h] = disp['Feed In Prosumers', 10, d, h].X
-            state_of_charge[h] = soc[10, d, h].X
+            disp_gen[h] = disp['Diesel Generator', year, day, h].X
+            unmetD[h] = ud[year, day, h].X
+            bat_in[h] = b_in[year, day, h].X
+            bat_out[h] = b_out[year, day, h].X
+            feed_in_energy[h] = disp['Feed In Prosumers', year, day, h].X
+            state_of_charge[h] = soc[year, day, h].X
+            if self.heatrate_c_run == 'y':
+                for i in range(len(self.heat_r_k)):
+                    heat_rate_binary[i, h] = bin_heat_rate[i, year, day, h].X
 
         for house in self.house:
             for y in range(self.years + 1):
@@ -721,7 +689,11 @@ class Model_1:
                     total_demand[d][h] += self.res_demand[house][d][h] * num_households[self.house.tolist().index(house)][10]
 
 
-
         return_array = [ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in_energy, total_demand, state_of_charge]
+
+        print('Year:', year)
+        print('Day:', day)
+        if self.heatrate_c_run == 'y':
+            print(pd.DataFrame(heat_rate_binary))
 
         return return_array
