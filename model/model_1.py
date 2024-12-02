@@ -55,14 +55,16 @@ class Model_1:
             'Type 2': self.max_house[1],
             'Type 3': self.max_house[2],
             'Type 4': self.max_house[3],
-            'Type 5': self.max_house[4]
+            'Type 5': self.max_house[4],
+            'Type 6': self.max_house[5]
         }
         self.avg_pv_cap_str = {
             'Type 1': self.avg_pv_cap[0],
             'Type 2': self.avg_pv_cap[1],
             'Type 3': self.avg_pv_cap[2],
             'Type 4': self.avg_pv_cap[3],
-            'Type 5': self.avg_pv_cap[4]
+            'Type 5': self.avg_pv_cap[4],
+            'Type 6': self.avg_pv_cap[5]
         }
 
         #-------------------------------------------------------------------------------#
@@ -104,12 +106,20 @@ class Model_1:
         #Household Types
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
 
+        #historic demand
+        self.hist_demand = self.data['hist_demand']['demand'][0]
+        self.hist_price = self.data['hist_demand']['price'][0]
+
+        #demand elasticity
+        self.elasticity = self.data['parameters']['demand_elasticity'][0]
+
         #Demand
         self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
         self.demand_2 = self.data['elec_demand (2)'].iloc[:, 1:].to_numpy()
         self.demand_3 = self.data['elec_demand (3)'].iloc[:, 1:].to_numpy()
         self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
         self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
+        self.demand_6 = self.data['elec_demand (6)'].iloc[:, 1:].to_numpy()
 
 
         # Residual Demand (without PV)
@@ -118,7 +128,8 @@ class Model_1:
             'Type 2': self.demand_2.tolist(),
             'Type 3': self.demand_3.tolist(),
             'Type 4': self.demand_4.tolist(),
-            'Type 5': self.demand_5.tolist()
+            'Type 5': self.demand_5.tolist(),
+            'Type 6': self.demand_6.tolist()
         }
 
         # feed in energy from prosumers
@@ -127,7 +138,8 @@ class Model_1:
             'Type 2': self.demand_2.tolist(),
             'Type 3': self.demand_3.tolist(),
             'Type 4': self.demand_4.tolist(),
-            'Type 5': self.demand_5.tolist()
+            'Type 5': self.demand_5.tolist(),
+            'Type 6': self.demand_6.tolist()
         }
 
         cd.calc_res_demand(self)
@@ -243,8 +255,7 @@ class Model_1:
             if self.heatrate_c_run == 'y':
                 # Operation Variable Costs with DG heat rate curve
                 tovc[y] = (quicksum(
-                    disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                    for g in self.techs_g_o
+                    quicksum(disp[g, y, d, h] * self.uovc[g] for g in self.techs_g_o) * self.d_weights[d] # battery uovc = 0
                     for d in range(self.days)
                     for h in range(self.hours)
                 ) + quicksum(
@@ -257,15 +268,14 @@ class Model_1:
                     for d in range(self.days)
                     for h in range(self.hours)
                 ) + quicksum(
-                    quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit
+                    quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit * self.d_weights[d]
                     for d in range(self.days)
                     for h in range(self.hours)
                 ))
             else:
                 # Operation Variable Costs with fixed DG heat rate value
                 tovc[y] = quicksum(
-                    disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                    for g in self.techs_g_o
+                    quicksum(disp[g, y, d, h] * self.uovc[g] for g in self.techs_g_o) * self.d_weights[d] # battery uovc = 0
                     for d in range(self.days)
                     for h in range(self.hours)
                 ) + quicksum(
@@ -277,7 +287,7 @@ class Model_1:
                     for d in range(self.days)
                     for h in range(self.hours)
                 ) + quicksum(
-                    quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit
+                    quicksum(feed_in[i, y, d, h] for i in self.house) * self.fit * self.d_weights[d]
                     for d in range(self.days)
                     for h in range(self.hours)
                 )
@@ -412,7 +422,7 @@ class Model_1:
 
         m.addConstrs(
             (
-                disp['Feed In Prosumers', y, d, h] <=
+                disp['Feed In Prosumers', y, d, h] ==
                     quicksum(feed_in[i, y, d, h] for i in self.house)
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
@@ -632,6 +642,7 @@ class Model_1:
         inst = np.zeros((4, self.years + 1)) # installed capacity
         added = np.zeros((4, self.years + 1)) # added capacity
         disp_gen = np.zeros(self.hours)
+        disp_pv = np.zeros(self.hours)
         unmetD = np.zeros(self.hours)
         bat_in = np.zeros(self.hours)
         bat_out = np.zeros(self.hours)
@@ -650,10 +661,11 @@ class Model_1:
             added[3][y] = added_cap_e[y].X
 
 
-        day = 0
-        year = 10
+        day = 2
+        year = 8
         for h in range(self.hours):
             disp_gen[h] = disp['Diesel Generator', year, day, h].X
+            disp_pv[h] = disp['Owned PV', year, day, h].X
             unmetD[h] = ud[year, day, h].X
             bat_in[h] = b_in[year, day, h].X
             bat_out[h] = b_out[year, day, h].X
@@ -661,7 +673,7 @@ class Model_1:
             state_of_charge[h] = soc[year, day, h].X
             if self.heatrate_c_run == 'y':
                 for i in range(len(self.heat_r_k)):
-                    heat_rate_binary[i, h] = bin_heat_rate[i, year, day, h].X
+                    heat_rate_binary[i, h] = bin_heat_rate[i, year-1, day, h].X
 
         for house in self.house:
             for y in range(self.years + 1):
@@ -676,7 +688,7 @@ class Model_1:
                     total_demand[d][h] += self.res_demand[house][d][h] * num_households[self.house.tolist().index(house)][10]
 
 
-        return_array = [ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in_energy, total_demand, state_of_charge]
+        return_array = [ret, inst, added, disp_gen, disp_pv, unmetD, bat_in, bat_out, num_households, feed_in_energy, total_demand, state_of_charge]
 
         print('Year:', year)
         print('Day:', day)
