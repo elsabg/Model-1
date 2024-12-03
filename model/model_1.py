@@ -107,11 +107,13 @@ class Model_1:
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
 
         #historic demand
-        self.hist_demand = self.data['hist_demand']['demand'][0]
-        self.hist_price = self.data['hist_demand']['price'][0]
+        self.hist_demand = self.data['hist_demand']['demand']
+        self.hist_price = self.data['hist_demand']['price']
 
         #demand elasticity
         self.elasticity = self.data['parameters']['demand_elasticity'][0]
+        self.elastic_mondemand = np.zeros(self.days)
+        self.elastic_daydemand = np.zeros((len(self.house), self.days))
 
         #Demand
         self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
@@ -160,6 +162,8 @@ class Model_1:
 
         self.cap_steps = self.data['capacity_steps']['Diesel Generator'].to_numpy()
 
+        self.list_elec_price = self.data['elec_price']['price'].to_numpy()
+
         #------------------------------------------------------------------------------#
         # Sets                                                                         #
         #------------------------------------------------------------------------------#
@@ -177,6 +181,9 @@ class Model_1:
         self.fit = fit
         self.elec_price = elec_price
         self.heatrate_c_run = heatrate_c_run
+
+        for d in range(self.days):
+            cd.calc_elastic_mondemand(self, d)
 
         m = Model('Model_1_case_1')
         m.setParam('MIPGap', 0.015)
@@ -223,6 +230,8 @@ class Model_1:
                       self.days, self.hours,
                       vtype=GRB.BINARY, name='binHeatRate')
 
+        bin_price_curve = m.addVars(len(self.list_elec_price), vtype=GRB.BINARY, name='binPriceCurve')
+
 
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -243,7 +252,7 @@ class Model_1:
                 ((quicksum(disp[g, y, d, h] for g in self.techs_g) + b_out[y, d, h] - b_in[y, d, h]) * self.d_weights[d])
                 for d in range(self.days)
                 for h in range(self.hours)
-            ) * self.elec_price
+            ) * quicksum(self.list_elec_price[i] * bin_price_curve[i] for i in range(len(self.list_elec_price)))
 
             # Capital Costs
             tcc[y] = quicksum(
@@ -336,7 +345,7 @@ class Model_1:
                     disp[g, y, d, h] for g in self.techs_g)
                     + ud[y, d, h] + b_out[y, d, h] ==
                 quicksum(
-                    [cd.mc_demand(self, d, h) + b_in[y, d, h]]))
+                    [cd.elastic_mc_demand(self, d, h) + b_in[y, d, h]]))
                 for h in range(self.hours)
                 for d in range(self.days)
                 for y in range(1, self.years + 1)
@@ -624,6 +633,17 @@ class Model_1:
                 ),
                 'heat rate 2.1'
             )
+
+        # ----------------------------------------------------------------------#
+        # Price Curve (el. Demand)                                              #
+        # ----------------------------------------------------------------------#
+
+        m.addConst(
+            (
+                quicksum(bin_price_curve[i] for i in range(len(self.heat_r_k))) == 1
+            ),
+            "Sum Binary set = 1"
+        )
 
 
         #----------------------------------------------------------------------#
