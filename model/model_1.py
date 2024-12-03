@@ -10,6 +10,8 @@ import pandas as pd
 from fontTools.misc.bezierTools import epsilon
 from gurobipy import *
 
+import customer_demand as cd
+
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 
@@ -53,14 +55,16 @@ class Model_1:
             'Type 2': self.max_house[1],
             'Type 3': self.max_house[2],
             'Type 4': self.max_house[3],
-            'Type 5': self.max_house[4]
+            'Type 5': self.max_house[4],
+            'Type 6': self.max_house[5]
         }
         self.avg_pv_cap_str = {
             'Type 1': self.avg_pv_cap[0],
             'Type 2': self.avg_pv_cap[1],
             'Type 3': self.avg_pv_cap[2],
             'Type 4': self.avg_pv_cap[3],
-            'Type 5': self.avg_pv_cap[4]
+            'Type 5': self.avg_pv_cap[4],
+            'Type 6': self.avg_pv_cap[5]
         }
 
         #-------------------------------------------------------------------------------#
@@ -88,7 +92,7 @@ class Model_1:
         self.ud_penalty = self.data['parameters']['Unmet demand penalty'][0]
 
         #fixed heat rate value
-        self.heat_r_v = 0.35
+        self.heat_r_v = 0.30
 
         #heat rate curve
         self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
@@ -102,12 +106,20 @@ class Model_1:
         #Household Types
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
 
+        #historic demand
+        self.hist_demand = self.data['hist_demand']['demand'][0]
+        self.hist_price = self.data['hist_demand']['price'][0]
+
+        #demand elasticity
+        self.elasticity = self.data['parameters']['demand_elasticity'][0]
+
         #Demand
         self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
         self.demand_2 = self.data['elec_demand (2)'].iloc[:, 1:].to_numpy()
         self.demand_3 = self.data['elec_demand (3)'].iloc[:, 1:].to_numpy()
         self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
         self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
+        self.demand_6 = self.data['elec_demand (6)'].iloc[:, 1:].to_numpy()
 
 
         # Residual Demand (without PV)
@@ -116,7 +128,8 @@ class Model_1:
             'Type 2': self.demand_2.tolist(),
             'Type 3': self.demand_3.tolist(),
             'Type 4': self.demand_4.tolist(),
-            'Type 5': self.demand_5.tolist()
+            'Type 5': self.demand_5.tolist(),
+            'Type 6': self.demand_6.tolist()
         }
 
         # feed in energy from prosumers
@@ -125,17 +138,13 @@ class Model_1:
             'Type 2': self.demand_2.tolist(),
             'Type 3': self.demand_3.tolist(),
             'Type 4': self.demand_4.tolist(),
-            'Type 5': self.demand_5.tolist()
+            'Type 5': self.demand_5.tolist(),
+            'Type 6': self.demand_6.tolist()
         }
 
-        for h_type in self.res_demand:
-            for i in range(len(self.res_demand[h_type])):
-                for j in range(len(self.res_demand[h_type][i])):
-                    self.res_demand[h_type][i][j] = max(0, (self.res_demand[h_type][i][j]
-                        - self.cap_fact[i][j] * self.avg_pv_cap_str[h_type]))
+        cd.calc_res_demand(self)
+        cd.calc_pros_feedin(self)
 
-                    self.pros_feedin[h_type][i][j] = max(0, (self.cap_fact[i][j] * self.avg_pv_cap_str[h_type]
-                        - self.res_demand[h_type][i][j]))
 
 
         #-------------------------------------------------------------------------------#
@@ -206,7 +215,7 @@ class Model_1:
 
         ud = m.addVars(self.years + 1, self.days, self.hours, name='unmetDemand', lb = 0)
 
-        h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0, vtype=GRB.INTEGER)
+        # h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0, vtype=GRB.INTEGER)
 
         int_cap_steps = m.addVars(len(self.cap_steps), self.years + 1, name = 'binCapSteps', vtype=GRB.INTEGER, lb = 0)
 
@@ -246,8 +255,7 @@ class Model_1:
             if self.heatrate_c_run == 'y':
                 # Operation Variable Costs with DG heat rate curve
                 tovc[y] = (quicksum(
-                    disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                    for g in self.techs_g_o
+                    quicksum(disp[g, y, d, h] * self.uovc[g] for g in self.techs_g_o) * self.d_weights[d] # battery uovc = 0
                     for d in range(self.days)
                     for h in range(self.hours)
                 ) + quicksum(
@@ -267,8 +275,7 @@ class Model_1:
             else:
                 # Operation Variable Costs with fixed DG heat rate value
                 tovc[y] = quicksum(
-                    disp[g, y, d, h] * self.d_weights[d] * self.uovc[g]
-                    for g in self.techs_g_o
+                    quicksum(disp[g, y, d, h] * self.uovc[g] for g in self.techs_g_o) * self.d_weights[d] # battery uovc = 0
                     for d in range(self.days)
                     for h in range(self.hours)
                 ) + quicksum(
@@ -329,8 +336,7 @@ class Model_1:
                     disp[g, y, d, h] for g in self.techs_g)
                     + ud[y, d, h] + b_out[y, d, h] ==
                 quicksum(
-                    h_weight[i, y] * self.res_demand[i][d][h]
-                    for i in self.house) + b_in[y, d, h])
+                    [cd.mc_demand(self, d, h) + b_in[y, d, h]]))
                 for h in range(self.hours)
                 for d in range(self.days)
                 for y in range(1, self.years + 1)
@@ -379,15 +385,6 @@ class Model_1:
             "Maximum battery output"
         )
 
-        m.addConstrs(
-            (
-                h_weight[i, y] <= self.max_house_str[i]
-                for i in self.house
-                for y in range(1, self.years + 1)
-            ),
-            "Maximum connected houses"
-        )
-
         #----------------------------------------------------------------------#
         # Generation Capacity                                                  #
         #----------------------------------------------------------------------#
@@ -425,7 +422,7 @@ class Model_1:
 
         m.addConstrs(
             (
-                disp['Feed In Prosumers', y, d, h] <=
+                disp['Feed In Prosumers', y, d, h] ==
                     quicksum(feed_in[i, y, d, h] for i in self.house)
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
@@ -436,7 +433,7 @@ class Model_1:
 
         m.addConstrs(
             (
-                feed_in[i, y, d, h] <= h_weight[i, y] * self.pros_feedin[i][d][h]
+                feed_in[i, y, d, h] <= self.max_house_str[i] * self.pros_feedin[i][d][h]
                 for i in self.house
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
@@ -645,6 +642,7 @@ class Model_1:
         inst = np.zeros((4, self.years + 1)) # installed capacity
         added = np.zeros((4, self.years + 1)) # added capacity
         disp_gen = np.zeros(self.hours)
+        disp_pv = np.zeros(self.hours)
         unmetD = np.zeros(self.hours)
         bat_in = np.zeros(self.hours)
         bat_out = np.zeros(self.hours)
@@ -667,6 +665,7 @@ class Model_1:
         year = 10
         for h in range(self.hours):
             disp_gen[h] = disp['Diesel Generator', year, day, h].X
+            disp_pv[h] = disp['Owned PV', year, day, h].X
             unmetD[h] = ud[year, day, h].X
             bat_in[h] = b_in[year, day, h].X
             bat_out[h] = b_out[year, day, h].X
@@ -674,11 +673,11 @@ class Model_1:
             state_of_charge[h] = soc[year, day, h].X
             if self.heatrate_c_run == 'y':
                 for i in range(len(self.heat_r_k)):
-                    heat_rate_binary[i, h] = bin_heat_rate[i, year, day, h].X
+                    heat_rate_binary[i, h] = bin_heat_rate[i, year-1, day, h].X
 
         for house in self.house:
             for y in range(self.years + 1):
-                num_households[self.house.tolist().index(house)][y] = np.abs(h_weight[house, y].X)
+                num_households[self.house.tolist().index(house)][y] = np.abs(self.max_house_str[house])
 
 
         total_demand = np.zeros((self.days, self.hours))
@@ -689,7 +688,7 @@ class Model_1:
                     total_demand[d][h] += self.res_demand[house][d][h] * num_households[self.house.tolist().index(house)][10]
 
 
-        return_array = [ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in_energy, total_demand, state_of_charge]
+        return_array = [ret, inst, added, disp_gen, disp_pv, unmetD, bat_in, bat_out, num_households, feed_in_energy, total_demand, state_of_charge]
 
         print('Year:', year)
         print('Day:', day)

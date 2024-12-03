@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 def output_data(resultsArray):
     '''Process output data'''
 
-    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in, total_demand, state_of_charge = resultsArray
+    ret, inst, added, disp_gen, disp_pv, unmetD, bat_in, bat_out, num_households, feed_in, total_demand, state_of_charge = resultsArray
 
     '''
     disp_gen = pd.DataFrame(
@@ -55,11 +55,13 @@ def output_data(resultsArray):
     inst.index = names
     added.index = names
     ret.index = names
-    names_housetypes = ['Consumer Residential', 'Prosumer Residential', 'Solar Farm', 'Water Pumping Station', 'Prosumer Business']
+    names_housetypes = ['Consumer Residential', 'Prosumer Residential', 'Solar Farm', 'Water Pumping Station', 'Consumer Business', 'Prosumer Business']
     num_households.index = names_housetypes
 
     print('\n-----------Dispatched Generation-----------\n')
     print(disp_gen.round(2))
+    print('\n-----------Dispatched PV-----------\n')
+    print(disp_pv.round(2))
     print('\n-----------installed capacity-----------\n')
     print(inst.round(2))
     print('\n-----------added capacity-----------\n')
@@ -73,7 +75,7 @@ def output_data(resultsArray):
 def plot_data(resultsArray):
     '''plot some output data'''
 
-    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in, total_demand, state_of_charge = resultsArray
+    ret, inst, added, disp_gen, disp_pv, unmetD, bat_in, bat_out, num_households, feed_in, total_demand, state_of_charge = resultsArray
 
     fig1, ax1 = plt.subplots()
     hours = np.arange(24)
@@ -83,9 +85,10 @@ def plot_data(resultsArray):
 
     # Stack the other bars on top
     p2 = ax1.bar(hours, bat_out, bottom=disp_gen, label='Battery Output', color='red')
-    p3 = ax1.bar(hours, feed_in, bottom=disp_gen + bat_out, label='Feed in', color='orange')
-    p4 = ax1.bar(hours, unmetD, bottom=disp_gen + bat_out + feed_in, label='Unmet Demand', color='purple')
-    p5 = ax1.bar(hours, -bat_in, label='Battery Input', color='green')
+    p3 = ax1.bar(hours, disp_pv, bottom=disp_gen + bat_out, label='Owned PV', color = 'orange')
+    p4 = ax1.bar(hours, feed_in, bottom=disp_gen + bat_out + disp_pv, label='Feed in', color='yellow')
+    p5 = ax1.bar(hours, unmetD, bottom=disp_gen + bat_out + disp_pv + feed_in, label='Unmet Demand', color='purple')
+    p6 = ax1.bar(hours, -bat_in, label='Battery Input', color='green')
 
     ax1.plot(hours, total_demand[2], label='Total Demand', color='black', linestyle='-', marker='o')
 
