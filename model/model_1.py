@@ -662,7 +662,7 @@ class Model_1:
 
 
         day = 2
-        year = 8
+        year = 10
         for h in range(self.hours):
             disp_gen[h] = disp['Diesel Generator', year, day, h].X
             disp_pv[h] = disp['Owned PV', year, day, h].X

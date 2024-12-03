@@ -60,6 +60,8 @@ def output_data(resultsArray):
 
     print('\n-----------Dispatched Generation-----------\n')
     print(disp_gen.round(2))
+    print('\n-----------Dispatched PV-----------\n')
+    print(disp_pv.round(2))
     print('\n-----------installed capacity-----------\n')
     print(inst.round(2))
     print('\n-----------added capacity-----------\n')
