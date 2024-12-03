@@ -112,8 +112,8 @@ class Model_1:
 
         #demand elasticity
         self.elasticity = self.data['parameters']['demand_elasticity'][0]
-        self.elastic_mondemand = np.zeros(self.days)
-        self.elastic_daydemand = np.zeros((len(self.house), self.days))
+        #self.elastic_mondemand = np.zeros(self.days) useless`?
+        #self.elastic_daydemand = np.zeros((len(self.house), self.days)) useless?
 
         #Demand
         self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
@@ -163,6 +163,7 @@ class Model_1:
         self.cap_steps = self.data['capacity_steps']['Diesel Generator'].to_numpy()
 
         self.list_elec_price = self.data['elec_price']['price'].to_numpy()
+        self.p_steps = 5
 
         #------------------------------------------------------------------------------#
         # Sets                                                                         #
@@ -182,8 +183,11 @@ class Model_1:
         self.elec_price = elec_price
         self.heatrate_c_run = heatrate_c_run
 
-        for d in range(self.days):
-            cd.calc_elastic_mondemand(self, d)
+        '''for d in range(self.days):
+            self.elastic_mondemand[d] = cd.calc_elastic_mondemand(self, self.elec_price, d)
+        ''' #useless?
+
+        self.disp_steps, self.price_steps = cd.calc_disp_steps(self)
 
         m = Model('Model_1_case_1')
         m.setParam('MIPGap', 0.015)
@@ -220,7 +224,7 @@ class Model_1:
 
         soc = m.addVars(self.years + 1, self.days, self.hours, name='SoC', lb = 0)
 
-        ud = m.addVars(self.years + 1, self.days, self.hours, name='unmetDemand', lb = 0)
+        #ud = m.addVars(self.years + 1, self.days, self.hours, name='unmetDemand', lb = 0)
 
         # h_weight = m.addVars(self.house, self.years + 1, name='houseWeight', lb = 0, vtype=GRB.INTEGER)
 
@@ -230,7 +234,8 @@ class Model_1:
                       self.days, self.hours,
                       vtype=GRB.BINARY, name='binHeatRate')
 
-        bin_price_curve = m.addVars(len(self.list_elec_price), vtype=GRB.BINARY, name='binPriceCurve')
+        bin_price_curve = m.addVars(self.p_steps, self.years,
+                                    vtype=GRB.BINARY, name='binPriceCurve')
 
 
         #----------------------------------------------------------------------#
@@ -252,7 +257,7 @@ class Model_1:
                 ((quicksum(disp[g, y, d, h] for g in self.techs_g) + b_out[y, d, h] - b_in[y, d, h]) * self.d_weights[d])
                 for d in range(self.days)
                 for h in range(self.hours)
-            ) * quicksum(self.list_elec_price[i] * bin_price_curve[i] for i in range(len(self.list_elec_price)))
+            ) * quicksum(self.price_steps[i] * bin_price_curve[i, y - 1] for i in range(self.p_steps))
 
             # Capital Costs
             tcc[y] = quicksum(
@@ -309,20 +314,21 @@ class Model_1:
                     for g in self.techs_o
                 )
             )
-
+            '''
             # Cost of Unmet Demand
             tcud[y] = quicksum(
                 ud[y, d, h] * self.d_weights[d] * self.ud_penalty
                 for d in range(self.days)
                 for h in range(self.hours)
             )
+            '''
 
 
         # Net Present Value of Total Profits
         tp_npv = quicksum(
             (
                 (
-                    tr[y] - tcc[y] - tofc[y] - tcud[y]- tovc[y] #yearly profits
+                    tr[y] - tcc[y] - tofc[y]- tovc[y] #- tcud[y] #yearly profits
                 ) * ( 1 / ((1 + self.i) ** y)) # discount factor
             ) for y in range(1, self.years + 1)
         )
@@ -339,13 +345,16 @@ class Model_1:
         # Demand and Dispatch                                                  #
         #----------------------------------------------------------------------#
 
+
+
         m.addConstrs(
             (
                 (quicksum(
                     disp[g, y, d, h] for g in self.techs_g)
-                    + ud[y, d, h] + b_out[y, d, h] ==
+                    + b_out[y, d, h] ==
                 quicksum(
-                    [cd.elastic_mc_demand(self, d, h) + b_in[y, d, h]]))
+                    cd.elastic_mc_demand(self, bin_price_curve, y - 1, d, h)
+                     + b_in[y, d, h]))
                 for h in range(self.hours)
                 for d in range(self.days)
                 for y in range(1, self.years + 1)
@@ -597,7 +606,7 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         if self.heatrate_c_run == 'y':
-            bigM = 700  # find the max value of bigM
+            bigM_1 = 700  # find the max value of bigM
 
             m.addConstrs(
                 (
@@ -613,7 +622,7 @@ class Model_1:
                 (
                     (disp['Diesel Generator', y, d, h] <=
                      inst_cap['Diesel Generator', y] * 0.25
-                     + bigM * (1 - bin_heat_rate[0, y, d, h]) - epsilon)
+                     + bigM_1 * (1 - bin_heat_rate[0, y, d, h]) - epsilon)
                     for y in range(self.years)
                     for d in range(self.days)
                     for h in range(self.hours)
@@ -626,7 +635,7 @@ class Model_1:
                 (
                     (disp['Diesel Generator', y, d, h] >=
                      inst_cap['Diesel Generator', y] * 0.25
-                     - bigM * (1 - bin_heat_rate[1, y, d, h]))
+                     - bigM_1 * (1 - bin_heat_rate[1, y, d, h]))
                     for y in range(self.years)
                     for d in range(self.days)
                     for h in range(self.hours)
@@ -638,17 +647,42 @@ class Model_1:
         # Price Curve (el. Demand)                                              #
         # ----------------------------------------------------------------------#
 
-        m.addConst(
+        bigM_2 = 1 * 10 ** 8
+
+        m.addConstrs(
             (
-                quicksum(bin_price_curve[i] for i in range(len(self.heat_r_k))) == 1
+                quicksum(bin_price_curve[i, y] for i in range(self.p_steps)) == 1
+                for y in range(self.years)
             ),
             "Sum Binary set = 1"
         )
+
+        for i in range(self.p_steps - 1):
+            m.addConstrs(
+                (
+                    cd.disp_sum_year(self, y + 1, disp) <=
+                    self.disp_steps[i] + (1 - bin_price_curve[self.p_steps - (i + 1), y]) * bigM_2
+                    for y in range(self.years)
+                ),
+                f"Price curve {i + 1}.up"
+            )
+
+            m.addConstrs(
+                (
+                    - (bin_price_curve[self.p_steps - (i + 2), y] - 1) * bigM_2 + self.disp_steps[i]
+                    <= cd.disp_sum_year(self, y + 1, disp)
+                    for y in range(self.years)
+                ),
+                f"Price curve {i + 2}.low"
+            )
+
 
 
         #----------------------------------------------------------------------#
         # Optimization                                                         #
         #----------------------------------------------------------------------#
+        m.computeIIS()
+        m.write("model.ilp")
 
         m.optimize()
 
@@ -686,7 +720,7 @@ class Model_1:
         for h in range(self.hours):
             disp_gen[h] = disp['Diesel Generator', year, day, h].X
             disp_pv[h] = disp['Owned PV', year, day, h].X
-            unmetD[h] = ud[year, day, h].X
+            #unmetD[h] = ud[year, day, h].X
             bat_in[h] = b_in[year, day, h].X
             bat_out[h] = b_out[year, day, h].X
             feed_in_energy[h] = disp['Feed In Prosumers', year, day, h].X
