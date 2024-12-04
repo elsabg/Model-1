@@ -39,20 +39,20 @@ def calc_elastic_mondemand(self, elec_price, d):
 
 def calc_elastic_monthdem_const(self, bin_price_curve, y, d):
     """calculates the monthly demand depending on electricity price"""
-    return quicksum(self.disp_steps_month[self.p_steps - 1 - i][d] * bin_price_curve[i , y] for i in range(self.p_steps))
+    return quicksum(self.disp_steps_month[self.p_steps - 1 - i][d] * bin_price_curve[i] for i in range(self.p_steps))
 
-
+'''
 def calc_elastic_monthdem_const(self, bin_price_curve, y, d):
     """calculates the monthly demand depending on electricity price"""
     return (self.hist_demand[d] *
-            (1 - self.elasticity + self.elasticity * (quicksum(bin_price_curve[i, y] * self.price_steps[i] for i in range(self.p_steps))
+            (1 - self.elasticity + self.elasticity * (quicksum(bin_price_curve[i] * self.price_steps[i] for i in range(self.p_steps))
                                                       / self.hist_price)))
+'''
 
-
-def disp_sum_year(self, year, disp):
+def disp_sum_year(self, year, disp, b_out, b_in):
     """calculate the annual dispatched generation"""
     disp_year = quicksum(
-        quicksum(disp[g, year + 1, d, h] for g in self.techs_g) * self.d_weights[d]
+        (quicksum(disp[g, 1, d, h] for g in self.techs_g) + b_out[1, d, h] - b_in[1, d, h]) * self.d_weights[d]
         for d in range(self.days)
         for h in range(self.hours)
     )
