@@ -108,8 +108,6 @@ class Model_1:
 
         #demand elasticity
         self.elasticity = self.data['parameters']['demand_elasticity'][0]
-        #self.elastic_mondemand = np.zeros(self.days) useless`?
-        #self.elastic_daydemand = np.zeros((len(self.house), self.days)) useless?
 
         #Demand
         self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
@@ -231,10 +229,10 @@ class Model_1:
                       self.days, self.hours,
                       vtype=GRB.BINARY, name='binHeatRate')
 
-        bin_price_curve = m.addVars(self.steps,  self.years,
+        bin_price_curve = m.addVars(self.steps,  #self.years,
                                     vtype=GRB.BINARY, name='binPriceCurve')
 
-
+        '''
         for y in range(self.years):
             for i in range(self.steps):
                 if self.steps // 2 == i:
@@ -242,7 +240,7 @@ class Model_1:
                 else:
                     bin_price_curve[i, y].Start = 0
 
-
+        '''
 
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -265,7 +263,7 @@ class Model_1:
                      self.d_weights[d])
                     for d in range(self.days)
                     for h in range(self.hours)
-                ) * quicksum(self.price_steps[i] * bin_price_curve[i, y - 1] for i in range(self.steps))
+                ) * quicksum(self.price_steps[i] * bin_price_curve[i] for i in range(self.steps))
 
             else:
                 tr[y] = quicksum(
@@ -676,7 +674,7 @@ class Model_1:
 
             m.addConstrs(
                 (
-                    quicksum(bin_price_curve[i, y] for i in range(self.steps)) == 1
+                    quicksum(bin_price_curve[i] for i in range(self.steps)) == 1
                     for y in range(self.years)
                 ),
                 "Sum Binary set = 1"
@@ -686,7 +684,7 @@ class Model_1:
                 m.addConstrs(
                     (
                         (cd.demand_sum_year(self, y, disp, ud, b_out, b_in) <=
-                         self.disp_steps_year[i] + (1 - bin_price_curve[self.steps - 1 - i, y]) * bigM_2)
+                         self.disp_steps_year[i] + (1 - bin_price_curve[self.steps - 1 - i]) * bigM_2)
                         for y in range(self.years)
                     ),
                     "Price curve " + str(i) + ".up"
@@ -695,7 +693,7 @@ class Model_1:
                 m.addConstrs(
                     (
                         cd.demand_sum_year(self, y, disp, ud, b_out, b_in) >= self.disp_steps_year[i] - bigM_2 * (
-                                1 - bin_price_curve[self.steps - 2 - i, y])
+                                1 - bin_price_curve[self.steps - 2 - i])
                         for y in range(self.years)
                     ),
                     "Price curve " + str(i + 1) + ".low"
@@ -751,9 +749,9 @@ class Model_1:
                     bat_in[y][d][h] = b_in[y + 1, d, h].X
                     bat_out[y][d][h] = b_out[y + 1, d, h].X
                     state_of_charge[y][d][h] = soc[y + 1 , d, h].X
-                    if self.heatrate_c_run == 'y':
-                        for i in range(len(self.heat_r_k)):
-                            heat_rate_binary[i, y, d, h] = bin_heat_rate[i, y - 1, d, h].X
+                    #if self.heatrate_c_run == 'y':
+                        #for i in range(len(self.heat_r_k)):
+                            #heat_rate_binary[i, y, d, h] = bin_heat_rate[i, y - 1, d, h].X
 
         for house in self.house:
             for y in range(self.years + 1):
@@ -763,14 +761,14 @@ class Model_1:
         for y in range(self.years):
             if self.dem_elasticity_c_run == 'y':
                 for i in range(self.steps):
-                    price_binary[i, y] = bin_price_curve[i, y].X
+                    price_binary[i][1] = bin_price_curve[i].X
 
                 for d in range(self.days):
                     for h in range(self.hours):
                         hourly_demand = 0
                         for house in self.house:
                             hourly_demand += (
-                                        ((sum(self.disp_steps_month[self.steps - 1 - i][d] * price_binary[i, y] for i in
+                                        ((sum(self.disp_steps_month[self.steps - 1 - i][d] * price_binary[i][1] for i in
                                               range(self.steps))) / self.hist_demand[d])
                                         * self.res_demand[house][d][h] * self.max_house_str[house])
                         total_demand[y][d][h] = hourly_demand
