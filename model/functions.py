@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
 def show_tables(tables):
     '''Process output data'''
 
@@ -45,6 +46,22 @@ def show_tables(tables):
     print(ret.round(2))
     print('\n-----------Number of connected household types-----------\n')
     print(num_households)
+    return
+
+def show_binaries(binaries, year, day):
+    '''Show binaries'''
+
+    (heat_rate_binary, price_binary) = binaries
+    heat_rate_binary = pd.DataFrame(
+        heat_rate_binary[year][day], columns=[i for i in range(2)] #heat_rate_binary.shape[2])]
+    )
+    price_binary = pd.DataFrame(
+        price_binary, columns=[i for i in range(price_binary.shape[1])]
+    )
+    print('\n-----------heat rate binary-----------\n')
+    print(heat_rate_binary)
+    print('\n-----------price binary-----------\n')
+    print(price_binary)
     return
 
 def plot_day(timeseriesArray, year, day):
@@ -113,9 +130,9 @@ def save_results(results):
     [save_array2d_to_excel(total_demand[y], 'results.xlsx', 'total_demand_' + str(y + 1)) for y in range(len(total_demand))]
 
     save_array2d_to_excel(num_households, 'results.xlsx', 'num_households')
-    save_array2d_to_excel(heat_rate_binary, 'results.xlsx', 'heat_rate_binary')
+    #save_array2d_to_excel(heat_rate_binary, 'results.xlsx', 'heat_rate_binary')
     for y in range (15):
-        [save_array2d_to_excel(heat_rate_binary[:, y, d, :], 'results.xlsx', 'price_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
+        [save_array2d_to_excel(heat_rate_binary[:, y, d, :], 'results.xlsx', 'heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
 
     save_array2d_to_excel(price_binary, 'results.xlsx', 'price_binary')
 
@@ -128,6 +145,7 @@ def save_array2d_to_excel(array2d, file_name, s_name):
 
 def get_results(file_name):
     return pd.read_excel(file_name, decimal=',', sheet_name=None)
+
 
 def get_timeseries(data, year):
     disp_gen = data['dispatched_generation_'+ str(year + 1)].iloc[:,:].to_numpy()
@@ -150,7 +168,11 @@ def get_tabels(data):
     return [ret, inst, added, num_households]
 
 def get_binaries(data):
-    heat_rate_binary = data['heat_rate_binary'].iloc[:,:].to_numpy()
-    price_binary = data['price_binary'].iloc[:,:].to_numpy()
-
+    heat_rate_binary = np.zeros((15, 3, 24, 2))
+    for y in range(15):
+        for d in range(3):
+            for h in range(8):
+                for i in range(2):
+                    heat_rate_binary[y][d][h][i] = data['price_binary_' + str(y + 1) + '_' + str(d + 1)].iloc[:, :].to_numpy()[i][h]
+    price_binary = data['price_binary'].iloc[:, :].to_numpy()
     return [heat_rate_binary, price_binary]

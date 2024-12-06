@@ -80,3 +80,5 @@ while(1):
     func.plot_day(func.get_timeseries(data, int(showyear)-1), int(showyear), int(showday) - 1)
     func.plot_soc(func.get_timeseries(data, int(showyear)-1), int(showyear), int(showday) - 1)
 
+    func.show_binaries(func.get_binaries(data), int(showyear), int(showday) - 1)
+
