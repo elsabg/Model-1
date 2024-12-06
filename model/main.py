@@ -49,7 +49,6 @@ if run_model != 'n':
     'installed_capacity': pd.DataFrame(inst),
     'added_capacity': pd.DataFrame(added),
     'num_households': pd.DataFrame(num_households),
-    #'heat_rate_binary': pd.DataFrame(heat_rate_binary),
     'price_binary': pd.DataFrame(price_binary)
 
     }
@@ -62,6 +61,8 @@ if run_model != 'n':
         data['battery_output_' + str(y + 1)] =  pd.DataFrame(bat_out[y])
         data['state_of_charge_' + str(y + 1)] =  pd.DataFrame(state_of_charge[y])
         data['total_demand_' + str(y + 1)] =  pd.DataFrame(total_demand[y])
+        for d in range(3):
+            data['heat_rate_binary' + str(y + 1)+'_'+str(d + 1)] = pd.DataFrame(heat_rate_binary[:, y, d, :])
 
 else:
     data = func.get_results('results.xlsx')
@@ -70,10 +71,12 @@ else:
 # Process output data                                                           #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-year = 1
-day = 0
 
+while(1):
+    showyear = input("Year:(1-15):")
+    showday = input("Day:(1-3):")
 
-func.show_tables(func.get_tabels(data))
-func.plot_day(func.get_timeseries(data, year), year, day)
+    func.show_tables(func.get_tabels(data))
+    func.plot_day(func.get_timeseries(data, int(showyear)-1), int(showyear), int(showday) - 1)
+    func.plot_soc(func.get_timeseries(data, int(showyear)-1), int(showyear), int(showday) - 1)
 

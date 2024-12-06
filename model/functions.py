@@ -83,10 +83,10 @@ def plot_soc(timeseriesArray, year, day):
 
     fig2, ax2 = plt.subplots()
     hours = np.arange(24)
-    ax2.plot(hours, state_of_charge, label='State of Charge', color='blue', linestyle='-', marker='o')
+    ax2.plot(hours, state_of_charge[day], label='State of Charge', color='blue', linestyle='-', marker='o')
 
-    q1 = ax2.bar(hours, bat_in, label='Battery Input', color='green')
-    p2 = ax2.bar(hours, -bat_out, label='Battery Output', color='red')
+    q1 = ax2.bar(hours, bat_in[day], label='Battery Input', color='green')
+    p2 = ax2.bar(hours, -bat_out[day], label='Battery Output', color='red')
     ax2.set_xlabel('Hour')
     ax2.set_ylabel('State of Charge')
     ax2.set_title('State of Charge over a Day '+ str(day + 1) +' (Year '+str(year)+')')
@@ -114,6 +114,9 @@ def save_results(results):
 
     save_array2d_to_excel(num_households, 'results.xlsx', 'num_households')
     save_array2d_to_excel(heat_rate_binary, 'results.xlsx', 'heat_rate_binary')
+    for y in range (15):
+        [save_array2d_to_excel(heat_rate_binary[:, y, d, :], 'results.xlsx', 'price_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
+
     save_array2d_to_excel(price_binary, 'results.xlsx', 'price_binary')
 
 def save_array2d_to_excel(array2d, file_name, s_name):

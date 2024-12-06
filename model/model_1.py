@@ -198,11 +198,11 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb=0, vtype=GRB.INTEGER)
+        added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb=0 ) #, vtype=GRB.INTEGER)
         for y in range(self.years + 1):
             added_cap['Owned Batteries', y].vtype = GRB.CONTINUOUS
 
-        added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0, vtype = GRB.INTEGER)
+        added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0) #, vtype = GRB.INTEGER)
 
         inst_cap = m.addVars(self.techs_o, self.years + 1, name='instCap', lb=0)
         inst_cap_e = m.addVars(self.years + 1, name='instCapE', lb=0)
@@ -226,7 +226,7 @@ class Model_1:
         int_cap_steps = m.addVars(len(self.cap_steps), self.years + 1, name = 'binCapSteps', vtype=GRB.INTEGER, lb = 0)
 
         bin_heat_rate = m.addVars(len(self.heat_r_k), self.years,
-                      self.days, self.hours,
+                      self.days, self.hours // 3,
                       vtype=GRB.BINARY, name='binHeatRate')
 
         bin_price_curve = m.addVars(self.steps,  #self.years,
@@ -292,7 +292,7 @@ class Model_1:
                     for d in range(self.days)
                     for h in range(self.hours)
                 ) + quicksum(
-                    quicksum(self.heat_r_k[i] * bin_heat_rate[i, y - 1, d, h] for i in range(len(self.heat_r_k)))
+                    quicksum(self.heat_r_k[i] * bin_heat_rate[i, y - 1, d, h // 3] for i in range(len(self.heat_r_k)))
                     * disp['Diesel Generator', y, d, h] * self.diesel_p[y - 1] * self.d_weights[d]
                     for d in range(self.days)
                     for h in range(self.hours)
@@ -374,7 +374,7 @@ class Model_1:
         else:
             m.addConstrs(
                 (
-                    quicksum(disp[g, y, d, h] for g in self.techs_g) + b_out[y, d, h] ==
+                    quicksum(disp[g, y, d, h] for g in self.techs_g) + b_out[y, d, h] + ud[y, d, h] ==
                     cd.mc_demand(self, d, h) + b_in[y, d, h]
                     for h in range(self.hours)
                     for d in range(self.days)
@@ -635,7 +635,7 @@ class Model_1:
                     quicksum(bin_heat_rate[i, y, d, h] for i in range(len(self.heat_r_k))) == 1
                     for y in range(self.years)
                     for d in range(self.days)
-                    for h in range(self.hours)
+                    for h in range(self.hours // 3)
                 ),
                 "Sum Binary set = 1"
             )
@@ -644,7 +644,7 @@ class Model_1:
                 (
                     (disp['Diesel Generator', y, d, h] <=
                      inst_cap['Diesel Generator', y] * 0.25
-                     + bigM_1 * (1 - bin_heat_rate[0, y, d, h]) - epsilon)
+                     + bigM_1 * (1 - bin_heat_rate[0, y, d, h // 3]) - epsilon)
                     for y in range(self.years)
                     for d in range(self.days)
                     for h in range(self.hours)
@@ -657,7 +657,7 @@ class Model_1:
                 (
                     (disp['Diesel Generator', y, d, h] >=
                      inst_cap['Diesel Generator', y] * 0.25
-                     - bigM_1 * (1 - bin_heat_rate[1, y, d, h]))
+                     - bigM_1 * (1 - bin_heat_rate[1, y, d, h // 3]))
                     for y in range(self.years)
                     for d in range(self.days)
                     for h in range(self.hours)
@@ -726,7 +726,7 @@ class Model_1:
         bat_out = np.zeros((self.years, self.days, self.hours))
         state_of_charge = np.zeros((self.years, self.days, self.hours))
         num_households = np.zeros((len(self.house), self.years + 1))
-        heat_rate_binary = np.zeros((len(self.heat_r_k), self.years, self.days, self.hours))
+        heat_rate_binary = np.zeros((len(self.heat_r_k), self.years, self.days, self.hours // 3))
         price_binary = np.zeros((self.steps, self.years))
         total_demand = np.zeros((self.years, self.days, self.hours))
 
@@ -749,9 +749,9 @@ class Model_1:
                     bat_in[y][d][h] = b_in[y + 1, d, h].X
                     bat_out[y][d][h] = b_out[y + 1, d, h].X
                     state_of_charge[y][d][h] = soc[y + 1 , d, h].X
-                    #if self.heatrate_c_run == 'y':
-                        #for i in range(len(self.heat_r_k)):
-                            #heat_rate_binary[i, y, d, h] = bin_heat_rate[i, y - 1, d, h].X
+                    if self.heatrate_c_run == 'y':
+                        for i in range(len(self.heat_r_k)):
+                            heat_rate_binary[i][y][d][h // 3] = bin_heat_rate[i, y, d, h // 3].X
 
         for house in self.house:
             for y in range(self.years + 1):
