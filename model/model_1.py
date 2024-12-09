@@ -488,126 +488,138 @@ class Model_1:
         M = 1000
         e = 0.01
         
-        m.addConstrts(((d_cons[y, d, h] >= 
-                       self.heat_rate_k[0] * disp['Diesel Generator', y, d, h]
-                       - self.bin_heat_rate[0, y, d, h] * M)
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Heat Rate 1.1"
+        m.addConstrts(
+            ((d_cons[y, d, h] >= 
+              self.heat_rate_k[0] * disp['Diesel Generator', y, d, h] 
+              - self.bin_heat_rate[0, y, d, h] * M) 
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Heat Rate 1.1"
         )
         
-        m.addConstrts(((d_cons[y, d, h] <= 
-                       self.heat_rate_k[0] * disp['Diesel Generator', y, d, h]
-                       + self.bin_heat_rate[0, y, d, h] * M)
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Heat Rate 1.2"
+        m.addConstrts(
+            ((d_cons[y, d, h] <= 
+              self.heat_rate_k[0] * disp['Diesel Generator', y, d, h] 
+              + self.bin_heat_rate[0, y, d, h] * M)
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Heat Rate 1.2"
         )
         
-        m.addConstrts(((disp['Diesel Generator', y, d, h] >=
-                        0.3 * inst_cap['Diesel Generator', y]
-                        - (1 - self.bin_heat_rate[0, y, d, h] * M))
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Boundary 1" 
+        m.addConstrts(
+            ((disp['Diesel Generator', y, d, h] >=
+              0.3 * inst_cap['Diesel Generator', y]
+              - (1 - self.bin_heat_rate[0, y, d, h] * M))
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Boundary 1" 
         )
         
-        m.addConstrts(((d_cons[y, d, h] >= 
-                       self.heat_rate_k[1] * disp['Diesel Generator', y, d, h]
-                       - self.bin_heat_rate[1, y, d, h] * M)
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Heat Rate 2.1"
+        m.addConstrts(
+            ((d_cons[y, d, h] >= 
+              self.heat_rate_k[1] * disp['Diesel Generator', y, d, h] 
+              - self.bin_heat_rate[1, y, d, h] * M)
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Heat Rate 2.1"
         )
         
-        m.addConstrts(((d_cons[y, d, h] <= 
-                       self.heat_rate_k[1] * disp['Diesel Generator', y, d, h]
-                       + self.bin_heat_rate[1, y, d, h] * M)
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Heat Rate 2.2"
+        m.addConstrts(
+            ((d_cons[y, d, h] <= 
+              self.heat_rate_k[1] * disp['Diesel Generator', y, d, h]
+              + self.bin_heat_rate[1, y, d, h] * M)
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Heat Rate 2.2"
         )
         
-        m.addConstrts(((disp['Diesel Generator', y, d, h] <=
-                        0.3 * inst_cap['Diesel Generator', y]
-                        + self.bin_heat_rate[2, y, d, h] * M - e)
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Boundary 2.1"
+        m.addConstrts(
+            ((disp['Diesel Generator', y, d, h] <= 
+              0.3 * inst_cap['Diesel Generator', y]
+              + self.bin_heat_rate[2, y, d, h] * M - e)
+             for y in range(self.years) 
+             for d in range(self.days) 
+             for h in range(self.hours) 
+             ), 
+            "Boundary 2.1"
         )
         
-        m.addConstrts(((disp['Diesel Generator', y, d, h] >=
-                        0.6 * inst_cap['Diesel Generator', y]
-                        + self.bin_heat_rate[3] * M)
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Boundary 2.2"
+        m.addConstrts(
+            ((disp['Diesel Generator', y, d, h] >= 
+              0.6 * inst_cap['Diesel Generator', y] 
+              + self.bin_heat_rate[3] * M)
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Boundary 2.2"
         )
         
-        m.addConstrts(((d_cons[y, d, h] >= 
-                       self.heat_rate_k[2] * disp['Diesel Generator', y, d, h]
-                       - self.bin_heat_rate[4, y, d, h] * M)
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Heat Rate 3.1"
+        m.addConstrts(
+            ((d_cons[y, d, h] >= 
+              self.heat_rate_k[2] * disp['Diesel Generator', y, d, h]
+              - self.bin_heat_rate[4, y, d, h] * M)
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Heat Rate 3.1"
         )
         
-        m.addConstrts(((d_cons[y, d, h] <= 
-                       self.heat_rate_k[2] * disp['Diesel Generator', y, d, h]
-                       + self.bin_heat_rate[4, y, d, h] * M)
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Heat Rate 3.2"
+        m.addConstrts(
+            ((d_cons[y, d, h] <= 
+              self.heat_rate_k[2] * disp['Diesel Generator', y, d, h]
+              + self.bin_heat_rate[4, y, d, h] * M)
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Heat Rate 3.2"
         )
         
-        m.addConstrts(((disp['Diesel Generator', y, d, h] <=
-                        0.6 * inst_cap['Diesel Generator', y]
-                        - (1 - self.bin_heat_rate[4, y, d, h] * M - e))
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Boundary 3" 
+        m.addConstrts(
+            ((disp['Diesel Generator', y, d, h] <=
+              0.6 * inst_cap['Diesel Generator', y]
+              - (1 - self.bin_heat_rate[4, y, d, h] * M - e))
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Boundary 3" 
         )
         
-        m.addConstrts(((self.bin_heat_rate[1, y, d, h] 
-                        + self.bin_heat_rate[2, y, d, h]
-                        + self.bin_heat_rate[3, y, d, h] <=
-                        2)
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Binary cap 1"
+        m.addConstrts(
+            ((self.bin_heat_rate[1, y, d, h] 
+              + self.bin_heat_rate[2, y, d, h]
+              + self.bin_heat_rate[3, y, d, h] <=
+              2)
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Binary cap 1"
         )
         
-        m.addConstrts(((self.bin_heat_rate[0, y, d, h] 
-                        + self.bin_heat_rate[1, y, d, h]
-                        + self.bin_heat_rate[4, y, d, h] ==
-                        2)
-                       for y in range(self.years)
-                       for d in range(self.days)
-                       for h in range(self.hours)
-                       ),
-                      "Binary cap 2"
+        m.addConstrts(
+            ((self.bin_heat_rate[0, y, d, h] 
+              + self.bin_heat_rate[1, y, d, h]
+              + self.bin_heat_rate[4, y, d, h] ==
+              2)
+             for y in range(self.years)
+             for d in range(self.days)
+             for h in range(self.hours)
+             ),
+            "Binary cap 2"
         )
         
         '''
