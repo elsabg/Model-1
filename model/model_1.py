@@ -39,8 +39,9 @@ class Model_1:
 
         #Initial Generation Capacities
         self.init_cap = self.tech_df['Initial capacity'].iloc[:-1].to_dict()
+        '''
         self.init_cap_e = (self.data['tech']['Initial capacity'].to_numpy())[-1]
-
+        '''
         #Household capacities
         self.max_house = self.data['rent_cap'].loc[0].iloc[1::].to_numpy()
         self.avg_pv_cap = self.data['rent_cap'].loc[1].iloc[1::].to_numpy()
@@ -68,11 +69,14 @@ class Model_1:
 
         #Remaining lifetime
         self.life_0 = self.tech_df['Remaining lifetime'].iloc[:-1].to_dict()
+        '''
         self.life_0_e = (self.data['tech']['Remaining lifetime'].to_numpy())[-1]
-
+        '''
         #Technology lifetime
         self.life = self.tech_df['Lifetime'].iloc[:-1].to_dict()
+        '''
         self.life_e = (self.data['tech']['Lifetime'].to_numpy())[-1]
+        '''
 
         #----------------------------------------------------------------------#
         # Costs                                                                #
@@ -87,9 +91,6 @@ class Model_1:
         #Unmet demand
         self.ud_penalty = self.data['parameters']['Unmet demand penalty'][0]
         '''
-
-        #fixed heat rate value
-        self.heat_r_v = 0.25
 
         #heat rate curve
         self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
@@ -178,43 +179,47 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        added_cap = m.addVars(self.techs, self.years + 1, 
+        added_cap = m.addVars(self.techs, self.years, 
                               name='addedCap', lb = 0, vtype = GRB.INTEGER)
-        added_cap_e = m.addVars(self.years + 1, 
+        '''
+        added_cap_e = m.addVars(self.years, 
                                 name='addedCapE', lb = 0, vtype = GRB.INTEGER)
-
-        inst_cap = m.addVars(self.techs, self.years + 1, name='instCap', lb=0)
-        inst_cap_e = m.addVars(self.years + 1, name='instCapE', lb=0)
-
-        disp = m.addVars(self.techs_g, self.years + 1, self.days, self.hours, 
+        '''
+        inst_cap = m.addVars(self.techs, self.years, name='instCap', lb=0)
+        '''
+        inst_cap_e = m.addVars(self.years, name='instCapE', lb=0)
+        '''
+        disp = m.addVars(self.techs_g, self.years, self.days, self.hours, 
                          name='disp', lb=0)
 
-        feed_in = m.addVars(self.house, self.years + 1, self.days, self.hours, 
+        feed_in = m.addVars(self.house, self.years, self.days, self.hours, 
                             name='feedIn', lb = 0)
 
-        b_in = m.addVars(self.years + 1, self.days, self.hours, 
+        b_in = m.addVars(self.years, self.days, self.hours, 
                          name='bIn', lb = 0)
-        b_out = m.addVars(self.years + 1, self.days, self.hours, 
+        b_out = m.addVars(self.years, self.days, self.hours, 
                           name='bOut', lb = 0)
 
-        ret_cap = m.addVars(self.techs, self.years + 1, 
+        ret_cap = m.addVars(self.techs, self.years, 
                             name='retiredCap', lb = 0)
-        ret_cap_e = m.addVars(self.years + 1, name='retiredCapE',  lb = 0)
+        '''
+        ret_cap_e = m.addVars(self.years, name='retiredCapE',  lb = 0)
+        '''
 
-        soc = m.addVars(self.years + 1, self.days, self.hours, 
+        soc = m.addVars(self.years, self.days, self.hours, 
                         name='SoC', lb = 0)
 
-        ud = m.addVars(self.years + 1, self.days, self.hours, 
+        ud = m.addVars(self.years, self.days, self.hours, 
                        name='unmetDemand', lb = 0)
 
-        h_weight = m.addVars(self.house, self.years + 1, 
+        h_weight = m.addVars(self.house, self.years, 
                              name='houseWeight', lb = 0, vtype=GRB.INTEGER)
 
-        int_cap_steps = m.addVars(len(self.cap_steps), self.years +1, 
+        int_cap_steps = m.addVars(len(self.cap_steps), self.years, 
                                   name = 'binCapSteps', vtype=GRB.INTEGER, 
                                   lb = 0)
 
-        bin_heat_rate = m.addVars(len(self.heat_r_k), self.years + 1,
+        bin_heat_rate = m.addVars(5, self.years,
                       self.days, self.hours,
                       vtype=GRB.BINARY, name='binHeatRate')
 
@@ -225,27 +230,26 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        tr = [0] * (self.years + 1) #total yearly revenues
-        tcc = [0] * (self.years + 1) #total yearly capital costs
-        tovc = [0] * (self.years + 1) #total yearly operation variable costs
-        tofc = [0] * (self.years + 1) #total yearly operation fixed costs
-        tcud = [0] * (self.years + 1) #total yearly cost of unmet demand
+        tr = [0] * (self.years) #total yearly revenues
+        tcc = [0] * (self.years) #total yearly capital costs
+        tovc = [0] * (self.years) #total yearly operation variable costs
+        tofc = [0] * (self.years) #total yearly operation fixed costs
+        tcud = [0] * (self.years) #total yearly cost of unmet demand
 
-        for y in range(1, self.years + 1):
+        for y in range(self.years):
 
             # Revenue
             tr[y] = self.elec_price * quicksum((
                 (quicksum(disp[g, y, d, h] for g in self.techs_g) 
                  + b_out[y, d, h] - b_in[y, d, h]) 
                 * self.d_weights[d])
-                for d in range(self.days )
+                for d in range(self.days)
                 for h in range(self.hours)
             )
 
             # Capital Costs
-            tcc[y] = quicksum(
-                (added_cap[g, y] * self.ucc[g]) for g in self.techs) 
-            + added_cap_e[y] * self.ucc['Owned Batteries']
+            tcc[y] = (quicksum(
+                (added_cap[g, y] * self.ucc[g]) for g in self.techs))
 
             '''
             # Operation Variable Costs with fixed DG heat rate value
@@ -277,7 +281,7 @@ class Model_1:
                                + quicksum((self.fit * feed_in[i, y, d, h]) 
                                           for i in self.house)
                                + self.uovc['Owned Batteries'] 
-                               * (B_out[y, d, h] + B_in[y, d, h])) 
+                               * (b_in[y, d, h])) 
                                * self.d_weights[d]
                                for h in range(self.hours)
                                for d in range(self.days))
@@ -304,7 +308,7 @@ class Model_1:
         # Net Present Value of Total Profits without unmet demand penalty
         tp_npv = quicksum(((tr[y] - tcc[y] - tofc[y] - tovc[y]) 
                            * ( 1 / ((1 + self.i) ** y))) #discount factor
-                          for y in range(1, self.years + 1)
+                          for y in range(self.years)
         )
 
         m.setObjective(tp_npv, GRB.MAXIMIZE)
@@ -316,18 +320,18 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         #----------------------------------------------------------------------#
-        # Demand and Dispatch                                                  #
+        # Demand-Supply Balance                                                #
         #----------------------------------------------------------------------#
         m.addConstrts(((b_out[y, d, h] 
                         + quicksum(disp[g, y, d, h] for g in self.techs_g) 
                         + quicksum(min(feed_in[y, d, h], 
                                        h_weight[i, y] 
                                        * self.surplus[i, y, d, h])
-                                  for i in self.house) == # no unmet demand 
-                        b_in[y, d, h]) 
+                                  for i in self.house) ==  
+                        b_in[y, d, h]) # no unmet demand
                        for h in range(self.hours)
                        for d in range(self.days)
-                       for y in range(1, self.years + 1)
+                       for y in range(self.years)
                        ),
                       "Supply-demand balance"
             )
@@ -337,12 +341,99 @@ class Model_1:
                        for i in self.house
                        for h in range(self.hours)
                        for d in range(self.days)
-                       for y in range(1, self.years + 1)
+                       for y in range(self.years)
                        ),
                       "Feed in cap"
             )
+        
+        m.addConstrts(((h_weight[i, y] <= self.max_house_str[i, y]) 
+                       for i in self.house 
+                       for y in range(self.years)
+                       ),
+                      "Max house cap"
+            )
+        
+        #----------------------------------------------------------------------#
+        # Generation Capacity                                                  #
+        #----------------------------------------------------------------------#
 
-        #------------------------------------------------------------------
+        m.addConstrs(
+            (
+                (inst_cap[g, y] ==
+                inst_cap[g, y-1] + added_cap[g, y]
+                - ret_cap[g, y])
+                for g in self.techs
+                for y in range(self.years)
+            ),
+            "Tracking capacity"
+        )
+        
+        m.addConstrs(
+            (
+                (inst_cap[g, 0] == 
+                 self.init_cap[g] + added_cap[g, 0]
+                 - ret_cap[g, 0])
+                for g in self.techs
+            ),
+            "Initial capacity"
+        )
+        
+        
+        '''
+        m.addConstrs(
+            (
+                (added_cap['Diesel Generator', y] ==
+                    quicksum(int_cap_steps[i, y] * self.cap_steps[i] 
+                             for i in range(len(self.cap_steps))))
+                for y in range(1, self.years + 1)
+            ),
+            "Steps for added diesel generator capacity"
+        )
+        '''
+        
+        #----------------------------------------------------------------------#
+        # Generation Retirement                                                #
+        #----------------------------------------------------------------------#
+
+        m.addConstrs(
+            (
+                (ret_cap[g, self.life_0[g]] == self.init_cap[g])
+                for g in self.techs
+            ),
+            "Retirement of initial capacity"
+        )
+        
+        m.addConstrs(
+            (
+                (ret_cap[g, y] == 0)
+                for g in self.techs
+                for y in range(self.life_0[g])   # range(self.life_0) returns values only up to life_0
+            ),
+            "Retirement before initial capacity"
+        )
+        
+        m.addConstrs(
+            (
+                (ret_cap[g, y] == added_cap[g, y - self.life[g]])
+                for g in self.techs
+                for y in range(self.life[g], self.years)
+            ),
+            "Retirement after initial capacity"
+        )
+
+        m.addConstrs(
+            (
+                (ret_cap[g, y] == 0)
+                for g in self.techs
+                for y in range(self.life_0[g] + 1, 
+                               min(self.life[g], self.years))
+            ),
+            "Retirement between initial capacity and life"
+        )
+        
+        #----------------------------------------------------------------------#
+        # Dispatch                                                             #
+        #----------------------------------------------------------------------#
 
         m.addConstrs(
             (
@@ -394,36 +485,7 @@ class Model_1:
             "Maximum connected houses"
         )
 
-        #----------------------------------------------------------------------#
-        # Generation Capacity                                                  #
-        #----------------------------------------------------------------------#
-
-        m.addConstrs(
-            (
-                (inst_cap[g, y] ==
-                inst_cap[g, y-1] + added_cap[g, y]
-                - ret_cap[g, y])
-                for g in self.techs
-                for y in range(1, self.years + 1)
-            ),
-            "Tracking capacity"
-        )
-        m.addConstrs(
-            (
-                (inst_cap[g, 0] == self.init_cap[g])
-                for g in self.techs_o
-            ),
-            "Initial capacity"
-        )
-
-        m.addConstrs(
-            (
-                (added_cap['Diesel Generator', y] ==
-                    quicksum(int_cap_steps[i, y] * self.cap_steps[i] for i in range(len(self.cap_steps))))
-                for y in range(1, self.years + 1)
-            ),
-            "Steps for added diesel generator capacity"
-        )
+    
 
         # ----------------------------------------------------------------------#
         # Feed in PV from Prosumers                                             #
@@ -513,42 +575,7 @@ class Model_1:
             "Initial storage capacity"
         )
 
-        #----------------------------------------------------------------------#
-        # Generation Retirement                                                #
-        #----------------------------------------------------------------------#
-
-        m.addConstrs(
-            (
-                (ret_cap[g, self.life_0[g] + 1] == self.init_cap[g])
-                for g in self.techs_o
-            ),
-            "Retirement of initial capacity"
-        )
-        m.addConstrs(
-            (
-                (ret_cap[g, y] == 0)
-                for g in self.techs_o
-                for y in range(1, self.life_0[g] + 1)   # range(self.life_0) returns values only up to life_0 - 1
-            ),
-            "Retirement before initial capacity"
-        )
-        m.addConstrs(
-            (
-                (ret_cap[g, y] == added_cap[g, y - self.life[g]])
-                for g in self.techs_o
-                for y in range(self.life[g] + 1, self.years + 1)
-            ),
-            "Retirement after initial capacity"
-        )
-
-        m.addConstrs(
-            (
-                (ret_cap[g, y] == 0)
-                for g in self.techs_o
-                for y in range(self.life_0[g] + 2, min(self.life[g] + 1, self.years + 1))
-            ),
-            "Retirement between initial capacity and life"
-        )
+        
 
         #----------------------------------------------------------------------#
         # Battery Retirement                                                   #
