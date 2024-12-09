@@ -94,7 +94,7 @@ class Model_1:
 
         #heat rate curve
         self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
-
+        
         self.diesel_p = self.data['tariffs']['Diesel Price'].to_numpy()
 
         #----------------------------------------------------------------------#
@@ -222,6 +222,9 @@ class Model_1:
         bin_heat_rate = m.addVars(5, self.years,
                       self.days, self.hours,
                       vtype=GRB.BINARY, name='binHeatRate')
+        
+        d_cons = m.addVars(self.years, self.days, self.hours,
+                           name='diesel consumption')
 
 
         #----------------------------------------------------------------------#
@@ -285,8 +288,8 @@ class Model_1:
                                * self.d_weights[d]
                                for h in range(self.hours)
                                for d in range(self.days))
-                       + quicksum(heat_rate * disp['Diesel Generator', y, d, h]
-                                  * self.diesel_p * self.d_weights[d]
+                       + quicksum(d_cons[y, d, h] * self.diesel_p 
+                                  * self.d_weights[d]
                                   for h in range(self.hours)
                                   for d in range(self.days))
                        )
@@ -441,52 +444,173 @@ class Model_1:
                  inst_cap[('Diesel Generator', y)])
                 for h in range(self.hours)
                 for d in range(self.days)
-                for y in range(1, self.years + 1)
+                for y in range(self.years)
             ),
             "Maximum DG dispatch"
         )
+        
         m.addConstrs(
             (
                 (disp['Owned PV', y, d, h] <=
-                 self.cap_fact[d][h] * inst_cap['Owned PV', y])
+                 self.cap_fact[d, h] * inst_cap['Owned PV', y])
                 for h in range(self.hours)
                 for d in range(self.days)
-                for y in range(1, self.years + 1)
+                for y in range(self.years)
             ),
             "Maximum PV dispatch"
         )
+        
         m.addConstrs(
             (
                 (b_in[y, d, h] <=
                  inst_cap['Owned Batteries', y])
-                for y in range(1, self.years + 1)
+                for y in range(self.years)
                 for d in range(self.days)
                 for h in range(self.hours)
             ),
             "Maximum battery input"
         )
+        
         m.addConstrs(
             (
                 (b_out[y, d, h] <=
                  inst_cap['Owned Batteries', y])
-                for y in range(1, self.years + 1)
+                for y in range(self.years)
                 for d in range(self.days)
                 for h in range(self.hours)
             ),
             "Maximum battery output"
         )
-
-        m.addConstrs(
-            (
-                h_weight[i, y] <= self.max_house_str[i]
-                for i in self.house
-                for y in range(1, self.years + 1)
-            ),
-            "Maximum connected houses"
+        
+        #----------------------------------------------------------------------#
+        # Heat Rate                                                            #
+        #----------------------------------------------------------------------#
+        M = 1000
+        e = 0.01
+        
+        m.addConstrts(((d_cons[y, d, h] >= 
+                       self.heat_rate_k[0] * disp['Diesel Generator', y, d, h]
+                       - self.bin_heat_rate[0, y, d, h] * M)
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Heat Rate 1.1"
         )
-
-    
-
+        
+        m.addConstrts(((d_cons[y, d, h] <= 
+                       self.heat_rate_k[0] * disp['Diesel Generator', y, d, h]
+                       + self.bin_heat_rate[0, y, d, h] * M)
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Heat Rate 1.2"
+        )
+        
+        m.addConstrts(((disp['Diesel Generator', y, d, h] >=
+                        0.3 * inst_cap['Diesel Generator', y]
+                        - (1 - self.bin_heat_rate[0, y, d, h] * M))
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Boundary 1" 
+        )
+        
+        m.addConstrts(((d_cons[y, d, h] >= 
+                       self.heat_rate_k[1] * disp['Diesel Generator', y, d, h]
+                       - self.bin_heat_rate[1, y, d, h] * M)
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Heat Rate 2.1"
+        )
+        
+        m.addConstrts(((d_cons[y, d, h] <= 
+                       self.heat_rate_k[1] * disp['Diesel Generator', y, d, h]
+                       + self.bin_heat_rate[1, y, d, h] * M)
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Heat Rate 2.2"
+        )
+        
+        m.addConstrts(((disp['Diesel Generator', y, d, h] <=
+                        0.3 * inst_cap['Diesel Generator', y]
+                        + self.bin_heat_rate[2, y, d, h] * M - e)
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Boundary 2.1"
+        )
+        
+        m.addConstrts(((disp['Diesel Generator', y, d, h] >=
+                        0.6 * inst_cap['Diesel Generator', y]
+                        + self.bin_heat_rate[3] * M)
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Boundary 2.2"
+        )
+        
+        m.addConstrts(((d_cons[y, d, h] >= 
+                       self.heat_rate_k[2] * disp['Diesel Generator', y, d, h]
+                       - self.bin_heat_rate[4, y, d, h] * M)
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Heat Rate 3.1"
+        )
+        
+        m.addConstrts(((d_cons[y, d, h] <= 
+                       self.heat_rate_k[2] * disp['Diesel Generator', y, d, h]
+                       + self.bin_heat_rate[4, y, d, h] * M)
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Heat Rate 3.2"
+        )
+        
+        m.addConstrts(((disp['Diesel Generator', y, d, h] <=
+                        0.6 * inst_cap['Diesel Generator', y]
+                        - (1 - self.bin_heat_rate[4, y, d, h] * M - e))
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Boundary 3" 
+        )
+        
+        m.addConstrts(((self.bin_heat_rate[1, y, d, h] 
+                        + self.bin_heat_rate[2, y, d, h]
+                        + self.bin_heat_rate[3, y, d, h] <=
+                        2)
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Binary cap 1"
+        )
+        
+        m.addConstrts(((self.bin_heat_rate[0, y, d, h] 
+                        + self.bin_heat_rate[1, y, d, h]
+                        + self.bin_heat_rate[4, y, d, h] ==
+                        2)
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),
+                      "Binary cap 2"
+        )
+        
+        '''
         # ----------------------------------------------------------------------#
         # Feed in PV from Prosumers                                             #
         # ----------------------------------------------------------------------#
@@ -513,7 +637,7 @@ class Model_1:
             "max Feed in"
         )
 
-
+        '''
         #----------------------------------------------------------------------#
         # Battery Operation                                                    #
         #----------------------------------------------------------------------#
@@ -559,6 +683,7 @@ class Model_1:
             ),
             'SoC capacity 2'
         )
+        '''
         m.addConstrs(
             (
                 (inst_cap_e[y] ==
@@ -609,7 +734,7 @@ class Model_1:
             ),
             "Retirement between initial capacity and life"
         )
-
+        '''
         #----------------------------------------------------------------------#
         # Heat Rate Curve                                                      #
         #----------------------------------------------------------------------#
