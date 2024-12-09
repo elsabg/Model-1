@@ -622,6 +622,53 @@ class Model_1:
             "Binary cap 2"
         )
         
+        #----------------------------------------------------------------------#
+        # Battery Operation                                                    #
+        #----------------------------------------------------------------------#
+
+        m.addConstrs(
+            (
+                (soc[y, d, h] == soc[y, d, h - 1]
+                 + self.bat_eff * b_in[y, d, h]
+                 - b_out[y, d, h] / self.bat_eff)
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(1, self.hours)
+            ),
+            'SoC tracking'
+        )
+        m.addConstrs(
+            (
+                (soc[y, d, 0] == soc[y, d, 23]
+                 + self.bat_eff * b_in[y, d, 0]
+                 - b_out[y, d, 0] / self.bat_eff)
+                for y in range(self.years)
+                for d in range(self.days)
+            ),
+            ' SoC of hour 0'
+        )
+        m.addConstrs(
+            (
+                (self.min_soc 
+                 * 4 * inst_cap['Owned Batteries', y] <=
+                 soc[y, d, h])
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
+            ),
+            'SoC capacity 1'
+        )
+        m.addConstrs(
+            (
+                (4 * inst_cap['Owned Batteries', y] >=
+                 soc[y, d, h])
+                for y in range(self.years)
+                for d in range(self.days)
+                for h in range(self.hours)
+            ),
+            'SoC capacity 2'
+        )
+        
         '''
         # ----------------------------------------------------------------------#
         # Feed in PV from Prosumers                                             #
@@ -650,51 +697,7 @@ class Model_1:
         )
 
         '''
-        #----------------------------------------------------------------------#
-        # Battery Operation                                                    #
-        #----------------------------------------------------------------------#
-
-        m.addConstrs(
-            (
-                (soc[y, d, h] == soc[y, d, h - 1]
-                 + self.bat_eff * b_in[y, d, h]
-                 - b_out[y, d, h] / self.bat_eff)
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(1, self.hours)
-            ),
-            'SoC tracking'
-        )
-        m.addConstrs(
-            (
-                (soc[y, d, 0] == soc[y, d, 23]
-                 + self.bat_eff * b_in[y, d, 0]
-                 - b_out[y, d, 0] / self.bat_eff)
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-            ),
-            ' SoC of hour 0'
-        )
-        m.addConstrs(
-            (
-                (self.min_soc * inst_cap_e[y] <=
-                 soc[y, d, h])
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(self.hours)
-            ),
-            'SoC capacity 1'
-        )
-        m.addConstrs(
-            (
-                (inst_cap_e[y] >=
-                 soc[y, d, h])
-                for y in range(1, self.years + 1)
-                for d in range(self.days)
-                for h in range(self.hours)
-            ),
-            'SoC capacity 2'
-        )
+        
         '''
         m.addConstrs(
             (
