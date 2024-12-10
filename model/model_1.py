@@ -168,11 +168,6 @@ class Model_1:
 
         m = Model('Model_1')
 
-        '''
-        Year 0 is outside of the planning horizon. The decisions start at year
-        1, while year 0 only holds initial capacities.
-        '''
-
         #----------------------------------------------------------------------#
         #                                                                      #
         # Decision Variables                                                   #
@@ -243,7 +238,7 @@ class Model_1:
 
             # Revenue
             tr[y] = self.elec_price * quicksum((
-                (quicksum(disp[g, y, d, h] for g in self.techs_g) 
+                (sum(disp[g, y, d, h] for g in self.techs_g) 
                  + b_out[y, d, h] - b_in[y, d, h]) 
                 * self.d_weights[d])
                 for d in range(self.days)
@@ -312,9 +307,9 @@ class Model_1:
         tp_npv = quicksum(((tr[y] - tcc[y] - tofc[y] - tovc[y]) 
                            * ( 1 / ((1 + self.i) ** y))) #discount factor
                           for y in range(self.years)
-        )
+                          )
 
-        m.setObjective(tp_npv, GRB.MAXIMIZE)
+        m.setObjective(tp_npv[0], GRB.MAXIMIZE)
 
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -325,9 +320,9 @@ class Model_1:
         #----------------------------------------------------------------------#
         # Demand-Supply Balance                                                #
         #----------------------------------------------------------------------#
-        m.addConstrts(((b_out[y, d, h] 
-                        + quicksum(disp[g, y, d, h] for g in self.techs_g) 
-                        + quicksum(min(feed_in[y, d, h], 
+        m.addConstrs(((b_out[y, d, h] 
+                        + sum(disp[g, y, d, h] for g in self.techs_g) 
+                        + sum(min(feed_in[i, y, d, h], 
                                        h_weight[i, y] 
                                        * self.surplus[i, y, d, h])
                                   for i in self.house) ==  
@@ -339,7 +334,7 @@ class Model_1:
                       "Supply-demand balance"
             )
         
-        m.addConstrts(((feed_in[i, y, d, h] <=
+        m.addConstrs(((feed_in[i, y, d, h] <=
                        max(0, h_weight[i, y] * self.surplus[i, y, d, h]))
                        for i in self.house
                        for h in range(self.hours)
@@ -349,7 +344,7 @@ class Model_1:
                       "Feed in cap"
             )
         
-        m.addConstrts(((h_weight[i, y] <= self.max_house_str[i, y]) 
+        m.addConstrs(((h_weight[i, y] <= self.max_house_str[i, y]) 
                        for i in self.house 
                        for y in range(self.years)
                        ),
@@ -363,7 +358,7 @@ class Model_1:
         m.addConstrs(
             (
                 (inst_cap[g, y] ==
-                inst_cap[g, y-1] + added_cap[g, y]
+                inst_cap[g, y - 1] + added_cap[g, y]
                 - ret_cap[g, y])
                 for g in self.techs
                 for y in range(self.years)
