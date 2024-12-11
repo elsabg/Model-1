@@ -32,7 +32,7 @@ class Model_1:
         #-------------------------------------------------------------------------------#
 
         self.years = int(self.data['parameters']['Planning horizon'][0])
-        self.days = int(self.data['parameters']['Days'][0]) - 1 #DO NOT FORGET TO REMOVE IT LATER I WENT OVER THE LIMIT FOR IT
+        self.days = int(self.data['parameters']['Days'][0])
         self.hours = int(self.data['parameters']['Hours'][0])
         self.d_weights = self.data['day_weights']['Weight'].to_numpy()
 
@@ -41,8 +41,7 @@ class Model_1:
         #-------------------------------------------------------------------------------#
 
         #Initial Generation Capacities
-        self.init_cap = self.tech_df['Initial capacity'].iloc[:-1].to_dict()
-        self.init_cap_e = (self.data['tech']['Initial capacity'].to_numpy())[-1]
+        self.init_cap = self.tech_df['Initial capacity'].to_dict()
 
         #Household capacities
         self.max_house = self.data['rent_cap'].loc[0].iloc[1::].to_numpy()
@@ -53,18 +52,18 @@ class Model_1:
         self.max_house_str = {
             'Type 1': self.max_house[0],
             'Type 2': self.max_house[1],
-            'Type 3': self.max_house[2],
-            'Type 4': self.max_house[3],
-            'Type 5': self.max_house[4],
-            'Type 6': self.max_house[5]
+            #'Type 3': self.max_house[2],
+            #'Type 4': self.max_house[3],
+            #'Type 5': self.max_house[4],
+            #'Type 6': self.max_house[5]
         }
         self.avg_pv_cap_str = {
             'Type 1': self.avg_pv_cap[0],
             'Type 2': self.avg_pv_cap[1],
-            'Type 3': self.avg_pv_cap[2],
-            'Type 4': self.avg_pv_cap[3],
-            'Type 5': self.avg_pv_cap[4],
-            'Type 6': self.avg_pv_cap[5]
+            #'Type 3': self.avg_pv_cap[2],
+            #'Type 4': self.avg_pv_cap[3],
+            #'Type 5': self.avg_pv_cap[4],
+            #'Type 6': self.avg_pv_cap[5]
         }
 
         #-------------------------------------------------------------------------------#
@@ -72,12 +71,10 @@ class Model_1:
         #-------------------------------------------------------------------------------#
 
         #Remaining lifetime
-        self.life_0 = self.tech_df['Remaining lifetime'].iloc[:-1].to_dict()
-        self.life_0_e = (self.data['tech']['Remaining lifetime'].to_numpy())[-1]
+        self.life_0 = self.tech_df['Remaining lifetime'].to_dict()
 
         #Technology lifetime
-        self.life = self.tech_df['Lifetime'].iloc[:-1].to_dict()
-        self.life_e = (self.data['tech']['Lifetime'].to_numpy())[-1]
+        self.life = self.tech_df['Lifetime'].to_dict()
 
         #-------------------------------------------------------------------------------#
         # Costs                                                                         #
@@ -85,6 +82,7 @@ class Model_1:
 
         #Technology costs
         self.ucc = self.tech_df['UCC'].to_dict()
+
         self.uofc = self.tech_df['UOFC'].to_dict()
         self.uovc = self.tech_df['UOVC'].to_dict()
 
@@ -106,46 +104,52 @@ class Model_1:
         #Household Types
         self.house = self.data['rent_cap'].columns.to_numpy()[1::]
 
-        #historic demand
-        self.hist_demand = self.data['hist_demand']['demand'][0]
-        self.hist_price = self.data['hist_demand']['price'][0]
-
         #demand elasticity
         self.elasticity = self.data['parameters']['demand_elasticity'][0]
 
         #Demand
         self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
         self.demand_2 = self.data['elec_demand (2)'].iloc[:, 1:].to_numpy()
-        self.demand_3 = self.data['elec_demand (3)'].iloc[:, 1:].to_numpy()
-        self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
-        self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
-        self.demand_6 = self.data['elec_demand (6)'].iloc[:, 1:].to_numpy()
+        #self.demand_3 = self.data['elec_demand (3)'].iloc[:, 1:].to_numpy()
+        #self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
+        #self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
+        #self.demand_6 = self.data['elec_demand (6)'].iloc[:, 1:].to_numpy()
 
 
         # Residual Demand (without PV)
         self.res_demand = {
             'Type 1': self.demand_1.tolist(),
             'Type 2': self.demand_2.tolist(),
-            'Type 3': self.demand_3.tolist(),
-            'Type 4': self.demand_4.tolist(),
-            'Type 5': self.demand_5.tolist(),
-            'Type 6': self.demand_6.tolist()
+            #'Type 3': self.demand_3.tolist(),
+            #'Type 4': self.demand_4.tolist(),
+            #'Type 5': self.demand_5.tolist(),
+            #'Type 6': self.demand_6.tolist()
         }
 
         # feed in energy from prosumers
         self.pros_feedin = {
             'Type 1': self.demand_1.tolist(),
             'Type 2': self.demand_2.tolist(),
-            'Type 3': self.demand_3.tolist(),
-            'Type 4': self.demand_4.tolist(),
-            'Type 5': self.demand_5.tolist(),
-            'Type 6': self.demand_6.tolist()
+            #'Type 3': self.demand_3.tolist(),
+            #'Type 4': self.demand_4.tolist(),
+            #'Type 5': self.demand_5.tolist(),
+            #'Type 6': self.demand_6.tolist()
         }
 
         cd.calc_res_demand(self)
         cd.calc_pros_feedin(self)
 
+        # historic demand
+        self.hist_demand = np.zeros(self.days)
 
+        for d in range(self.days):
+            self.hist_demand[d] = sum(cd.mc_demand(self, d, h) for h in range(self.hours)) * self.d_weights[d]
+
+        self.steps = 5
+
+        self.hist_price = 0.4
+
+        self.disp_steps_year, self.disp_steps_month, self.price_steps = cd.calc_disp_price_steps(self)
 
         #-------------------------------------------------------------------------------#
         # Battery and other Parameters                                                  #
@@ -154,11 +158,13 @@ class Model_1:
         self.min_soc = self.data['parameters']['min SoC'][0]
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
         self.cap_power_ratio = 6    # 6 hours of storage
+        self.ucc['Owned Batteries'] = self.ucc['Owned Batteries'] * self.cap_power_ratio # from cost per kWh to cost per kW
 
         self.i = self.data['parameters']['Interest rate'][0]
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
 
         self.cap_steps = self.data['capacity_steps']['Diesel Generator'].to_numpy()
+
 
         #------------------------------------------------------------------------------#
         # Sets                                                                         #
@@ -169,17 +175,17 @@ class Model_1:
         self.techs_g_o = self.techs[:2] # ['Diesel Generator', 'Owned PV']
         self.techs_o = np.array(['Diesel Generator', 'Owned PV', 'Owned Batteries'])
 
-
-
-    def solve(self, fit, elec_price, heatrate_c_run):
+    def solve(self, fit, elec_price, heatrate_c_run, dem_elasticity_c_run):
         'Create and solve the model'
 
         self.fit = fit
         self.elec_price = elec_price
         self.heatrate_c_run = heatrate_c_run
+        self.dem_elasticity_c_run = dem_elasticity_c_run
 
         m = Model('Model_1_case_1')
-        m.setParam('MIPGap', 0.015)
+        #m.setParam('MIPGap', 0.015)
+        m.setParam('ScaleFlag', 1)
         '''
         Year 0 is outside of the planning horizon. The decisions start at year
         1, while year 0 only holds initial capacities.
@@ -191,15 +197,15 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb=0, vtype=GRB.INTEGER)
-        for y in range(self.years + 1):
-            added_cap['Owned Batteries', y].vtype = GRB.CONTINUOUS
+        added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb=0 ) #, vtype=GRB.INTEGER)
 
-        #added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb = 0, vtype = GRB.INTEGER)
-        added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0, vtype = GRB.INTEGER)
+
+        #added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0) #, vtype = GRB.INTEGER)
+        # inst_cap_e = m.addVars(self.years + 1, name='instCapE', lb=0)
+        # ret_cap_e = m.addVars(self.years + 1, name='retiredCapE',  lb = 0)
 
         inst_cap = m.addVars(self.techs_o, self.years + 1, name='instCap', lb=0)
-        inst_cap_e = m.addVars(self.years + 1, name='instCapE', lb=0)
+
 
         disp = m.addVars(self.techs_g, self.years + 1, self.days, self.hours, name='disp', lb=0)
 
@@ -209,7 +215,6 @@ class Model_1:
         b_out = m.addVars(self.years + 1, self.days, self.hours, name='bOut', lb = 0)
 
         ret_cap = m.addVars(self.techs_o, self.years + 1, name='retiredCap', lb = 0)
-        ret_cap_e = m.addVars(self.years + 1, name='retiredCapE',  lb = 0)
 
         soc = m.addVars(self.years + 1, self.days, self.hours, name='SoC', lb = 0)
 
@@ -220,8 +225,20 @@ class Model_1:
         int_cap_steps = m.addVars(len(self.cap_steps), self.years + 1, name = 'binCapSteps', vtype=GRB.INTEGER, lb = 0)
 
         bin_heat_rate = m.addVars(len(self.heat_r_k), self.years,
-                      self.days, self.hours,
+                      self.days, self.hours // 3,
                       vtype=GRB.BINARY, name='binHeatRate')
+
+        bin_price_curve = m.addVars(self.steps,  self.years,
+                                    vtype=GRB.BINARY, name='binPriceCurve')
+
+        '''
+        for y in range(self.years):
+            for i in range(self.steps):
+                if self.steps // 2 == i:
+                    bin_price_curve[i, y] .Start= 1
+                else:
+                    bin_price_curve[i, y].Start = 0
+        '''
 
 
         #----------------------------------------------------------------------#
@@ -239,18 +256,29 @@ class Model_1:
         for y in range(1, self.years + 1):
 
             # Revenue
-            tr[y] = quicksum(
-                ((quicksum(disp[g, y, d, h] for g in self.techs_g) + b_out[y, d, h] - b_in[y, d, h]) * self.d_weights[d])
-                for d in range(self.days)
-                for h in range(self.hours)
-            ) * self.elec_price
+            if self.dem_elasticity_c_run == 'y':
+                tr[y] = quicksum(
+                    ((quicksum(disp[g, y, d, h] for g in self.techs_g) + b_out[y, d, h] - b_in[y, d, h]) *
+                     self.d_weights[d]) *  quicksum(self.price_steps[i] * bin_price_curve[i, y - 1] for i in range(self.steps))
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                )
+
+            else:
+                tr[y] = quicksum(
+                    ((quicksum(disp[g, y, d, h] for g in self.techs_g) + b_out[y, d, h] - b_in[y, d, h]) *
+                     self.d_weights[d])
+                    for d in range(self.days)
+                    for h in range(self.hours)
+                ) * self.elec_price
+
 
             # Capital Costs
             tcc[y] = quicksum(
                     (
                         added_cap[g, y] * self.ucc[g]
-                    ) for g in self.techs_g_o
-                ) + added_cap_e[y] * self.ucc['Owned Batteries Energy']
+                    ) for g in self.techs_o
+                )
 
             if self.heatrate_c_run == 'y':
                 # Operation Variable Costs with DG heat rate curve
@@ -263,7 +291,7 @@ class Model_1:
                     for d in range(self.days)
                     for h in range(self.hours)
                 ) + quicksum(
-                    quicksum(self.heat_r_k[i] * bin_heat_rate[i, y - 1, d, h] for i in range(len(self.heat_r_k)))
+                    quicksum(self.heat_r_k[i] * bin_heat_rate[i, y - 1, d, h // 3] for i in range(len(self.heat_r_k)))
                     * disp['Diesel Generator', y, d, h] * self.diesel_p[y - 1] * self.d_weights[d]
                     for d in range(self.days)
                     for h in range(self.hours)
@@ -309,11 +337,12 @@ class Model_1:
             )
 
 
+
         # Net Present Value of Total Profits
         tp_npv = quicksum(
             (
                 (
-                    tr[y] - tcc[y] - tofc[y] - tcud[y]- tovc[y] #yearly profits
+                    tr[y] - tcc[y] - tofc[y]- tovc[y] - tcud[y] #yearly profits
                 ) * ( 1 / ((1 + self.i) ** y)) # discount factor
             ) for y in range(1, self.years + 1)
         )
@@ -330,19 +359,29 @@ class Model_1:
         # Demand and Dispatch                                                  #
         #----------------------------------------------------------------------#
 
-        m.addConstrs(
-            (
-                (quicksum(
-                    disp[g, y, d, h] for g in self.techs_g)
-                    + ud[y, d, h] + b_out[y, d, h] ==
-                quicksum(
-                    [cd.mc_demand(self, d, h) + b_in[y, d, h]]))
-                for h in range(self.hours)
-                for d in range(self.days)
-                for y in range(1, self.years + 1)
-            ),
-            "Supply-demand balance"
-        )
+        if self.dem_elasticity_c_run == 'y':
+            m.addConstrs(
+                (
+                    quicksum(disp[g, y, d, h] for g in self.techs_g) + b_out[y, d, h] + ud[y, d, h] ==
+                    cd.elastic_mc_demand(self, bin_price_curve, y, d, h) + b_in[y, d, h]
+                    for h in range(self.hours)
+                    for d in range(self.days)
+                    for y in range(1, self.years + 1)
+                ),
+                "Supply-demand balance"
+            )
+        else:
+            m.addConstrs(
+                (
+                    quicksum(disp[g, y, d, h] for g in self.techs_g) + b_out[y, d, h] + ud[y, d, h] ==
+                    cd.mc_demand(self, d, h) + b_in[y, d, h]
+                    for h in range(self.hours)
+                    for d in range(self.days)
+                    for y in range(1, self.years + 1)
+                ),
+                "Supply-demand balance"
+            )
+
 
         m.addConstrs(
             (
@@ -470,7 +509,7 @@ class Model_1:
         )
         m.addConstrs(
             (
-                (self.min_soc * inst_cap_e[y] <=
+                (self.min_soc * inst_cap['Owned Batteries', y] * self.cap_power_ratio <=
                  soc[y, d, h])
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
@@ -480,7 +519,7 @@ class Model_1:
         )
         m.addConstrs(
             (
-                (inst_cap_e[y] >=
+                (inst_cap['Owned Batteries', y] * self.cap_power_ratio >=
                  soc[y, d, h])
                 for y in range(1, self.years + 1)
                 for d in range(self.days)
@@ -488,30 +527,7 @@ class Model_1:
             ),
             'SoC capacity 2'
         )
-        m.addConstrs(
-            (
-                (inst_cap_e[y] ==
-                 inst_cap_e[y - 1] + added_cap_e[y]
-                 - ret_cap_e[y])
-                for y in range(1, self.years + 1)
-            ),
-            "Tracking storage capacity"
-        )
-        m.addConstr(
-            (
-                    inst_cap_e[0] == self.init_cap_e
-            ),
-            "Initial storage capacity"
-        )
 
-        m.addConstrs(
-            (
-                added_cap['Owned Batteries', y] ==
-                added_cap_e[y] / self.cap_power_ratio
-                for y in range(1, self.years + 1)
-            ),
-            "Set Battery Power through added capacity"
-        )
 
         #----------------------------------------------------------------------#
         # Generation Retirement                                                #
@@ -551,51 +567,18 @@ class Model_1:
         )
 
         #----------------------------------------------------------------------#
-        # Battery Retirement                                                   #
-        #----------------------------------------------------------------------#
-
-        m.addConstr(
-            (
-                    ret_cap_e[self.life_0_e + 1] == self.init_cap_e
-            ),
-            "Retirement of initial storage capacity"
-        )
-        m.addConstrs(
-            (
-                (ret_cap_e[y] == 0)
-                for y in range(1, self.life_0_e + 1)
-            ),
-            "Retirement before initial capacity"
-        )
-        m.addConstrs(
-            (
-                ((ret_cap_e[y] == added_cap_e[y - self.life_e])
-                 for y in range(self.life_e + 1, self.years + 1))
-            ),
-            "Retirement after initial capacity"
-        )
-
-        m.addConstrs(
-            (
-                (ret_cap_e[y] == 0)
-                for y in range(self.life_0_e + 2, min(self.life_e + 1, self.years + 1))
-            ),
-            "Retirement between initial capacity and life"
-        )
-
-        #----------------------------------------------------------------------#
         # Heat Rate Curve                                                      #
         #----------------------------------------------------------------------#
 
         if self.heatrate_c_run == 'y':
-            bigM = 700  # find the max value of bigM
+            bigM_1 = 700  # find the max value of bigM
 
             m.addConstrs(
                 (
                     quicksum(bin_heat_rate[i, y, d, h] for i in range(len(self.heat_r_k))) == 1
                     for y in range(self.years)
                     for d in range(self.days)
-                    for h in range(self.hours)
+                    for h in range(self.hours // 3)
                 ),
                 "Sum Binary set = 1"
             )
@@ -604,7 +587,7 @@ class Model_1:
                 (
                     (disp['Diesel Generator', y, d, h] <=
                      inst_cap['Diesel Generator', y] * 0.25
-                     + bigM * (1 - bin_heat_rate[0, y, d, h]) - epsilon)
+                     + bigM_1 * (1 - bin_heat_rate[0, y, d, h // 3]) - epsilon)
                     for y in range(self.years)
                     for d in range(self.days)
                     for h in range(self.hours)
@@ -617,7 +600,7 @@ class Model_1:
                 (
                     (disp['Diesel Generator', y, d, h] >=
                      inst_cap['Diesel Generator', y] * 0.25
-                     - bigM * (1 - bin_heat_rate[1, y, d, h]))
+                     - bigM_1 * (1 - bin_heat_rate[1, y, d, h // 3]))
                     for y in range(self.years)
                     for d in range(self.days)
                     for h in range(self.hours)
@@ -625,12 +608,49 @@ class Model_1:
                 'heat rate 2.1'
             )
 
+        # ----------------------------------------------------------------------#
+        # Price Curve (el. Demand)                                              #
+        # ----------------------------------------------------------------------#
+
+        if self.dem_elasticity_c_run == 'y':
+            bigM_2 = 10 ** 8
+
+            m.addConstrs(
+                (
+                    quicksum(bin_price_curve[i, y] for i in range(self.steps)) == 1
+                    for y in range(self.years)
+                ),
+                "Sum Binary set = 1"
+            )
+
+            for i in range(self.steps - 1):
+                m.addConstrs(
+                    (
+                        (cd.demand_sum_year(self, y, disp, ud, b_out, b_in) <=
+                         self.disp_steps_year[i] + (1 - bin_price_curve[self.steps - 1 - i, y]) * bigM_2)
+                        for y in range(self.years)
+                    ),
+                    "Year "+str(y)+"Price curve " + str(i) + ".up"
+                )
+
+                m.addConstrs(
+                    (
+                        cd.demand_sum_year(self, y, disp, ud, b_out, b_in) >= self.disp_steps_year[i] - bigM_2 * (
+                                1 - bin_price_curve[self.steps - 2 - i, y])
+                        for y in range(self.years)
+                    ),
+                    "Year "+str(y)+" Price curve " + str(i + 1) + ".low"
+                )
 
         #----------------------------------------------------------------------#
         # Optimization                                                         #
         #----------------------------------------------------------------------#
 
+        #m.computeIIS()
+        #m.write("model.ilp")
         m.optimize()
+
+
 
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -641,58 +661,73 @@ class Model_1:
         ret = np.zeros((4, self.years + 1)) # retired capacity
         inst = np.zeros((4, self.years + 1)) # installed capacity
         added = np.zeros((4, self.years + 1)) # added capacity
-        disp_gen = np.zeros(self.hours)
-        disp_pv = np.zeros(self.hours)
-        unmetD = np.zeros(self.hours)
-        bat_in = np.zeros(self.hours)
-        bat_out = np.zeros(self.hours)
-        state_of_charge = np.zeros(self.hours)
+        disp_gen = np.zeros((self.years, self.days, self.hours))
+        disp_pv = np.zeros((self.years, self.days, self.hours))
+        disp_feedin = np.zeros((self.years, self.days, self.hours))
+        unmetD = np.zeros((self.years, self.days, self.hours))
+        bat_in = np.zeros((self.years, self.days, self.hours))
+        bat_out = np.zeros((self.years, self.days, self.hours))
+        state_of_charge = np.zeros((self.years, self.days, self.hours))
         num_households = np.zeros((len(self.house), self.years + 1))
-        feed_in_energy = np.zeros(self.hours)
-        heat_rate_binary = np.zeros((len(self.heat_r_k), self.hours))
+        heat_rate_binary = np.zeros((self.years, self.days, self.hours // 3, len(self.heat_r_k)))
+        price_binary = np.zeros((self.years, self.steps))
+        total_demand = np.zeros((self.years, self.days, self.hours))
 
         for y in range(self.years + 1):
             for g in self.techs_o:
                 ret[self.techs_o.tolist().index(g)][y] = ret_cap[g, y].X
                 inst[self.techs_o.tolist().index(g)][y] = inst_cap[g, y].X
                 added[self.techs_o.tolist().index(g)][y] = added_cap[g, y].X
-            ret[3][y] = ret_cap_e[y].X
-            inst[3][y] = inst_cap_e[y].X
-            added[3][y] = added_cap_e[y].X
+            ret[3][y] = ret_cap['Owned Batteries', y].X * self.cap_power_ratio
+            inst[3][y] = inst_cap['Owned Batteries', y].X * self.cap_power_ratio
+            added[3][y] = added_cap['Owned Batteries', y].X * self.cap_power_ratio
 
-
-        day = 2
-        year = 10
-        for h in range(self.hours):
-            disp_gen[h] = disp['Diesel Generator', year, day, h].X
-            disp_pv[h] = disp['Owned PV', year, day, h].X
-            unmetD[h] = ud[year, day, h].X
-            bat_in[h] = b_in[year, day, h].X
-            bat_out[h] = b_out[year, day, h].X
-            feed_in_energy[h] = disp['Feed In Prosumers', year, day, h].X
-            state_of_charge[h] = soc[year, day, h].X
-            if self.heatrate_c_run == 'y':
-                for i in range(len(self.heat_r_k)):
-                    heat_rate_binary[i, h] = bin_heat_rate[i, year-1, day, h].X
+        for y in range(self.years):
+            for d in range(self.days):
+                for h in range(self.hours):
+                    disp_gen[y][d][h] = disp['Diesel Generator', y + 1, d, h].X
+                    disp_pv[y][d][h] = disp['Owned PV', y + 1, d, h].X
+                    disp_feedin[y][d][h] = disp['Feed In Prosumers', y + 1, d, h].X
+                    unmetD[y][d][h] = ud[y + 1, d, h].X
+                    bat_in[y][d][h] = b_in[y + 1, d, h].X
+                    bat_out[y][d][h] = b_out[y + 1, d, h].X
+                    state_of_charge[y][d][h] = soc[y + 1 , d, h].X
+                    if self.heatrate_c_run == 'y':
+                        for i in range(len(self.heat_r_k)):
+                            heat_rate_binary[y][d][h // 3][i] = bin_heat_rate[i, y, d, h // 3].X
 
         for house in self.house:
             for y in range(self.years + 1):
                 num_households[self.house.tolist().index(house)][y] = np.abs(self.max_house_str[house])
 
 
-        total_demand = np.zeros((self.days, self.hours))
+        for y in range(self.years):
+            if self.dem_elasticity_c_run == 'y':
+                for i in range(self.steps):
+                    for d in range(self.days):
+                        price_binary[y][i] = bin_price_curve[i, y].X
 
-        for house in self.house:
-            for d in range(self.days):
-                for h in range(self.hours):
-                    total_demand[d][h] += self.res_demand[house][d][h] * num_households[self.house.tolist().index(house)][10]
+                for d in range(self.days):
+                    for h in range(self.hours):
+                        hourly_demand = 0
+                        for house in self.house:
+                            hourly_demand += (
+                                        ((sum(self.disp_steps_month[self.steps - 1 - i][d] * price_binary[y][i] for i in
+                                              range(self.steps))) / self.hist_demand[d])
+                                        * self.res_demand[house][d][h] * self.max_house_str[house])
+                        total_demand[y][d][h] = hourly_demand
 
 
-        return_array = [ret, inst, added, disp_gen, disp_pv, unmetD, bat_in, bat_out, num_households, feed_in_energy, total_demand, state_of_charge]
+            else:
+                for d in range(self.days):
+                    for h in range(self.hours):
+                        hourly_demand = 0
+                        for house in self.house:
+                            hourly_demand += self.res_demand[house][d][h] * self.max_house_str[house]
+                        total_demand[y][d][h] = hourly_demand
 
-        print('Year:', year)
-        print('Day:', day)
-        if self.heatrate_c_run == 'y':
-            print(pd.DataFrame(heat_rate_binary))
+        return_array = [ret, inst, added, disp_gen, disp_pv, disp_feedin,
+                        unmetD, bat_in, bat_out, state_of_charge, num_households,
+                        heat_rate_binary, price_binary, total_demand]
 
         return return_array
