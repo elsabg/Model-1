@@ -18,7 +18,7 @@ from model_1 import Model_1
 #                                                                               #
 #-------------------------------------------------------------------------------#
 
-model = Model_1(_file_name='model_inputs_testing_v2.xlsx')
+model = Model_1(_file_name='model_inputs_testing_v3.xlsx')
 model.load_data()
 
 #-------------------------------------------------------------------------------#
@@ -28,6 +28,8 @@ model.load_data()
 #-------------------------------------------------------------------------------#
 fit = 0.2
 el_price = 0.4
+heatrate_c_run = False
+dem_elasticity_c_run = False
 run_model = input("Run model? (Yes: [Enter], No: n):")
 if run_model != 'n':
     heatrate_c_run = input("Run model with heatrate curve? (No: [Enter], Yes: y):")
@@ -77,9 +79,11 @@ while(1):
     showyear = input("Year:(1-15):")
     showday = input("Day:(1-3):")
 
+
     func.show_tables(func.get_tabels(data))
     func.plot_day(func.get_timeseries(data, int(showyear)-1), int(showyear), int(showday) - 1)
     func.plot_soc(func.get_timeseries(data, int(showyear)-1), int(showyear), int(showday) - 1)
+    if heatrate_c_run or dem_elasticity_c_run == 'y':
+        func.show_binaries(func.get_binaries(data), int(showyear), int(showday) - 1)
 
-    func.show_binaries(func.get_binaries(data), int(showyear), int(showday) - 1)
 

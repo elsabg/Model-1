@@ -9,9 +9,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+#--------------------------------------------------------------------------------#
+# Print Results                                                                  #
+#--------------------------------------------------------------------------------#
 
 def show_tables(tables):
-    '''Process output data'''
+    '''Print Tabels Installed Added Retired Capacity and Number of Households'''
 
     (ret, inst, added, num_households) = tables
 
@@ -35,7 +38,7 @@ def show_tables(tables):
     inst.index = names
     added.index = names
     ret.index = names
-    names_housetypes = ['Consumer Residential', 'Prosumer Residential', 'Solar Farm', 'Water Pumping Station', 'Consumer Business', 'Prosumer Business']
+    names_housetypes = ['Consumer Residential', 'Prosumer Residential']#, 'Solar Farm', 'Water Pumping Station', 'Consumer Business', 'Prosumer Business']
     num_households.index = names_housetypes
 
     print('\n-----------installed capacity-----------\n')
@@ -49,23 +52,27 @@ def show_tables(tables):
     return
 
 def show_binaries(binaries, year, day):
-    '''Show binaries'''
+    '''Show the binary variables of Heatrate and Price Elasticity'''
 
     (heat_rate_binary, price_binary) = binaries
     heat_rate_binary = pd.DataFrame(
         heat_rate_binary[year][day], columns=[i for i in range(heat_rate_binary.shape[3])] #heat_rate_binary.shape[2])]
     )
     price_binary = pd.DataFrame(
-        price_binary[year], columns=[i for i in range(price_binary.shape[2])]
+        price_binary, columns=[i for i in range(price_binary.shape[1])]
     )
     print('\n-----------heat rate binary-----------\n')
     print(heat_rate_binary)
-    print('\n-----------price binary-----------\n')
-    print(price_binary)
+    #print('\n-----------price binary-----------\n')
+    #print(price_binary)
     return
 
+#--------------------------------------------------------------------------------#
+# Plot Results                                                                   #
+#--------------------------------------------------------------------------------#
+
 def plot_day(timeseriesArray, year, day):
-    '''plot some output data'''
+    '''plot the hourly timeseries of a specific day'''
 
     (disp_gen, disp_pv, disp_feedin, unmetD, bat_in, bat_out,
      state_of_charge, total_demand) = timeseriesArray
@@ -94,7 +101,7 @@ def plot_day(timeseriesArray, year, day):
     plt.show()
 
 def plot_soc(timeseriesArray, year, day):
-
+    '''plot the SoC of a specific day'''
     (disp_gen, disp_pv, disp_feedin, unmetD, bat_in, bat_out,
      state_of_charge, total_demand) = timeseriesArray
 
@@ -112,7 +119,12 @@ def plot_soc(timeseriesArray, year, day):
 
     plt.show()
 
+#--------------------------------------------------------------------------------#
+# Save/Read results to/from excel file                                           #
+#--------------------------------------------------------------------------------#
+
 def save_results(results):
+    '''Save the results arrays to an excel file'''
     (ret, inst, added, disp_gen, disp_pv, disp_feedin,
      unmetD, bat_in, bat_out, state_of_charge, num_households,
      heat_rate_binary, price_binary, total_demand) = results
@@ -133,10 +145,11 @@ def save_results(results):
     save_array2d_to_excel(price_binary, 'results.xlsx', 'price_binary')
     #save_array2d_to_excel(heat_rate_binary, 'results.xlsx', 'heat_rate_binary')
     for y in range (15):
-        [save_array2d_to_excel(heat_rate_binary[:, y, d, :], 'results.xlsx', 'heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
+        [save_array2d_to_excel(heat_rate_binary[y][d], 'results.xlsx', 'heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
         #save_array2d_to_excel(price_binary[y], 'results.xlsx', 'price_binary_' + str(y + 1))
 
 def save_array2d_to_excel(array2d, file_name, s_name):
+    '''Save a 2D array to an excel file'''
     # Convert the ret array to a pandas DataFrame
     df_array2d = pd.DataFrame(array2d.reshape(-1, array2d.shape[1]))
 
@@ -144,10 +157,12 @@ def save_array2d_to_excel(array2d, file_name, s_name):
         df_array2d.to_excel(writer, sheet_name=s_name, index=False)
 
 def get_results(file_name):
+    '''Read the results from an excel file'''
     return pd.read_excel(file_name, decimal=',', sheet_name=None)
 
 
 def get_timeseries(data, year):
+    '''Get the timeseries arrays from the dataframe'''
     disp_gen = data['dispatched_generation_'+ str(year + 1)].iloc[:,:].to_numpy()
     disp_pv = data['dispatched_pv_'+ str(year + 1)].iloc[:, :].to_numpy()
     disp_feedin = data['dispatched_feedin_'+ str(year + 1)].iloc[:,:].to_numpy()
@@ -160,6 +175,7 @@ def get_timeseries(data, year):
     return [disp_gen, disp_pv, disp_feedin, unmetD, bat_in, bat_out, state_of_charge, total_demand]
 
 def get_tabels(data):
+    '''Get the tables from the dataframe'''
     ret = data['retired_capacity'].iloc[:,:].to_numpy()
     inst = data['installed_capacity'].iloc[:,:].to_numpy()
     added = data['added_capacity'].iloc[:,:].to_numpy()
@@ -168,6 +184,7 @@ def get_tabels(data):
     return [ret, inst, added, num_households]
 
 def get_binaries(data):
+    '''Get the binary variables from the dataframe'''
     heat_rate_binary = np.zeros((15, 3, 8, 2))
     price_binary = data['price_binary'].iloc[:, :].to_numpy()
     for y in range(15):
