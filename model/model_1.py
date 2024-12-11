@@ -185,7 +185,7 @@ class Model_1:
 
         m = Model('Model_1_case_1')
         #m.setParam('MIPGap', 0.015)
-        m.setParam('ScaleFlag', 1)
+        #m.setParam('ScaleFlag', 1)
         '''
         Year 0 is outside of the planning horizon. The decisions start at year
         1, while year 0 only holds initial capacities.
@@ -198,11 +198,6 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         added_cap = m.addVars(self.techs_o, self.years + 1, name='addedCap', lb=0 ) #, vtype=GRB.INTEGER)
-
-
-        #added_cap_e = m.addVars(self.years + 1, name='addedCapE', lb = 0) #, vtype = GRB.INTEGER)
-        # inst_cap_e = m.addVars(self.years + 1, name='instCapE', lb=0)
-        # ret_cap_e = m.addVars(self.years + 1, name='retiredCapE',  lb = 0)
 
         inst_cap = m.addVars(self.techs_o, self.years + 1, name='instCap', lb=0)
 
