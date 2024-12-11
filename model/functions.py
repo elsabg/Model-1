@@ -53,10 +53,10 @@ def show_binaries(binaries, year, day):
 
     (heat_rate_binary, price_binary) = binaries
     heat_rate_binary = pd.DataFrame(
-        heat_rate_binary[year][day], columns=[i for i in range(2)] #heat_rate_binary.shape[2])]
+        heat_rate_binary[year][day], columns=[i for i in range(heat_rate_binary.shape[3])] #heat_rate_binary.shape[2])]
     )
     price_binary = pd.DataFrame(
-        price_binary, columns=[i for i in range(price_binary.shape[1])]
+        price_binary[year], columns=[i for i in range(price_binary.shape[2])]
     )
     print('\n-----------heat rate binary-----------\n')
     print(heat_rate_binary)
@@ -130,11 +130,11 @@ def save_results(results):
     [save_array2d_to_excel(total_demand[y], 'results.xlsx', 'total_demand_' + str(y + 1)) for y in range(len(total_demand))]
 
     save_array2d_to_excel(num_households, 'results.xlsx', 'num_households')
+    save_array2d_to_excel(price_binary, 'results.xlsx', 'price_binary')
     #save_array2d_to_excel(heat_rate_binary, 'results.xlsx', 'heat_rate_binary')
     for y in range (15):
         [save_array2d_to_excel(heat_rate_binary[:, y, d, :], 'results.xlsx', 'heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
-
-    save_array2d_to_excel(price_binary, 'results.xlsx', 'price_binary')
+        #save_array2d_to_excel(price_binary[y], 'results.xlsx', 'price_binary_' + str(y + 1))
 
 def save_array2d_to_excel(array2d, file_name, s_name):
     # Convert the ret array to a pandas DataFrame
@@ -168,11 +168,10 @@ def get_tabels(data):
     return [ret, inst, added, num_households]
 
 def get_binaries(data):
-    heat_rate_binary = np.zeros((15, 3, 24, 2))
-    for y in range(15):
-        for d in range(3):
-            for h in range(8):
-                for i in range(2):
-                    heat_rate_binary[y][d][h][i] = data['price_binary_' + str(y + 1) + '_' + str(d + 1)].iloc[:, :].to_numpy()[i][h]
+    heat_rate_binary = np.zeros((15, 3, 8, 2))
     price_binary = data['price_binary'].iloc[:, :].to_numpy()
+    for y in range(15):
+        #price_binary[y] = data['price_binary_' + str(y + 1)].iloc[:, :].to_numpy()
+        for d in range(3):
+            heat_rate_binary[y][d] = data['heat_rate_binary_' + str(y + 1) + '_' + str(d + 1)].iloc[:, :].to_numpy()
     return [heat_rate_binary, price_binary]

@@ -61,8 +61,9 @@ if run_model != 'n':
         data['battery_output_' + str(y + 1)] =  pd.DataFrame(bat_out[y])
         data['state_of_charge_' + str(y + 1)] =  pd.DataFrame(state_of_charge[y])
         data['total_demand_' + str(y + 1)] =  pd.DataFrame(total_demand[y])
+        #data['price_binary_' + str(y + 1)] = pd.DataFrame(price_binary[y])
         for d in range(3):
-            data['heat_rate_binary' + str(y + 1)+'_'+str(d + 1)] = pd.DataFrame(heat_rate_binary[:, y, d, :])
+            data['heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)] = pd.DataFrame(heat_rate_binary[y][d])
 
 else:
     data = func.get_results('results.xlsx')

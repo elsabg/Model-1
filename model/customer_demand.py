@@ -58,15 +58,16 @@ def calc_elastic_mondemand(self, elec_price, d):
 
 def calc_elastic_monthdem_const(self, bin_price_curve, y, d):
     """calculates the monthly demand depending on electricity price for the balance constraint"""
-    return quicksum(self.disp_steps_month[self.steps - 1 - i][d] * bin_price_curve[i, y] for i in range(self.steps))
+    return quicksum(self.disp_steps_month[self.steps - 1 - i][d] * bin_price_curve[i , y - 1] for i in range(self.steps))
 
 
-def demand_sum_year(self, year, disp, ud, b_out, b_in):
+def demand_sum_year(self, y, disp, ud, b_out, b_in):
     """calculates the annual demand in the grid"""
     dem_year = quicksum(
-        (quicksum(disp[g, 1, d, h] for g in self.techs_g) + ud[year, d, h] + b_out[1, d, h] - b_in[1, d, h]) * self.d_weights[d]
+            quicksum(
+        quicksum(disp[g, y, d, h] for g in self.techs_g) + ud[y, d, h] + b_out[y, d, h] - b_in[y, d, h]
+        for h in range(self.hours))* self.d_weights[d]
         for d in range(self.days)
-        for h in range(self.hours)
     )
     return dem_year
 
