@@ -220,8 +220,14 @@ class Model_1:
         
         d_cons = m.addVars(self.years, self.days, self.hours,
                            name='diesel consumption')
+        
+        
+        #Support variables
+        min_feed = m.addVars(self.house, self.years, self.days, self.hours,
+                             name='min_support')
 
-
+        max_feed = m.addVars(self.house, self.years, self.days, self.hours,
+                             name='max_support')
         #----------------------------------------------------------------------#
         #                                                                      #
         # Objective function                                                   #
@@ -320,22 +326,35 @@ class Model_1:
         #----------------------------------------------------------------------#
         # Demand-Supply Balance                                                #
         #----------------------------------------------------------------------#
+        
+        for i in self.house:
+            for y in range(self.years):
+                for d in range(self.days):
+                    for h in range(self.hours):
+                        m.addGenConstrMin(min_feed[i, y, d, h], 
+                                          [feed_in[i, y, d, h], 
+                                           h_weight[i, y] * 
+                                           self.surplus[i][d][h]], #no y
+                                          name = "Support Min")
+                        m.addGenConstrMax(max_feed[i, y, d, h],
+                                          [h_weight[i, y] * 
+                                           self.surplus[i][d][h], 0],
+                                          name = "Support Max")
+        
+        
         m.addConstrs(((b_out[y, d, h] 
                         + sum(disp[g, y, d, h] for g in self.techs_g) 
-                        + sum(min(feed_in[i, y, d, h], 
-                                       h_weight[i, y] 
-                                       * self.surplus[i, y, d, h])
-                                  for i in self.house) ==  
+                        + sum(min_feed[i, y, d, h] for i in self.house) == 
                         b_in[y, d, h]) # no unmet demand
-                       for h in range(self.hours)
-                       for d in range(self.days)
-                       for y in range(self.years)
-                       ),
-                      "Supply-demand balance"
-            )
+                      for h in range(self.hours)
+                      for d in range(self.days)
+                      for y in range(self.years)
+                      ),
+                     "Supply-demand balance"
+                     )
         
         m.addConstrs(((feed_in[i, y, d, h] <=
-                       max(0, h_weight[i, y] * self.surplus[i, y, d, h]))
+                       max_feed[i, y, d, h])
                        for i in self.house
                        for h in range(self.hours)
                        for d in range(self.days)
