@@ -68,8 +68,8 @@ def show_binaries(binaries, year, day):
     )
 
 
-    print('\n-----------heat rate binary-----------\n')
-    print(heat_rate_binary)
+    #print('\n-----------heat rate binary-----------\n')
+    #print(heat_rate_binary)
     print('\n-----------price binary-----------\n')
     print(price_binary)
     print('\n-----------quantity binary-----------\n')
@@ -191,7 +191,10 @@ def save_results(results):
 def save_array2d_to_excel(array2d, file_name, s_name):
     '''Save a 2D array to an excel file'''
     # Convert the ret array to a pandas DataFrame
-    df_array2d = pd.DataFrame(array2d.reshape(-1, array2d.shape[1]))
+    if array2d.ndim == 1:
+        df_array2d = pd.DataFrame(array2d.reshape(1, -1))
+    else:
+        df_array2d = pd.DataFrame(array2d.reshape(-1, array2d.shape[1]))
 
     with pd.ExcelWriter(file_name, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
         df_array2d.to_excel(writer, sheet_name=s_name, index=False)
@@ -233,3 +236,34 @@ def get_binaries(data):
         for d in range(3):
             heat_rate_binary[y][d] = data['heat_rate_binary_' + str(y + 1) + '_' + str(d + 1)].iloc[:, :].to_numpy()
     return [heat_rate_binary, price_binary, quantity_binary]
+
+#--------------------------------------------------------------------------------#
+# generate multi run plots                                                       #
+#--------------------------------------------------------------------------------#
+
+def sum_year(nparray, year, d_weights):
+    '''Sum up values of np array over a year'''
+    sum = 0
+    for d in range(nparray.shape[1]):
+        for h in range(nparray.shape[2]):
+            sum += np.sum(nparray[year][d]) * d_weights[d]
+
+    return sum
+
+def pv_fit_modelruns(model, fit_max, num_runs, el_price, ud_penalty, day_weights):
+    fit = np.linspace(0, fit_max, num_runs)
+    for i in range(num_runs):
+        results = model.solve(fit=fit[i], elec_price=el_price, ud_penalty=ud_penalty,
+                              heatrate_c_run = 'y', dem_elasticity_c_run = 'n')
+        (ret, inst, added, disp_gen, disp_pv, disp_feedin,
+         unmetD, bat_in, bat_out, state_of_charge, num_households,
+         heat_rate_binary, price_binary, quantity_binary, total_demand) = results
+
+        disp_pv_year = np.array(
+            [sum_year(disp_pv, y, day_weights) for y in range(num_households.shape[1])])
+        disp_feedin_year = np.array(
+            [sum_year(disp_feedin, y, day_weights) for y in range(num_households.shape[1])])
+
+        save_array2d_to_excel(disp_pv_year, 'multirun_results.xlsx', 'disp_pv_year_' + str(fit[i]))
+        save_array2d_to_excel(disp_feedin_year, 'multirun_results.xlsx', 'disp_feedin_year_' + str(fit[i]))
+

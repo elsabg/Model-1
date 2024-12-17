@@ -87,7 +87,7 @@ class Model_1:
         self.uovc = self.tech_df['UOVC'].to_dict()
 
         #Unmet demand
-        self.ud_penalty = self.data['parameters']['Unmet demand penalty'][0]
+        #self.ud_penalty = self.data['parameters']['Unmet demand penalty'][0]
 
         #fixed heat rate value
         self.heat_r_v = 0.30
@@ -185,16 +185,17 @@ class Model_1:
         self.techs_g_o = self.techs[:2] # ['Diesel Generator', 'Owned PV']
         self.techs_o = np.array(['Diesel Generator', 'Owned PV', 'Owned Batteries'])
 
-    def solve(self, fit, elec_price, heatrate_c_run, dem_elasticity_c_run):
+    def solve(self, fit, elec_price, ud_penalty, heatrate_c_run, dem_elasticity_c_run):
         'Create and solve the model'
 
         self.fit = fit
         self.elec_price = elec_price
+        self.ud_penalty = ud_penalty
         self.heatrate_c_run = heatrate_c_run
         self.dem_elasticity_c_run = dem_elasticity_c_run
 
         m = Model('Model_1_case_1')
-        m.setParam('MIPGap', 0.005)
+        m.setParam('MIPGap', 0.002)
         #m.setParam('ScaleFlag', 1)
         '''
         Year 0 is outside of the planning horizon. The decisions start at year
@@ -747,7 +748,7 @@ class Model_1:
                         for house in self.house:
                             hourly_demand += self.res_demand[house][d][h] * h_weight[house, y].X
                         total_demand[y][d][h] = hourly_demand
-        print(total_demand[0][0][0])
+
         return_array = [ret, inst, added, disp_gen, disp_pv, disp_feedin,
                         unmetD, bat_in, bat_out, state_of_charge, num_households,
                         heat_rate_binary, price_binary, quantity_binary, total_demand]

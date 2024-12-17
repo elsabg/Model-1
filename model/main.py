@@ -27,6 +27,7 @@ model.load_data()
 #                                                                               #
 #-------------------------------------------------------------------------------#
 fit = 0.2
+ud_penalty = 0.05
 el_price = 0.4
 heatrate_c_run = 'y'
 dem_elasticity_c_run = 'y'
@@ -35,7 +36,7 @@ if run_model != 'n':
     heatrate_c_run = input("Run model with heatrate curve? (No: [Enter], Yes: y):")
     dem_elasticity_c_run = input("Run model with demand elasticity? (No: [Enter], Yes: y):")
 
-    results = model.solve(fit=fit, elec_price=el_price,
+    results = model.solve(fit=fit, elec_price=el_price, ud_penalty=ud_penalty,
                     heatrate_c_run = heatrate_c_run, dem_elasticity_c_run = dem_elasticity_c_run)
 
     save_results = input("Save results? (Yes: y, No: [Enter]):")
@@ -75,13 +76,20 @@ else:
 # Process output data                                                           #
 #                                                                               #
 #-------------------------------------------------------------------------------#
+data_weights = pd.read_excel('model_inputs_testing_v3.xlsx', sheet_name='day_weights')
+day_weights = data_weights['Weight'].to_numpy()
+
+
+
+
+'''
 func.show_tables(func.get_tabels(data))
-if heatrate_c_run or dem_elasticity_c_run == 'y':
+if dem_elasticity_c_run == 'y':
     func.show_binaries(func.get_binaries(data), 1, 2) # winter in year 1
 
 save_plots = input("Save plots? (Yes: y, No: [Enter]):")
 if save_plots == 'y':
-    for y in range (data['num_households'].shape[1]):
+    for y in range(data['num_households'].shape[1]):
         func.plot_days(func.get_timeseries(data, y), y, 'save')
 
 while(1):
@@ -89,4 +97,4 @@ while(1):
     func.plot_days(func.get_timeseries(data, int(showyear)-1), int(showyear)-1)
 
 
-
+'''
