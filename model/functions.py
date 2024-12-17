@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
+
 #--------------------------------------------------------------------------------#
 # Print Results                                                                  #
 #--------------------------------------------------------------------------------#
@@ -19,7 +21,7 @@ def show_tables(tables):
     (ret, inst, added, num_households) = tables
 
     num_households = pd.DataFrame(
-        num_households, columns=[i for i in range(num_households.shape[1])]
+        num_households, columns=[i + 1 for i in range(num_households.shape[1])]
     )
 
     inst = pd.DataFrame(
@@ -54,17 +56,24 @@ def show_tables(tables):
 def show_binaries(binaries, year, day):
     '''Show the binary variables of Heatrate and Price Elasticity'''
 
-    (heat_rate_binary, price_binary) = binaries
+    (heat_rate_binary, price_binary, quantity_binary) = binaries
     heat_rate_binary = pd.DataFrame(
         heat_rate_binary[year][day], columns=[i for i in range(heat_rate_binary.shape[3])] #heat_rate_binary.shape[2])]
     )
     price_binary = pd.DataFrame(
         price_binary, columns=[i for i in range(price_binary.shape[1])]
     )
+    quantity_binary = pd.DataFrame(
+        quantity_binary, columns=[i for i in range(quantity_binary.shape[1])]
+    )
+
+
     print('\n-----------heat rate binary-----------\n')
     print(heat_rate_binary)
-    #print('\n-----------price binary-----------\n')
-    #print(price_binary)
+    print('\n-----------price binary-----------\n')
+    print(price_binary)
+    print('\n-----------quantity binary-----------\n')
+    print(quantity_binary)
     return
 
 #--------------------------------------------------------------------------------#
@@ -127,7 +136,7 @@ def save_results(results):
     '''Save the results arrays to an excel file'''
     (ret, inst, added, disp_gen, disp_pv, disp_feedin,
      unmetD, bat_in, bat_out, state_of_charge, num_households,
-     heat_rate_binary, price_binary, total_demand) = results
+     heat_rate_binary, price_binary, quantity_binary, total_demand) = results
     save_array2d_to_excel(ret, 'results.xlsx', 'retired_capacity')
     save_array2d_to_excel(inst, 'results.xlsx', 'installed_capacity')
     save_array2d_to_excel(added, 'results.xlsx', 'added_capacity')
@@ -143,6 +152,7 @@ def save_results(results):
 
     save_array2d_to_excel(num_households, 'results.xlsx', 'num_households')
     save_array2d_to_excel(price_binary, 'results.xlsx', 'price_binary')
+    save_array2d_to_excel(quantity_binary, 'results.xlsx', 'quantity_binary')
     #save_array2d_to_excel(heat_rate_binary, 'results.xlsx', 'heat_rate_binary')
     for y in range (15):
         [save_array2d_to_excel(heat_rate_binary[y][d], 'results.xlsx', 'heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
@@ -187,8 +197,9 @@ def get_binaries(data):
     '''Get the binary variables from the dataframe'''
     heat_rate_binary = np.zeros((15, 3, 8, 2))
     price_binary = data['price_binary'].iloc[:, :].to_numpy()
+    quantity_binary = data['quantity_binary'].iloc[:, :].to_numpy()
     for y in range(15):
         #price_binary[y] = data['price_binary_' + str(y + 1)].iloc[:, :].to_numpy()
         for d in range(3):
             heat_rate_binary[y][d] = data['heat_rate_binary_' + str(y + 1) + '_' + str(d + 1)].iloc[:, :].to_numpy()
-    return [heat_rate_binary, price_binary]
+    return [heat_rate_binary, price_binary, quantity_binary]

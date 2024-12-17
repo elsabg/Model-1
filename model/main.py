@@ -28,8 +28,8 @@ model.load_data()
 #-------------------------------------------------------------------------------#
 fit = 0.2
 el_price = 0.4
-heatrate_c_run = False
-dem_elasticity_c_run = False
+heatrate_c_run = 'y'
+dem_elasticity_c_run = 'y'
 run_model = input("Run model? (Yes: [Enter], No: n):")
 if run_model != 'n':
     heatrate_c_run = input("Run model with heatrate curve? (No: [Enter], Yes: y):")
@@ -44,14 +44,15 @@ if run_model != 'n':
 
     (ret, inst, added, disp_gen, disp_pv, disp_feedin,
      unmetD, bat_in, bat_out, state_of_charge, num_households,
-     heat_rate_binary, price_binary, total_demand) = results
+     heat_rate_binary, price_binary, quantity_binary, total_demand) = results
 
     data = {
     'retired_capacity': pd.DataFrame(ret),
     'installed_capacity': pd.DataFrame(inst),
     'added_capacity': pd.DataFrame(added),
     'num_households': pd.DataFrame(num_households),
-    'price_binary': pd.DataFrame(price_binary)
+    'price_binary': pd.DataFrame(price_binary),
+    'quantity_binary': pd.DataFrame(quantity_binary)
 
     }
     for y in range(15):
@@ -74,16 +75,13 @@ else:
 # Process output data                                                           #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-
+func.show_tables(func.get_tabels(data))
+if heatrate_c_run or dem_elasticity_c_run == 'y':
+    func.show_binaries(func.get_binaries(data), 1, 2) # winter in year 1
 while(1):
     showyear = input("Year:(1-15):")
     showday = input("Day:(1-3):")
-
-
-    func.show_tables(func.get_tabels(data))
     func.plot_day(func.get_timeseries(data, int(showyear)-1), int(showyear), int(showday) - 1)
-    func.plot_soc(func.get_timeseries(data, int(showyear)-1), int(showyear), int(showday) - 1)
-    if heatrate_c_run or dem_elasticity_c_run == 'y':
-        func.show_binaries(func.get_binaries(data), int(showyear), int(showday) - 1)
+
 
 

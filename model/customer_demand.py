@@ -7,6 +7,44 @@ from gurobipy import *
 #                                                                                #
 #--------------------------------------------------------------------------------#
 
+def calc_pros_demand_feedin(self):
+    """calculates Prosumer demand and feedin electricity"""
+    for h_type in self.res_demand:
+        if h_type != 'Type 1':
+            for i in range(len(self.res_demand[h_type])):
+                res_demand, feedin = pros_behavoir(self, h_type, i)
+                for h in range(self.hours):
+                    self.res_demand[h_type][i][h] = res_demand[h]
+                    self.pros_feedin[h_type][i][h] = feedin[h]
+
+def pros_behavoir(self, h_type, day):
+    """returns the prosumer demand and feedin with an energy storage"""
+    pv_generation = np.zeros(self.hours)
+    res_demand = np.zeros(self.hours)
+    feed_in = np.zeros(self.hours)
+    soc = np.zeros(self.hours)
+    for i in range(2): # run twice to get soc from hour 24 for hour 0
+        for h in range(self.hours):
+            pv_generation[h] = self.cap_fact[day][h] * self.avg_pv_cap_str[h_type]
+            res_demand[h] = self.res_demand[h_type][day][h] - pv_generation[h]
+            if h != 0:
+                soc[h] = soc[h - 1]
+            else:
+                soc[h] = soc[23]
+            if res_demand[h] < 0:
+                if soc[h] - res_demand[h] < self.pros_soc_max:
+                    soc[h] -= res_demand[h]
+                else:
+                    feed_in[h] = (-res_demand[h]) - (self.pros_soc_max - soc[h])
+                    soc[h] = self.pros_soc_max
+                res_demand[h] = 0
+            else:
+                bat_out = res_demand[h]
+                res_demand[h] = res_demand[h] - min(soc[h] - self.pros_soc_min, res_demand[h])
+                soc[h] -= min(soc[h] - self.pros_soc_min, bat_out)
+
+    return res_demand, feed_in
+
 def calc_res_demand(self):
     """calculate customer demand subtracted by the PV generation"""
     for h_type in self.res_demand:
@@ -30,11 +68,15 @@ def calc_pros_feedin(self):
 #                                                                                #
 #--------------------------------------------------------------------------------#
 
-def mc_demand(self, d, h):
+def mc_demand(self, num_house, y, d, h):
     """returns hourly Microgrid demand of all household types"""
     hourly_demand = 0
-    for i in self.house:
-        hourly_demand += self.res_demand[i][d][h] * self.max_house_str[i]
+    if y == 0:
+        for i in self.house:
+            hourly_demand += self.res_demand[i][d][h] * num_house[i]
+    else:
+        for i in self.house:
+            hourly_demand += self.res_demand[i][d][h] * num_house[i, y - 1]
     return hourly_demand
 
 def elastic_mc_demand(self, bin_price_curve, y, d, h):
@@ -58,14 +100,14 @@ def calc_elastic_mondemand(self, elec_price, d):
 
 def calc_elastic_monthdem_const(self, bin_price_curve, y, d):
     """calculates the monthly demand depending on electricity price for the balance constraint"""
-    return quicksum(self.disp_steps_month[self.steps - 1 - i][d] * bin_price_curve[i , y - 1] for i in range(self.steps))
+    return quicksum(self.disp_steps_month[self.steps - 1 - i][d] * bin_price_curve[i] for i in range(self.steps))
 
 
-def demand_sum_year(self, y, disp, ud, b_out, b_in):
+def demand_sum_year(self, year, disp, ud, b_out, b_in):
     """calculates the annual demand in the grid"""
     dem_year = quicksum(
             quicksum(
-        quicksum(disp[g, y, d, h] for g in self.techs_g) + ud[y, d, h] + b_out[y, d, h] - b_in[y, d, h]
+        quicksum(disp[g, year, d, h] for g in self.techs_g) + ud[year, d, h] + b_out[year, d, h] - b_in[year, d, h]
         for h in range(self.hours))* self.d_weights[d]
         for d in range(self.days)
     )
