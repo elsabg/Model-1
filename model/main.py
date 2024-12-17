@@ -23,7 +23,7 @@ model.load_data()
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
-# test model run                                                                #
+# model run                                                                     #
 #                                                                               #
 #-------------------------------------------------------------------------------#
 fit = 0.2
@@ -78,10 +78,15 @@ else:
 func.show_tables(func.get_tabels(data))
 if heatrate_c_run or dem_elasticity_c_run == 'y':
     func.show_binaries(func.get_binaries(data), 1, 2) # winter in year 1
+
+save_plots = input("Save plots? (Yes: y, No: [Enter]):")
+if save_plots == 'y':
+    for y in range (data['num_households'].shape[1]):
+        func.plot_days(func.get_timeseries(data, y), y, 'save')
+
 while(1):
     showyear = input("Year:(1-15):")
-    showday = input("Day:(1-3):")
-    func.plot_day(func.get_timeseries(data, int(showyear)-1), int(showyear), int(showday) - 1)
+    func.plot_days(func.get_timeseries(data, int(showyear)-1), int(showyear)-1)
 
 
 

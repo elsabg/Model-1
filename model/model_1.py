@@ -194,7 +194,7 @@ class Model_1:
         self.dem_elasticity_c_run = dem_elasticity_c_run
 
         m = Model('Model_1_case_1')
-        #m.setParam('MIPGap', 0.05)
+        m.setParam('MIPGap', 0.005)
         #m.setParam('ScaleFlag', 1)
         '''
         Year 0 is outside of the planning horizon. The decisions start at year

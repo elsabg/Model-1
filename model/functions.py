@@ -80,34 +80,64 @@ def show_binaries(binaries, year, day):
 # Plot Results                                                                   #
 #--------------------------------------------------------------------------------#
 
-def plot_day(timeseriesArray, year, day):
-    '''plot the hourly timeseries of a specific day'''
-
+def plot_days(timeseriesArray, year, s='plot'):
+    '''plot or save all days of a year'''
     (disp_gen, disp_pv, disp_feedin, unmetD, bat_in, bat_out,
      state_of_charge, total_demand) = timeseriesArray
 
-    fig1, ax1 = plt.subplots()
+    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
     hours = np.arange(24)
+    for i in range(2):
+        p1 = axs[i, 1].bar(hours, disp_gen[2 * i], label='Dispatched Generation', color='blue')
 
-    # Create the bottom bar
-    p1 = ax1.bar(hours, disp_gen[day], label='Dispatched Generation', color='blue')
+        # Stack the other bars on top
+        p2 = axs[i, 1].bar(hours, bat_out[2 * i], bottom=disp_gen[2 * i], label='Battery Output', color='red')
+        p3 = axs[i, 1].bar(hours, disp_pv[2 * i], bottom=disp_gen[2 * i] + bat_out[2 * i], label='Owned PV', color='orange')
+        p4 = axs[i, 1].bar(hours, disp_feedin[2 * i], bottom=disp_gen[2 * i] + bat_out[2 * i] + disp_pv[2 * i], label='Feed in',
+                           color='yellow')
+        p5 = axs[i, 1].bar(hours, unmetD[2 * i], bottom=disp_gen[2 * i] + bat_out[2 * i] + disp_pv[2 * i] + disp_feedin[2 * i],
+                           label='Unmet Demand', color='purple')
+        p6 = axs[i, 1].bar(hours, -bat_in[2 * i], label='Battery Input', color='green')
 
-    # Stack the other bars on top
-    p2 = ax1.bar(hours, bat_out[day], bottom=disp_gen[day], label='Battery Output', color='red')
-    p3 = ax1.bar(hours, disp_pv[day], bottom=disp_gen[day] + bat_out[day], label='Owned PV', color = 'orange')
-    p4 = ax1.bar(hours, disp_feedin[day], bottom=disp_gen[day] + bat_out[day] + disp_pv[day], label='Feed in', color='yellow')
-    p5 = ax1.bar(hours, unmetD[day], bottom=disp_gen[day] + bat_out[day] + disp_pv[day] + disp_feedin[day], label='Unmet Demand', color='purple')
-    p6 = ax1.bar(hours, -bat_in[day], label='Battery Input', color='green')
+        axs[i, 1].plot(hours, total_demand[2 * i], label='Total Demand', color='black', linestyle='-', marker='o')
 
-    ax1.plot(hours, total_demand[day], label='Total Demand', color='black', linestyle='-', marker='o')
+        axs[i, 1].set_xlabel('Hour')
+        axs[i, 1].set_ylabel('Energy')
 
-    ax1.set_xlabel('Hour')
-    ax1.set_ylabel('Energy')
-    ax1.set_title('Stacked Bar Chart of Energy Data over a Day '+ str(day + 1) +' (Year '+str(year)+')')
-    ax1.legend(loc='upper left')
 
-    ax1.legend()
-    plt.show()
+        p1 = axs[i, 0].bar(hours, disp_gen[1], label='Dispatched Generation', color='blue')
+
+        # Stack the other bars on top
+        p2 = axs[i, 0].bar(hours, bat_out[1], bottom=disp_gen[1], label='Battery Output', color='red')
+        p3 = axs[i, 0].bar(hours, disp_pv[1], bottom=disp_gen[1] + bat_out[1], label='Owned PV',
+                           color='orange')
+        p4 = axs[i, 0].bar(hours, disp_feedin[1], bottom=disp_gen[1] + bat_out[1] + disp_pv[1],
+                           label='Feed in',
+                           color='yellow')
+        p5 = axs[i, 0].bar(hours, unmetD[1],
+                           bottom=disp_gen[1] + bat_out[1] + disp_pv[1] + disp_feedin[1],
+                           label='Unmet Demand', color='purple')
+        p6 = axs[i, 0].bar(hours, -bat_in[1], label='Battery Input', color='green')
+
+        axs[i, 0].plot(hours, total_demand[1], label='Total Demand', color='black', linestyle='-', marker='o')
+
+        axs[i, 0].set_xlabel('Hour')
+        axs[i, 0].set_ylabel('Energy')
+
+        if i == 0:
+            axs[i, 0].set_title('Year ' + str(year) + ': Spring')
+            axs[i, 1].set_title('Year ' + str(year) + ': Summer')
+        else:
+            axs[i, 0].set_title('Year ' + str(year) + ': Autumn')
+            axs[i, 1].set_title('Year ' + str(year) + ': Winter')
+    axs[0, 0].legend(loc='upper left')
+    plt.tight_layout()
+    if s == 'save':
+        plt.savefig('plots/timeseries_year'+str(year)+'.png')
+    else:
+        plt.show()
+
+
 
 def plot_soc(timeseriesArray, year, day):
     '''plot the SoC of a specific day'''
