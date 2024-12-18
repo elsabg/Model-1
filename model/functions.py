@@ -12,15 +12,17 @@ import matplotlib.pyplot as plt
 def output_data(resultsArray):
     '''Process output data'''
 
-    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in, total_demand = resultsArray
+    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households = resultsArray #no feed_in_energy, total_demand
 
     disp_gen = pd.DataFrame(
         disp_gen, columns=[i for i in range(disp_gen.shape[1])]
     )
-
+    
+    '''
     feed_in = pd.DataFrame(
         feed_in, columns=[i for i in range(feed_in.shape[1])]
     )
+    '''
 
     unmetD = pd.DataFrame(
         unmetD, columns=[i for i in range(unmetD.shape[1])]

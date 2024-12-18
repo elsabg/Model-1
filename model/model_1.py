@@ -214,7 +214,7 @@ class Model_1:
                                   name = 'binCapSteps', vtype=GRB.INTEGER, 
                                   lb = 0)
 
-        bin_heat_rate = m.addVars(5, self.years,
+        bin_heat_rate = m.addVars(range(5), self.years,
                       self.days, self.hours,
                       vtype=GRB.BINARY, name='binHeatRate')
         
@@ -223,11 +223,14 @@ class Model_1:
         
         
         #Support variables
-        min_feed = m.addVars(self.house, self.years, self.days, self.hours,
-                             name='min_support')
+        aux_min = m.addVars(self.house, self.years, self.days, self.hours,
+                             name='min_auxilliary')
 
-        max_feed = m.addVars(self.house, self.years, self.days, self.hours,
-                             name='max_support')
+        aux_max = m.addVars(self.house, self.years, self.days, self.hours,
+                             name='max_auxilliary', lb=0)
+        
+        z_bin = m.addVars(range(2), self.house, self.years, self.days, self.hours,
+                          vtype=GRB.BINARY, name='z binary')
         #----------------------------------------------------------------------#
         #                                                                      #
         # Objective function                                                   #
@@ -327,24 +330,66 @@ class Model_1:
         # Demand-Supply Balance                                                #
         #----------------------------------------------------------------------#
         
-        for i in self.house:
-            for y in range(self.years):
-                for d in range(self.days):
-                    for h in range(self.hours):
-                        m.addGenConstrMin(min_feed[i, y, d, h], 
-                                          [feed_in[i, y, d, h], 
-                                           h_weight[i, y] * 
-                                           self.surplus[i][d][h]], #no y
-                                          name = "Support Min")
-                        m.addGenConstrMax(max_feed[i, y, d, h],
-                                          [h_weight[i, y] * 
-                                           self.surplus[i][d][h], 0],
-                                          name = "Support Max")
+        # Auxiliary Constraints
+        M = 1000
+        m.addConstrs(((aux_min[i, y, d, h] <=
+                       feed_in[i, y, d, h] + z_bin[0, i, y, d, h] * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='min aux 1.1')
+        m.addConstrs(((aux_min[i, y, d, h] >=
+                       feed_in[i, y, d, h] - z_bin[0, i, y, d, h] * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='min aux 1.2')
+        m.addConstrs(((feed_in[i, y, d, h] <=
+                       h_weight[i, y] * self.surplus[i][d][h]
+                       + z_bin[0, i, y, d, h] * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='min aux 1.3')
         
+        m.addConstrs(((aux_min[i, y, d, h] <=
+                       h_weight[i, y] * self.surplus[i][d][h] + 
+                       (1 - z_bin[0, i,y,d,h]) * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='min aux 2.1')
+        m.addConstrs(((aux_min[i, y, d, h] >=
+                       h_weight[i, y] * self.surplus[i][d][h] - 
+                       (1 - z_bin[0, i, y, d, h]) * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='min aux 2.2')
+        m.addConstrs(((h_weight[i, y] * self.surplus[i][d][h] <=
+                       feed_in[i, y, d, h] +
+                       (1 - z_bin[0, i, y, d, h]) * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='min aux 2.3')
         
+        # Supply-demand balance constraint
         m.addConstrs(((b_out[y, d, h] 
                         + sum(disp[g, y, d, h] for g in self.techs_g) 
-                        + sum(min_feed[i, y, d, h] for i in self.house) == 
+                        + sum(aux_min[i, y, d, h] for i in self.house) == 
                         b_in[y, d, h]) # no unmet demand
                       for h in range(self.hours)
                       for d in range(self.days)
@@ -353,8 +398,66 @@ class Model_1:
                      "Supply-demand balance"
                      )
         
+        # Auxiliary constraints
+        m.addConstrs(((aux_max[i, y, d, h] <=
+                       h_weight[i, y] * self.surplus[i][d][h]
+                       + z_bin[1, i, y, d, h] * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='max aux 1.1')
+        m.addConstrs(((aux_max[i, y, d, h] >=
+                       h_weight[i, y] * self.surplus[i][d][h]
+                       - z_bin[1, i, y, d, h] * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='max aux 1.2')
+        m.addConstrs(((h_weight[i, y] * self.surplus[i][d][h] >=
+                       - z_bin[1, i, y, d, h] * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='max aux 1.3'
+                     )
+        
+        m.addConstrs(((aux_max[i, y, d, h] <=
+                       (1 - z_bin[1, i, y, d, h]) * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='max aux 2.1'
+                     )
+        m.addConstrs(((aux_max[i, y, d, h] >=
+                       - (1 - z_bin[1, i, y, d, h]) * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='max aux 2.2'
+                     )
+        m.addConstrs(((h_weight[i, y] * self.surplus[i][d][h] <=
+                       (1 - z_bin[1, i, y, d, h]) * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='max aux 2.3'
+                     )
+        
+        # Feed-in capacity constraints
         m.addConstrs(((feed_in[i, y, d, h] <=
-                       max_feed[i, y, d, h])
+                       aux_max[i, y, d, h])
                        for i in self.house
                        for h in range(self.hours)
                        for d in range(self.days)
@@ -363,7 +466,7 @@ class Model_1:
                       "Feed in cap"
             )
         
-        m.addConstrs(((h_weight[i, y] <= self.max_house_str[i, y]) 
+        m.addConstrs(((h_weight[i, y] <= self.max_house_str[i]) 
                        for i in self.house 
                        for y in range(self.years)
                        ),
@@ -380,7 +483,7 @@ class Model_1:
                 inst_cap[g, y - 1] + added_cap[g, y]
                 - ret_cap[g, y])
                 for g in self.techs
-                for y in range(self.years)
+                for y in range(1, self.years)
             ),
             "Tracking capacity"
         )
@@ -502,10 +605,10 @@ class Model_1:
         M = 1000
         e = 0.01
         
-        m.addConstrts(
+        m.addConstrs(
             ((d_cons[y, d, h] >= 
-              self.heat_rate_k[0] * disp['Diesel Generator', y, d, h] 
-              - self.bin_heat_rate[0, y, d, h] * M) 
+              self.heat_r_k[0] * disp['Diesel Generator', y, d, h] 
+              - bin_heat_rate[0, y, d, h] * M) 
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -513,10 +616,10 @@ class Model_1:
             "Heat Rate 1.1"
         )
         
-        m.addConstrts(
+        m.addConstrs(
             ((d_cons[y, d, h] <= 
-              self.heat_rate_k[0] * disp['Diesel Generator', y, d, h] 
-              + self.bin_heat_rate[0, y, d, h] * M)
+              self.heat_r_k[0] * disp['Diesel Generator', y, d, h] 
+              + bin_heat_rate[0, y, d, h] * M)
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -524,10 +627,10 @@ class Model_1:
             "Heat Rate 1.2"
         )
         
-        m.addConstrts(
+        m.addConstrs(
             ((disp['Diesel Generator', y, d, h] >=
               0.3 * inst_cap['Diesel Generator', y]
-              - (1 - self.bin_heat_rate[0, y, d, h] * M))
+              - (1 - bin_heat_rate[0, y, d, h] * M))
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -535,10 +638,10 @@ class Model_1:
             "Boundary 1" 
         )
         
-        m.addConstrts(
+        m.addConstrs(
             ((d_cons[y, d, h] >= 
-              self.heat_rate_k[1] * disp['Diesel Generator', y, d, h] 
-              - self.bin_heat_rate[1, y, d, h] * M)
+              self.heat_r_k[1] * disp['Diesel Generator', y, d, h] 
+              - bin_heat_rate[1, y, d, h] * M)
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -546,10 +649,10 @@ class Model_1:
             "Heat Rate 2.1"
         )
         
-        m.addConstrts(
+        m.addConstrs(
             ((d_cons[y, d, h] <= 
-              self.heat_rate_k[1] * disp['Diesel Generator', y, d, h]
-              + self.bin_heat_rate[1, y, d, h] * M)
+              self.heat_r_k[1] * disp['Diesel Generator', y, d, h]
+              + bin_heat_rate[1, y, d, h] * M)
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -557,10 +660,10 @@ class Model_1:
             "Heat Rate 2.2"
         )
         
-        m.addConstrts(
+        m.addConstrs(
             ((disp['Diesel Generator', y, d, h] <= 
               0.3 * inst_cap['Diesel Generator', y]
-              + self.bin_heat_rate[2, y, d, h] * M - e)
+              + bin_heat_rate[2, y, d, h] * M - e)
              for y in range(self.years) 
              for d in range(self.days) 
              for h in range(self.hours) 
@@ -568,10 +671,10 @@ class Model_1:
             "Boundary 2.1"
         )
         
-        m.addConstrts(
+        m.addConstrs(
             ((disp['Diesel Generator', y, d, h] >= 
               0.6 * inst_cap['Diesel Generator', y] 
-              + self.bin_heat_rate[3] * M)
+              + bin_heat_rate[3, y, d, h] * M)
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -579,10 +682,10 @@ class Model_1:
             "Boundary 2.2"
         )
         
-        m.addConstrts(
+        m.addConstrs(
             ((d_cons[y, d, h] >= 
-              self.heat_rate_k[2] * disp['Diesel Generator', y, d, h]
-              - self.bin_heat_rate[4, y, d, h] * M)
+              self.heat_r_k[2] * disp['Diesel Generator', y, d, h]
+              - bin_heat_rate[4, y, d, h] * M)
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -590,10 +693,10 @@ class Model_1:
             "Heat Rate 3.1"
         )
         
-        m.addConstrts(
+        m.addConstrs(
             ((d_cons[y, d, h] <= 
-              self.heat_rate_k[2] * disp['Diesel Generator', y, d, h]
-              + self.bin_heat_rate[4, y, d, h] * M)
+              self.heat_r_k[2] * disp['Diesel Generator', y, d, h]
+              + bin_heat_rate[4, y, d, h] * M)
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -601,10 +704,10 @@ class Model_1:
             "Heat Rate 3.2"
         )
         
-        m.addConstrts(
+        m.addConstrs(
             ((disp['Diesel Generator', y, d, h] <=
               0.6 * inst_cap['Diesel Generator', y]
-              - (1 - self.bin_heat_rate[4, y, d, h] * M - e))
+              - (1 - bin_heat_rate[4, y, d, h] * M - e))
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -612,10 +715,10 @@ class Model_1:
             "Boundary 3" 
         )
         
-        m.addConstrts(
-            ((self.bin_heat_rate[1, y, d, h] 
-              + self.bin_heat_rate[2, y, d, h]
-              + self.bin_heat_rate[3, y, d, h] <=
+        m.addConstrs(
+            ((bin_heat_rate[1, y, d, h] 
+              + bin_heat_rate[2, y, d, h]
+              + bin_heat_rate[3, y, d, h] <=
               2)
              for y in range(self.years)
              for d in range(self.days)
@@ -624,10 +727,10 @@ class Model_1:
             "Binary cap 1"
         )
         
-        m.addConstrts(
-            ((self.bin_heat_rate[0, y, d, h] 
-              + self.bin_heat_rate[1, y, d, h]
-              + self.bin_heat_rate[4, y, d, h] ==
+        m.addConstrs(
+            ((bin_heat_rate[0, y, d, h] 
+              + bin_heat_rate[1, y, d, h]
+              + bin_heat_rate[4, y, d, h] ==
               2)
              for y in range(self.years)
              for d in range(self.days)
@@ -871,9 +974,9 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        ret = np.zeros((len(self.techs_o), self.years + 1)) # retired capacity
-        inst = np.zeros((len(self.techs_o), self.years + 1)) # installed capacity
-        added = np.zeros((len(self.techs_o), self.years + 1)) # added capacity
+        ret = np.zeros((len(self.techs), self.years + 1)) # retired capacity
+        inst = np.zeros((len(self.techs), self.years + 1)) # installed capacity
+        added = np.zeros((len(self.techs), self.years + 1)) # added capacity
         disp_gen = np.zeros((self.days, self.hours))
         unmetD = np.zeros((self.days, self.hours))
         bat_in = np.zeros((self.days, self.hours))
@@ -881,11 +984,11 @@ class Model_1:
         num_households = np.zeros((len(self.house), self.years + 1))
         feed_in_energy = np.zeros((self.days, self.hours))
 
-        for y in range(self.years + 1):
-            for g in self.techs_o:
-                ret[self.techs_o.tolist().index(g)][y] = ret_cap[g, y].X
-                inst[self.techs_o.tolist().index(g)][y] = inst_cap[g, y].X
-                added[self.techs_o.tolist().index(g)][y] = added_cap[g, y].X
+        for y in range(self.years):
+            for g in self.techs:
+                ret[self.techs.tolist().index(g)][y] = ret_cap[g, y].X
+                inst[self.techs.tolist().index(g)][y] = inst_cap[g, y].X
+                added[self.techs.tolist().index(g)][y] = added_cap[g, y].X
 
         for d in range(self.days):
             for h in range(self.hours):
@@ -893,22 +996,23 @@ class Model_1:
                 unmetD[d][h] = ud[12, d, h].X
                 bat_in[d][h] = b_in[12, d, h].X
                 bat_out[d][h] = b_out[12, d, h].X
-                feed_in_energy[d][h] = disp['Feed In Prosumers', 12, d, h].X
+                #feed_in_energy[d][h] = disp['Feed In Prosumers', 12, d, h].X
 
         for house in self.house:
-            for y in range(self.years + 1):
+            for y in range(self.years):
                 num_households[self.house.tolist().index(house)][y] = np.abs(h_weight[house, y].X)
 
 
         total_demand = np.zeros((self.days, self.hours))
 
+        '''
         for house in self.house:
             for d in range(self.days):
                 for h in range(self.hours):
                     total_demand[d][h] += self.res_demand[house][d][h] * num_households[self.house.tolist().index(house)][12]
+        '''
 
 
-
-        return_array = [ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in_energy, total_demand]
+        return_array = [ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households] # no feed_in_energy, total_demand
 
         return return_array
