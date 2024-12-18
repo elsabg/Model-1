@@ -758,6 +758,6 @@ class Model_1:
 
         return_array = [ret, inst, added, disp_gen, disp_pv, disp_feedin,
                         unmetD, bat_in, bat_out, state_of_charge, num_households,
-                        heat_rate_binary, price_binary, quantity_binary, total_demand]
+                        heat_rate_binary, price_binary, quantity_binary, total_demand, self.res_demand, self.pros_feedin]
 
         return return_array

@@ -166,7 +166,7 @@ def save_results(results):
     '''Save the results arrays to an excel file'''
     (ret, inst, added, disp_gen, disp_pv, disp_feedin,
      unmetD, bat_in, bat_out, state_of_charge, num_households,
-     heat_rate_binary, price_binary, quantity_binary, total_demand) = results
+     heat_rate_binary, price_binary, quantity_binary, total_demand, res_Demand, pros_feedin) = results
     save_array2d_to_excel(ret, 'results.xlsx', 'retired_capacity')
     save_array2d_to_excel(inst, 'results.xlsx', 'installed_capacity')
     save_array2d_to_excel(added, 'results.xlsx', 'added_capacity')
@@ -183,7 +183,8 @@ def save_results(results):
     save_array2d_to_excel(num_households, 'results.xlsx', 'num_households')
     save_array2d_to_excel(price_binary, 'results.xlsx', 'price_binary')
     save_array2d_to_excel(quantity_binary, 'results.xlsx', 'quantity_binary')
-    #save_array2d_to_excel(heat_rate_binary, 'results.xlsx', 'heat_rate_binary')
+    #[save_array2d_to_excel(pros_feedin[d], 'results.xlsx', 'pros_feedin_'+str(d+1)) for d in range(3)]
+    #[save_array2d_to_excel(res_Demand[d], 'results.xlsx', 'res_Demand_'+str(d+1)) for d in range(3)]
     for y in range (15):
         [save_array2d_to_excel(heat_rate_binary[y][d], 'results.xlsx', 'heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
         #save_array2d_to_excel(price_binary[y], 'results.xlsx', 'price_binary_' + str(y + 1))
@@ -252,7 +253,7 @@ def single_modelrun(model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasti
 
     (ret, inst, added, disp_gen, disp_pv, disp_feedin,
      unmetD, bat_in, bat_out, state_of_charge, num_households,
-     heat_rate_binary, price_binary, quantity_binary, total_demand) = results
+     heat_rate_binary, price_binary, quantity_binary, total_demand, res_Demand, pros_feedin) = results
 
     data = {
         'retired_capacity': pd.DataFrame(ret),
@@ -275,6 +276,8 @@ def single_modelrun(model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasti
         # data['price_binary_' + str(y + 1)] = pd.DataFrame(price_binary[y])
         for d in range(3):
             data['heat_rate_binary_' + str(y + 1) + '_' + str(d + 1)] = pd.DataFrame(heat_rate_binary[y][d])
+            #data['pros_feedin_'+str(d+1)] = pd.DataFrame(pros_feedin[d])
+            #data['res_Demand_'+str(d+1)] = pd.DataFrame(res_Demand[d])
 
     return data
 
@@ -311,7 +314,7 @@ def pv_fit_modelruns(model, fit_max, num_runs, el_price, ud_penalty, day_weights
                               heatrate_c_run = 'y', dem_elasticity_c_run = 'n')
         (ret, inst, added, disp_gen, disp_pv, disp_feedin,
          unmetD, bat_in, bat_out, state_of_charge, num_households,
-         heat_rate_binary, price_binary, quantity_binary, total_demand) = results
+         heat_rate_binary, price_binary, quantity_binary, total_demand, res_Demand, pros_feedin) = results
 
         disp_pv_year = np.array(
             [sum_year(disp_pv, y, day_weights) for y in range(num_households.shape[1])])
@@ -358,7 +361,7 @@ def ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights):
                               heatrate_c_run = 'y', dem_elasticity_c_run = 'n')
         (ret, inst, added, disp_gen, disp_pv, disp_feedin,
          unmetD, bat_in, bat_out, state_of_charge, num_households,
-         heat_rate_binary, price_binary, quantity_binary, total_demand) = results
+         heat_rate_binary, price_binary, quantity_binary, total_demand, res_Demand, pros_feedin) = results
 
         unmetD_year = np.array(
             [[sum_year(unmetD, y, day_weights), num_households[0, y], num_households[1, y]]
