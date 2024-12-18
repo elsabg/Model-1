@@ -66,8 +66,8 @@ def output_data(resultsArray):
     print(ret.round(2))
     print('\n-----------dispatched Energy Generator year 1-----------\n')
     print(disp_gen.round(2))
-    print('\n-----------feed in year 1-----------\n')
-    print(feed_in.round(2))
+    #print('\n-----------feed in year 1-----------\n')
+    #print(feed_in.round(2))
     print('\n-----------unmet Demand year 1-----------\n')
     print(unmetD.round(2))
     print('\n-----------battery Input year 1-----------\n')
@@ -82,14 +82,14 @@ def output_data(resultsArray):
 def plot_data(resultsArray):
     '''plot some output data'''
 
-    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households, feed_in, total_demand = resultsArray
+    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households = resultsArray #no feed_in_energy, total_demand
 
     fig, ax = plt.subplots()
     ax.bar(np.arange(24), bat_in[0], 0.5, label='Battery Input', color = 'green')
     ax.bar(np.arange(24), bat_out[0], 0.5, label='Battery Output', color = 'red')
-    ax.bar(np.arange(24) + 0.5, feed_in[0], 0.5, label='Feed in', color = 'orange')
+    #ax.bar(np.arange(24) + 0.5, feed_in[0], 0.5, label='Feed in', color = 'orange')
     ax.bar(np.arange(24), unmetD[0], 0.5, label='Unmet Demand', color = 'blue')
-    ax.plot(np.arange(24), total_demand[0], label='Total Demand', color = 'black')
+    #ax.plot(np.arange(24), total_demand[0], label='Total Demand', color = 'black')
 
     ax.set_xlabel('Hour')
     ax.set_ylabel('Energy')
