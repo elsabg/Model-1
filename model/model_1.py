@@ -151,7 +151,7 @@ class Model_1:
 
         self.cap_steps = self.data['capacity_steps']['Diesel Generator'].to_numpy()
 
-        self.pros_soc_max = 6  # kwh
+        self.pros_soc_max = 4  # kwh
         self.pros_soc_min = self.pros_soc_max * self.min_soc
 
         #-------------------------------------------------------------------------------#
@@ -162,7 +162,14 @@ class Model_1:
 
         # cd.calc_res_demand(self)
         # cd.calc_pros_feedin(self)
-
+        '''
+        max_feedin = 0
+        for h_type in self.pros_feedin:
+            for d in range(self.days):
+                for h in range(self.hours):
+                    max_feedin += self.pros_feedin[h_type][d][h] * self.d_weights[d] * self.max_house_str[h_type]
+        print(max_feedin)
+        print(self.pros_feedin)'''
         # historic demand
         self.hist_demand = np.zeros(self.days)
 
@@ -195,7 +202,7 @@ class Model_1:
         self.dem_elasticity_c_run = dem_elasticity_c_run
 
         m = Model('Model_1_case_1')
-        m.setParam('MIPGap', 0.002)
+        m.setParam('MIPGap', 0.0025)
         #m.setParam('ScaleFlag', 1)
         '''
         Year 0 is outside of the planning horizon. The decisions start at year

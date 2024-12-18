@@ -101,8 +101,8 @@ def plot_days(timeseriesArray, year, s='plot'):
 
         axs[i, 1].plot(hours, total_demand[2 * i], label='Total Demand', color='black', linestyle='-', marker='o')
 
-        axs[i, 1].set_xlabel('Hour')
-        axs[i, 1].set_ylabel('Energy')
+        axs[i, 1].set_xlabel('Hour of Day (h)')
+        axs[i, 1].set_ylabel('Energy (kWh)')
 
 
         p1 = axs[i, 0].bar(hours, disp_gen[1], label='Dispatched Generation', color='blue')
@@ -121,19 +121,19 @@ def plot_days(timeseriesArray, year, s='plot'):
 
         axs[i, 0].plot(hours, total_demand[1], label='Total Demand', color='black', linestyle='-', marker='o')
 
-        axs[i, 0].set_xlabel('Hour')
-        axs[i, 0].set_ylabel('Energy')
+        axs[i, 0].set_xlabel('Hour of Day (h)')
+        axs[i, 0].set_ylabel('Energy (kWh)')
 
         if i == 0:
-            axs[i, 0].set_title('Year ' + str(year) + ': Spring')
-            axs[i, 1].set_title('Year ' + str(year) + ': Summer')
+            axs[i, 0].set_title('Year ' + str(year+1) + ': Spring')
+            axs[i, 1].set_title('Year ' + str(year+1) + ': Summer')
         else:
-            axs[i, 0].set_title('Year ' + str(year) + ': Autumn')
-            axs[i, 1].set_title('Year ' + str(year) + ': Winter')
+            axs[i, 0].set_title('Year ' + str(year+1) + ': Autumn')
+            axs[i, 1].set_title('Year ' + str(year+1) + ': Winter')
     axs[0, 0].legend(loc='upper left')
     plt.tight_layout()
     if s == 'save':
-        plt.savefig('plots/timeseries_year'+str(year)+'.png')
+        plt.savefig('plots/timeseries/timeseries_year'+str(year)+'.png')
     else:
         plt.show()
 
@@ -238,20 +238,74 @@ def get_binaries(data):
     return [heat_rate_binary, price_binary, quantity_binary]
 
 #--------------------------------------------------------------------------------#
+# single model run                                                               #
+#--------------------------------------------------------------------------------#
+
+def single_modelrun(model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasticity_c_run):
+    '''Single model run with given parameters'''
+    results = model.solve(fit=fit, elec_price=el_price, ud_penalty=ud_penalty,
+                          heatrate_c_run=heatrate_c_run, dem_elasticity_c_run=dem_elasticity_c_run)
+
+    save_res = input("Save results? (Yes: y, No: [Enter]):")
+    if save_res == 'y':
+        save_results(results)
+
+    (ret, inst, added, disp_gen, disp_pv, disp_feedin,
+     unmetD, bat_in, bat_out, state_of_charge, num_households,
+     heat_rate_binary, price_binary, quantity_binary, total_demand) = results
+
+    data = {
+        'retired_capacity': pd.DataFrame(ret),
+        'installed_capacity': pd.DataFrame(inst),
+        'added_capacity': pd.DataFrame(added),
+        'num_households': pd.DataFrame(num_households),
+        'price_binary': pd.DataFrame(price_binary),
+        'quantity_binary': pd.DataFrame(quantity_binary)
+
+    }
+    for y in range(15):
+        data['dispatched_generation_' + str(y + 1)] = pd.DataFrame(disp_gen[y])
+        data['dispatched_pv_' + str(y + 1)] = pd.DataFrame(disp_pv[y])
+        data['dispatched_feedin_' + str(y + 1)] = pd.DataFrame(disp_feedin[y])
+        data['unmet_demand_' + str(y + 1)] = pd.DataFrame(unmetD[y])
+        data['battery_input_' + str(y + 1)] = pd.DataFrame(bat_in[y])
+        data['battery_output_' + str(y + 1)] = pd.DataFrame(bat_out[y])
+        data['state_of_charge_' + str(y + 1)] = pd.DataFrame(state_of_charge[y])
+        data['total_demand_' + str(y + 1)] = pd.DataFrame(total_demand[y])
+        # data['price_binary_' + str(y + 1)] = pd.DataFrame(price_binary[y])
+        for d in range(3):
+            data['heat_rate_binary_' + str(y + 1) + '_' + str(d + 1)] = pd.DataFrame(heat_rate_binary[y][d])
+
+    return data
+
+def show_singlerun_data(data):
+    '''Process the output data of a single model run'''
+    show_tables(get_tabels(data))
+    show_binaries(get_binaries(data), 1, 2)  # winter in year 1
+
+    save_plots = input("Save plots? (Yes: y, No: [Enter]):")
+    if save_plots == 'y':
+        for y in range(data['num_households'].shape[1]):
+            plot_days(get_timeseries(data, y), y, 'save')
+
+    while(1):
+        showyear = input("Year:(1-15):")
+        plot_days(get_timeseries(data, int(showyear) - 1), int(showyear) - 1)
+
+#--------------------------------------------------------------------------------#
 # generate multi run plots                                                       #
 #--------------------------------------------------------------------------------#
+
 
 def sum_year(nparray, year, d_weights):
     '''Sum up values of np array over a year'''
     sum = 0
     for d in range(nparray.shape[1]):
-        for h in range(nparray.shape[2]):
-            sum += np.sum(nparray[year][d]) * d_weights[d]
-
+        sum += np.sum(nparray[year][d]) * d_weights[d]
     return sum
 
 def pv_fit_modelruns(model, fit_max, num_runs, el_price, ud_penalty, day_weights):
-    fit = np.linspace(0, fit_max, num_runs)
+    fit = np.round(np.linspace(0, fit_max, num_runs), 2)
     for i in range(num_runs):
         results = model.solve(fit=fit[i], elec_price=el_price, ud_penalty=ud_penalty,
                               heatrate_c_run = 'y', dem_elasticity_c_run = 'n')
@@ -263,7 +317,89 @@ def pv_fit_modelruns(model, fit_max, num_runs, el_price, ud_penalty, day_weights
             [sum_year(disp_pv, y, day_weights) for y in range(num_households.shape[1])])
         disp_feedin_year = np.array(
             [sum_year(disp_feedin, y, day_weights) for y in range(num_households.shape[1])])
-
         save_array2d_to_excel(disp_pv_year, 'multirun_results.xlsx', 'disp_pv_year_' + str(fit[i]))
         save_array2d_to_excel(disp_feedin_year, 'multirun_results.xlsx', 'disp_feedin_year_' + str(fit[i]))
 
+    save_fig = input("Save figure? (No: [Enter], Yes: y):")
+    if save_fig == 'y':
+        for i in range(15):
+            print_pv_fit_curve(el_price / 2, num_runs, i, 'save')
+    print_pv_fit_curve(el_price / 2, num_runs, 1)
+
+def print_pv_fit_curve(fit_max, num_runs, year, s = 'plot'):
+    '''Print the PV fit curve'''
+    fit = np.round(np.linspace(0, fit_max, num_runs), 2)
+    data = pd.read_excel('multirun_results.xlsx', sheet_name=None)
+    disp_pv = pd.DataFrame()
+    disp_feedin = pd.DataFrame()
+    for i in range(num_runs):
+        disp_pv['disp_pv_fit_'+str(fit[i])] = data['disp_pv_year_'+str(fit[i])].iloc[:, :].to_numpy().flatten()
+        disp_feedin['disp_feedin_fit_'+str(fit[i])] = data['disp_feedin_year_'+str(fit[i])].iloc[:, :].to_numpy().flatten()
+    fig, ax = plt.subplots()
+    ax.plot(fit, disp_pv.iloc[year - 1] / 1000, label='Installed PV', marker='o')
+    ax.plot(fit, disp_feedin.iloc[year -1] / 1000, label='Prosumer Feed-in', marker='o')
+    ax.set_xlabel('Feed in Tarif ($/kWh)')
+    ax.set_ylabel('Dispatched PV Energy per Year (MWh)')
+    ax.legend(loc='upper left')
+    ax.set_title('Year '+str(year+1))
+    ax.set_ylim(bottom=0)
+    ax.set_xlim(left=0)
+
+    if s == 'save':
+        plt.savefig('plots/pv_feedin/pv_dispatch_'+str(year)+'.png')
+    else:
+        plt.show()
+
+
+def ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights):
+    ud_penalty = np.round(np.linspace(0, ud_penalty_max, num_runs), 2)
+    for i in range(num_runs):
+        results = model.solve(fit=fit, elec_price=el_price, ud_penalty=ud_penalty[i],
+                              heatrate_c_run = 'y', dem_elasticity_c_run = 'n')
+        (ret, inst, added, disp_gen, disp_pv, disp_feedin,
+         unmetD, bat_in, bat_out, state_of_charge, num_households,
+         heat_rate_binary, price_binary, quantity_binary, total_demand) = results
+
+        unmetD_year = np.array(
+            [[sum_year(unmetD, y, day_weights), num_households[0, y], num_households[1, y]]
+             for y in range(num_households.shape[1])])
+        save_array2d_to_excel(unmetD_year, 'multirun_results.xlsx', 'unmetD_year_' + str(ud_penalty[i]))
+
+    save_fig = input("Save figure? (No: [Enter], Yes: [y]):")
+    if save_fig == 'y':
+        for i in range(15):
+            print_ud_curve(ud_penalty_max, num_runs, i, 'save')
+    print_ud_curve(ud_penalty_max, num_runs, 1)
+
+def print_ud_curve(ud_penalty_max, num_runs, year, s = 'plot'):
+    '''Print the PV fit curve'''
+    ud_penalty = np.round(np.linspace(0, ud_penalty_max, num_runs), 2)
+    data = pd.read_excel('multirun_results.xlsx', sheet_name=None)
+    unmetD = pd.DataFrame()
+    num_consumers = pd.DataFrame()
+    num_prosumers = pd.DataFrame()
+    for i in range(num_runs):
+        unmetD['unmetD_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 0].to_numpy()
+        num_consumers['num_consumers_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 1].to_numpy()
+        num_prosumers['num_prosumers_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 2].to_numpy()
+    fig, ax1 = plt.subplots()
+    ax1.plot(ud_penalty, unmetD.iloc[year - 1] / 1000, label='Unmet Demand', marker='o')
+    ax1.set_xlabel('Unmet Demand Penalty ($/kWh)')
+    ax1.set_ylabel('Unmet Energy Demand per year (MWh)')
+    ax1.set_ylim(bottom=0)
+    ax1.set_xlim(left=0)
+
+    ax2 = ax1.twinx()
+    ax2.plot(ud_penalty, num_consumers.iloc[year - 1], label='Consumers', color='black', linestyle='', marker='o')
+    ax2.plot(ud_penalty, num_prosumers.iloc[year - 1], label='Prosumers', color='black', linestyle='', marker='x')
+    ax2.set_ylabel('Number of Households')
+    ax2.set_ylim(bottom=0)
+
+    fig.legend()
+    ax1.set_title('Year '+str(year+1))
+    plt.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.15)
+
+    if s == 'save':
+        plt.savefig('plots/unmet_demand/ud_plot_'+str(year)+'.png')
+    else:
+        plt.show()

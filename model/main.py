@@ -21,80 +21,57 @@ from model_1 import Model_1
 model = Model_1(_file_name='model_inputs_testing_v3.xlsx')
 model.load_data()
 
-#-------------------------------------------------------------------------------#
-#                                                                               #
-# model run                                                                     #
-#                                                                               #
-#-------------------------------------------------------------------------------#
-fit = 0.2
-ud_penalty = 0.05
+fit = 0.1
+ud_penalty = 0.4
 el_price = 0.4
-heatrate_c_run = 'y'
-dem_elasticity_c_run = 'y'
-run_model = input("Run model? (Yes: [Enter], No: n):")
-if run_model != 'n':
-    heatrate_c_run = input("Run model with heatrate curve? (No: [Enter], Yes: y):")
-    dem_elasticity_c_run = input("Run model with demand elasticity? (No: [Enter], Yes: y):")
 
-    results = model.solve(fit=fit, elec_price=el_price, ud_penalty=ud_penalty,
-                    heatrate_c_run = heatrate_c_run, dem_elasticity_c_run = dem_elasticity_c_run)
-
-    save_results = input("Save results? (Yes: y, No: [Enter]):")
-    if save_results == 'y':
-        func.save_results(results)
-
-    (ret, inst, added, disp_gen, disp_pv, disp_feedin,
-     unmetD, bat_in, bat_out, state_of_charge, num_households,
-     heat_rate_binary, price_binary, quantity_binary, total_demand) = results
-
-    data = {
-    'retired_capacity': pd.DataFrame(ret),
-    'installed_capacity': pd.DataFrame(inst),
-    'added_capacity': pd.DataFrame(added),
-    'num_households': pd.DataFrame(num_households),
-    'price_binary': pd.DataFrame(price_binary),
-    'quantity_binary': pd.DataFrame(quantity_binary)
-
-    }
-    for y in range(15):
-        data['dispatched_generation_' + str(y + 1)] = pd.DataFrame(disp_gen[y])
-        data['dispatched_pv_' + str(y + 1)] =  pd.DataFrame(disp_pv[y])
-        data['dispatched_feedin_' + str(y + 1)] =  pd.DataFrame(disp_feedin[y])
-        data['unmet_demand_' + str(y + 1)] =  pd.DataFrame(unmetD[y])
-        data['battery_input_' + str(y + 1)] =  pd.DataFrame(bat_in[y])
-        data['battery_output_' + str(y + 1)] =  pd.DataFrame(bat_out[y])
-        data['state_of_charge_' + str(y + 1)] =  pd.DataFrame(state_of_charge[y])
-        data['total_demand_' + str(y + 1)] =  pd.DataFrame(total_demand[y])
-        #data['price_binary_' + str(y + 1)] = pd.DataFrame(price_binary[y])
-        for d in range(3):
-            data['heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)] = pd.DataFrame(heat_rate_binary[y][d])
-
-else:
-    data = func.get_results('results.xlsx')
 #-------------------------------------------------------------------------------#
 #                                                                               #
-# Process output data                                                           #
+# single model run                                                              #
+#                                                                               #
+#-------------------------------------------------------------------------------#
+run_model = input("Single Model Run? (No: [Enter],Yes: [y], Only show results: [r]):")
+if run_model == 'y':
+    heatrate_c_run = input("Run model with heatrate curve? (No: [Enter], Yes: [y]):")
+    dem_elasticity_c_run = input("Run model with demand elasticity? (No: [Enter], Yes: [y]):")
+
+    data = func.single_modelrun(model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasticity_c_run)
+    func.show_singlerun_data(data)
+elif run_model == 'r':
+    data = func.get_results('results.xlsx')
+    func.show_singlerun_data(data)
+
+#-------------------------------------------------------------------------------#
+#                                                                               #
+# multiple model runs                                                           #
 #                                                                               #
 #-------------------------------------------------------------------------------#
 data_weights = pd.read_excel('model_inputs_testing_v3.xlsx', sheet_name='day_weights')
 day_weights = data_weights['Weight'].to_numpy()
 
+num_runs = 5
+ud_penalty_max = 1.5
+
+ud_runs = input("Unmet Demand multiple Model runs? (No: [Enter],Yes: [y], Only show results: [r]):")
+
+if ud_runs == 'y':
+    func.ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights)
+
+elif ud_runs == 'r':
+    func.print_ud_curve(ud_penalty_max, num_runs, 1)
+
+
+pv_fit_runs = input("PV Fit multiple Model runs? (No: [Enter],Yes: [y], Only show results: [r]):")
+
+if pv_fit_runs == 'y':
+    func.pv_fit_modelruns(model, el_price / 2, num_runs, el_price, ud_penalty, day_weights)
+elif pv_fit_runs == 'r':
+    func.print_pv_fit_curve(el_price / 2, num_runs, 1)
 
 
 
-'''
-func.show_tables(func.get_tabels(data))
-if dem_elasticity_c_run == 'y':
-    func.show_binaries(func.get_binaries(data), 1, 2) # winter in year 1
-
-save_plots = input("Save plots? (Yes: y, No: [Enter]):")
-if save_plots == 'y':
-    for y in range(data['num_households'].shape[1]):
-        func.plot_days(func.get_timeseries(data, y), y, 'save')
-
-while(1):
-    showyear = input("Year:(1-15):")
-    func.plot_days(func.get_timeseries(data, int(showyear)-1), int(showyear)-1)
 
 
-'''
+
+
+
