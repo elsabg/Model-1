@@ -26,13 +26,13 @@ model.load_data()
 # test model run                                                                #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-fit = 0.2
+fit = 0.01
 el_price = 0.4
 
 results = model.solve(fit=fit, elec_price=el_price)
 
 func.output_data(results)
-func.plot_data(results)
+#func.plot_data(results)
 #-------------------------------------------------------------------------------#
 #                                                                               #
 # model run case 2: feed in tariff                                              #

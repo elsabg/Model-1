@@ -222,7 +222,7 @@ class Model_1:
                            name='diesel consumption')
         
         
-        #Support variables
+        #Auxiliary variables
         aux_min = m.addVars(self.house, self.years, self.days, self.hours,
                              name='min_auxilliary')
 
@@ -317,7 +317,7 @@ class Model_1:
                            * ( 1 / ((1 + self.i) ** y))) #discount factor
                           for y in range(self.years)
                           )
-
+        print(tp_npv)
         m.setObjective(tp_npv[0], GRB.MAXIMIZE)
 
         #----------------------------------------------------------------------#
@@ -974,14 +974,14 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        ret = np.zeros((len(self.techs), self.years + 1)) # retired capacity
-        inst = np.zeros((len(self.techs), self.years + 1)) # installed capacity
-        added = np.zeros((len(self.techs), self.years + 1)) # added capacity
+        ret = np.ones((len(self.techs), self.years)) # retired capacity
+        inst = np.zeros((len(self.techs), self.years)) # installed capacity
+        added = np.zeros((len(self.techs), self.years)) # added capacity
         disp_gen = np.zeros((self.days, self.hours))
         unmetD = np.zeros((self.days, self.hours))
         bat_in = np.zeros((self.days, self.hours))
         bat_out = np.zeros((self.days, self.hours))
-        num_households = np.zeros((len(self.house), self.years + 1))
+        num_households = np.ones((len(self.house), self.years))
         feed_in_energy = np.zeros((self.days, self.hours))
 
         for y in range(self.years):
@@ -1011,7 +1011,6 @@ class Model_1:
                 for h in range(self.hours):
                     total_demand[d][h] += self.res_demand[house][d][h] * num_households[self.house.tolist().index(house)][12]
         '''
-
 
         return_array = [ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households] # no feed_in_energy, total_demand
 
