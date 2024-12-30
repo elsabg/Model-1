@@ -21,9 +21,12 @@ from model_1 import Model_1
 model = Model_1(_file_name='model_inputs_testing_v3.xlsx')
 model.load_data()
 
-fit = 0.1
+
+lcoe_pv = func.calc_lcoe_pv('model_inputs_testing_v3.xlsx')
+fit = lcoe_pv
 ud_penalty = 0.4
 el_price = 0.4
+print(lcoe_pv)
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
@@ -64,9 +67,9 @@ elif ud_runs == 'r':
 pv_fit_runs = input("PV Fit multiple Model runs? (No: [Enter],Yes: [y], Only show results: [r]):")
 
 if pv_fit_runs == 'y':
-    func.pv_fit_modelruns(model, el_price / 2, num_runs, el_price, ud_penalty, day_weights)
+    func.pv_fit_modelruns(model, el_price / 10, num_runs, el_price, ud_penalty, day_weights)
 elif pv_fit_runs == 'r':
-    func.print_pv_fit_curve(el_price / 2, num_runs, 1)
+    func.print_pv_fit_curve(el_price / 4, num_runs, 1)
 
 
 

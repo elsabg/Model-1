@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from fontTools.misc.bezierTools import epsilon
 from gurobipy import *
+import matplotlib.pyplot as plt
 
 import customer_demand as cd
 
@@ -154,6 +155,10 @@ class Model_1:
         self.pros_soc_max = 4  # kwh
         self.pros_soc_min = self.pros_soc_max * self.min_soc
 
+        #battery landuse and available land
+        self.pv_landuse = 8 #m^2/kw
+        self.pv_land = 10000 #m^2 (1/200 of toatl availiable land)
+
         #-------------------------------------------------------------------------------#
         # Calculations                                                                  #
         #-------------------------------------------------------------------------------#
@@ -163,13 +168,30 @@ class Model_1:
         # cd.calc_res_demand(self)
         # cd.calc_pros_feedin(self)
         '''
-        max_feedin = 0
+        self.max_feedin = np.zeros(self.days)
         for h_type in self.pros_feedin:
             for d in range(self.days):
                 for h in range(self.hours):
-                    max_feedin += self.pros_feedin[h_type][d][h] * self.d_weights[d] * self.max_house_str[h_type]
-        print(max_feedin)
-        print(self.pros_feedin)'''
+                    self.max_feedin[d] += self.pros_feedin[h_type][d][h] * self.max_house_str[h_type]
+
+        self.max_prosdemand = np.zeros(self.days)
+        for d in range(self.days):
+            for h in range(self.hours):
+                self.max_prosdemand[d] += self.res_demand['Type 2'][d][h] * self.max_house_str['Type 2']
+        '''
+        self.max_feedin = 0
+        for h_type in self.pros_feedin:
+            for d in range(self.days):
+                for h in range(self.hours):
+                    self.max_feedin += self.pros_feedin[h_type][d][h] * self.d_weights[d]
+
+        self.max_prosdemand = 0
+        for d in range(self.days):
+            for h in range(self.hours):
+                self.max_prosdemand += self.res_demand['Type 2'][d][h] * self.d_weights[d]
+
+        print(self.max_feedin, self.max_prosdemand)
+
         # historic demand
         self.hist_demand = np.zeros(self.days)
 
@@ -182,6 +204,8 @@ class Model_1:
         self.hist_price = 0.4
 
         self.disp_steps_year, self.disp_steps_month, self.price_steps = cd.calc_disp_price_steps(self)
+
+        #cd.plot_households(self)
 
         #------------------------------------------------------------------------------#
         # Sets                                                                         #
@@ -202,7 +226,7 @@ class Model_1:
         self.dem_elasticity_c_run = dem_elasticity_c_run
 
         m = Model('Model_1_case_1')
-        m.setParam('MIPGap', 0.0025)
+        m.setParam('MIPGap', 0.005)
         #m.setParam('ScaleFlag', 1)
         '''
         Year 0 is outside of the planning horizon. The decisions start at year
@@ -467,6 +491,14 @@ class Model_1:
             "Steps for added diesel generator capacity"
         )
 
+        m.addConstrs(
+            (
+                inst_cap['Owned PV', y] * self.pv_landuse <= self.pv_land
+                for y in range(1, self.years + 1)
+            ),
+            "Restrict Available Land for PV Use"
+        )
+
         # ----------------------------------------------------------------------#
         # Feed in PV from Prosumers                                             #
         # ----------------------------------------------------------------------#
@@ -481,6 +513,40 @@ class Model_1:
             ),
             "Link dispatch to feed in"
         )
+        '''
+        for d in range(self.days):
+            if self.max_feedin[d] != 0:
+                m.addConstrs(
+                    (
+                        quicksum(ud[y, d, h] for h in range(self.hours))
+                        <= self.max_prosdemand[d] * quicksum(feed_in[i, y, d, h]
+                        for i in self.house
+                        for h in range(self.hours)
+                        ) / self.max_feedin[d]
+                        for y in range(1, self.years + 1)
+                    ),
+                    "Unmet Demand balance Feed IN"
+                )
+
+
+        '''
+        m.addConstrs(
+            (
+                quicksum(ud[y, d, h] * self.d_weights[d]
+                for h in range(self.hours)
+                for d in range(self.days)
+                )
+                <= self.max_prosdemand * quicksum(feed_in[i, y, d, h] * self.d_weights[d]
+                for i in self.house
+                for h in range(self.hours)
+                for d in range(self.days)
+                )/self.max_feedin # number of households kürzt sich raus
+                for y in range(1, self.years + 1)
+            )
+        )
+
+
+
 
         if dem_elasticity_c_run == 'y':
             m.addConstrs(
@@ -505,6 +571,7 @@ class Model_1:
                 ),
                 "max Feed in"
             )
+
 
 
 

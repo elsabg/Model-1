@@ -326,8 +326,8 @@ def pv_fit_modelruns(model, fit_max, num_runs, el_price, ud_penalty, day_weights
     save_fig = input("Save figure? (No: [Enter], Yes: y):")
     if save_fig == 'y':
         for i in range(15):
-            print_pv_fit_curve(el_price / 2, num_runs, i, 'save')
-    print_pv_fit_curve(el_price / 2, num_runs, 1)
+            print_pv_fit_curve(fit_max, num_runs, i, 'save')
+    print_pv_fit_curve(fit_max, num_runs, 1)
 
 def print_pv_fit_curve(fit_max, num_runs, year, s = 'plot'):
     '''Print the PV fit curve'''
@@ -406,3 +406,22 @@ def print_ud_curve(ud_penalty_max, num_runs, year, s = 'plot'):
         plt.savefig('plots/unmet_demand/ud_plot_'+str(year)+'.png')
     else:
         plt.show()
+
+
+def calc_lcoe_pv(filename):
+    '''Calculate the LCOE of PV'''
+    parameters = pd.read_excel(filename, sheet_name='parameters')
+    tech_values = pd.read_excel(filename, sheet_name='tech')
+    cap_factors = pd.read_excel(filename, sheet_name='cap_factors').to_numpy()
+    mean_values = np.zeros(3)
+    for i in range(3):
+        mean_values[i] = np.mean(cap_factors[i][1:])
+    cap_fac = mean_values[0] * 0.25 + mean_values[1] * 0.5 + mean_values[2] * 0.25
+    interest_r = parameters['Interest rate'][0]
+    lifetime = tech_values['Lifetime'][1]
+    capex = tech_values['UCC'][1]
+    ofc = tech_values['UOFC'][1]
+    ovc = tech_values['UOVC'][1]
+
+    alpha = (((1 + interest_r)**lifetime)*interest_r)/(((1 + interest_r)**lifetime)-1)
+    return ((capex * alpha + ofc) / (cap_fac * 8760)) + ovc

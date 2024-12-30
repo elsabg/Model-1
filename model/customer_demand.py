@@ -1,5 +1,6 @@
 import numpy as np
 from gurobipy import *
+from matplotlib import pyplot as plt
 
 #--------------------------------------------------------------------------------#
 #                                                                                #
@@ -128,3 +129,33 @@ def calc_disp_price_steps(self):
             disp_steps_month[i][d] = (calc_elastic_mondemand(self, 0, d) / self.steps) * (i + 1)
         price_steps[i] = delta_p0 * (i + 1)
     return disp_steps_year, disp_steps_month, price_steps
+
+
+def plot_households(self):
+    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+    hours = np.arange(24)
+    for i in range(2):
+        p3 = axs[i, 1].bar(hours, 2.7 * self.cap_fact[2 * i] - self.demand_2[2 * i], label='Pros Feed in no battery', color='grey')
+        p4 = axs[i, 0].bar(hours, 2.7 * self.cap_fact[1] - self.demand_2[1], label='Pros Feed in no battery', color='grey')
+        p1 = axs[i, 1].bar(hours, self.pros_feedin['Type 2'][2 * i], label='Pros Feed in with battery', color='orange')
+        p2 = axs[i, 0].bar(hours, self.pros_feedin['Type 2'][1], label='Pros Feed in with battery', color='orange')
+
+        axs[i, 1].plot(hours, self.res_demand['Type 2'][2 * i], label='Pros Demand', color='black', marker='o')
+        axs[i, 0].plot(hours, self.res_demand['Type 2'][1], label='Pros Demand', color='black', marker='o')
+        axs[i, 1].plot(hours, self.res_demand['Type 1'][2 * i], label='Cons Demand', color='blue', marker='o')
+        axs[i, 0].plot(hours, self.res_demand['Type 1'][1], label='Cons Demand', color='blue', marker='o')
+        axs[i, 0].set_ylim(bottom=0)
+        axs[i, 1].set_ylim(bottom=0)
+        axs[i, 1].set_xlabel('Hour of Day (h)')
+        axs[i, 1].set_ylabel('Energy (kWh)')
+        axs[i, 0].set_xlabel('Hour of Day (h)')
+        axs[i, 0].set_ylabel('Energy (kWh)')
+        if i == 0:
+            axs[i, 0].set_title('Spring')
+            axs[i, 1].set_title('Summer')
+        else:
+            axs[i, 0].set_title('Autumn')
+            axs[i, 1].set_title('Winter')
+    axs[0, 0].legend()
+    plt.savefig('plots/households/household_demand_feedin.png')
+    plt.show()
