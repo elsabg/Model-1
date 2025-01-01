@@ -12,21 +12,22 @@ import matplotlib.pyplot as plt
 def output_data(resultsArray):
     '''Process output data'''
 
-    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households = resultsArray #no feed_in_energy, total_demand
+    ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in = resultsArray #no feed_in_energy, total_demand
 
     disp_gen = pd.DataFrame(
         disp_gen, columns=[i for i in range(disp_gen.shape[1])]
     )
     
-    '''
+    
     feed_in = pd.DataFrame(
         feed_in, columns=[i for i in range(feed_in.shape[1])]
     )
+    
     '''
-
     unmetD = pd.DataFrame(
         unmetD, columns=[i for i in range(unmetD.shape[1])]
     )
+    '''
 
     bat_in = pd.DataFrame(
         bat_in, columns=[i for i in range(bat_in.shape[1])]
@@ -66,10 +67,10 @@ def output_data(resultsArray):
     print(ret.round(2))
     print('\n-----------dispatched Energy Generator year 1-----------\n')
     print(disp_gen.round(2))
-    #print('\n-----------feed in year 1-----------\n')
-    #print(feed_in.round(2))
-    print('\n-----------unmet Demand year 1-----------\n')
-    print(unmetD.round(2))
+    print('\n-----------feed in year 1-----------\n')
+    print(feed_in.round(2))
+    #print('\n-----------unmet Demand year 1-----------\n')
+    #print(unmetD.round(2))
     print('\n-----------battery Input year 1-----------\n')
     print(bat_in.round(2))
     print('\n-----------battery Output year 1-----------\n')
@@ -79,9 +80,11 @@ def output_data(resultsArray):
     '''write output data to excel file'''
     return
 
+'''
 def plot_data(resultsArray):
-    '''plot some output data'''
-
+    '''
+'''plot some output data'''
+'''
     ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households = resultsArray #no feed_in_energy, total_demand
 
     fig, ax = plt.subplots()
@@ -97,5 +100,6 @@ def plot_data(resultsArray):
 
     ax.legend()
     plt.show()
+'''
 
 
