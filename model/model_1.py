@@ -144,6 +144,8 @@ class Model_1:
 
         self.min_soc = self.data['parameters']['min SoC'][0]
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
+
+        self.bat_cap_min = 500 # kWh
         self.cap_power_ratio = 6    # 6 hours of storage
         self.ucc['Owned Batteries'] = self.ucc['Owned Batteries'] * self.cap_power_ratio # from cost per kWh to cost per kW
 
@@ -190,7 +192,6 @@ class Model_1:
             for h in range(self.hours):
                 self.max_prosdemand += self.res_demand['Type 2'][d][h] * self.d_weights[d]
 
-        print(self.max_feedin, self.max_prosdemand)
 
         # historic demand
         self.hist_demand = np.zeros(self.days)
@@ -243,7 +244,6 @@ class Model_1:
 
         inst_cap = m.addVars(self.techs_o, self.years + 1, name='instCap', lb=0)
 
-
         disp = m.addVars(self.techs_g, self.years + 1, self.days, self.hours, name='disp', lb=0)
 
         feed_in = m.addVars(self.house, self.years + 1, self.days, self.hours, name='feedIn', lb = 0)
@@ -267,6 +267,8 @@ class Model_1:
 
         bin_price_curve = m.addVars(self.steps,  #self.years,
                                     vtype=GRB.BINARY, name='binPriceCurve')
+
+        bin_battery = m.addVars(self.years + 1, vtype=GRB.BINARY, name='binBattery')
 
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -499,6 +501,24 @@ class Model_1:
             "Restrict Available Land for PV Use"
         )
 
+        big_M3 = 10000
+
+        m.addConstrs(
+            (
+                added_cap['Owned Batteries', y] <= big_M3 * bin_battery[y]
+                for y in range(1, self.years + 1)
+            ),
+            "Big M for Battery minimal Capacity"
+        )
+
+        m.addConstrs(
+            (
+                added_cap['Owned Batteries', y] >= (self.bat_cap_min / self.cap_power_ratio) * bin_battery[y]
+                for y in range(1, self.years + 1)
+            ),
+            "Battery minimal Capacity"
+        )
+
         # ----------------------------------------------------------------------#
         # Feed in PV from Prosumers                                             #
         # ----------------------------------------------------------------------#
@@ -513,6 +533,7 @@ class Model_1:
             ),
             "Link dispatch to feed in"
         )
+
         '''
         for d in range(self.days):
             if self.max_feedin[d] != 0:
@@ -542,7 +563,8 @@ class Model_1:
                 for d in range(self.days)
                 )/self.max_feedin # number of households kürzt sich raus
                 for y in range(1, self.years + 1)
-            )
+            ),
+            "Unmet Demand balance Feed IN"
         )
 
 
@@ -822,9 +844,12 @@ class Model_1:
                         for house in self.house:
                             hourly_demand += self.res_demand[house][d][h] * h_weight[house, y].X
                         total_demand[y][d][h] = hourly_demand
+        pros_demandarray = cd.fill_pros_demandarray(self, unmetD, disp_feedin, num_households)
+        #print(pros_demandarray)
 
         return_array = [ret, inst, added, disp_gen, disp_pv, disp_feedin,
                         unmetD, bat_in, bat_out, state_of_charge, num_households,
-                        heat_rate_binary, price_binary, quantity_binary, total_demand, self.res_demand, self.pros_feedin]
+                        heat_rate_binary, price_binary, quantity_binary, total_demand,
+                        self.res_demand, self.pros_feedin, pros_demandarray]
 
         return return_array

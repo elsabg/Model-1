@@ -166,7 +166,8 @@ def save_results(results):
     '''Save the results arrays to an excel file'''
     (ret, inst, added, disp_gen, disp_pv, disp_feedin,
      unmetD, bat_in, bat_out, state_of_charge, num_households,
-     heat_rate_binary, price_binary, quantity_binary, total_demand, res_Demand, pros_feedin) = results
+     heat_rate_binary, price_binary, quantity_binary, total_demand,
+     res_Demand, pros_feedin, pros_demandarray) = results
     save_array2d_to_excel(ret, 'results.xlsx', 'retired_capacity')
     save_array2d_to_excel(inst, 'results.xlsx', 'installed_capacity')
     save_array2d_to_excel(added, 'results.xlsx', 'added_capacity')
@@ -253,7 +254,8 @@ def single_modelrun(model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasti
 
     (ret, inst, added, disp_gen, disp_pv, disp_feedin,
      unmetD, bat_in, bat_out, state_of_charge, num_households,
-     heat_rate_binary, price_binary, quantity_binary, total_demand, res_Demand, pros_feedin) = results
+     heat_rate_binary, price_binary, quantity_binary, total_demand,
+     res_Demand, pros_feedin, pros_demandarray) = results
 
     data = {
         'retired_capacity': pd.DataFrame(ret),
@@ -291,7 +293,7 @@ def show_singlerun_data(data):
         for y in range(data['num_households'].shape[1]):
             plot_days(get_timeseries(data, y), y, 'save')
 
-    while(1):
+    while True:
         showyear = input("Year:(1-15):")
         plot_days(get_timeseries(data, int(showyear) - 1), int(showyear) - 1)
 
@@ -314,7 +316,8 @@ def pv_fit_modelruns(model, fit_max, num_runs, el_price, ud_penalty, day_weights
                               heatrate_c_run = 'y', dem_elasticity_c_run = 'n')
         (ret, inst, added, disp_gen, disp_pv, disp_feedin,
          unmetD, bat_in, bat_out, state_of_charge, num_households,
-         heat_rate_binary, price_binary, quantity_binary, total_demand, res_Demand, pros_feedin) = results
+         heat_rate_binary, price_binary, quantity_binary, total_demand,
+         res_Demand, pros_feedin, pros_demandarray) = results
 
         disp_pv_year = np.array(
             [sum_year(disp_pv, y, day_weights) for y in range(num_households.shape[1])])
@@ -361,7 +364,8 @@ def ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights):
                               heatrate_c_run = 'y', dem_elasticity_c_run = 'n')
         (ret, inst, added, disp_gen, disp_pv, disp_feedin,
          unmetD, bat_in, bat_out, state_of_charge, num_households,
-         heat_rate_binary, price_binary, quantity_binary, total_demand, res_Demand, pros_feedin) = results
+         heat_rate_binary, price_binary, quantity_binary, total_demand,
+         res_Demand, pros_feedin, pros_demandarray) = results
 
         unmetD_year = np.array(
             [[sum_year(unmetD, y, day_weights), num_households[0, y], num_households[1, y]]

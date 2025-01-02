@@ -159,3 +159,24 @@ def plot_households(self):
     axs[0, 0].legend()
     plt.savefig('plots/households/household_demand_feedin.png')
     plt.show()
+
+
+def fill_pros_demandarray(self, unmetD, disp_feedin, num_households):
+    """retruns Array with pros demand data"""
+    ret = np.zeros((2,3))
+    ud_years = np.zeros((self.years))
+    fi_years = np.zeros((self.years))
+    for d in range(self.days):
+        ret[0][1] += np.sum(self.res_demand['Type 2'][d]) * self.d_weights[d]
+        ret[0][2] += np.sum(self.pros_feedin['Type 2'][d]) * self.d_weights[d]
+        for i in range(2):
+            ret[i][0] += np.sum(self.demand_2[d]) * self.d_weights[d]
+    for y in range(self.years):
+        for d in range(self.days):
+            ud_years[y] += np.sum(unmetD[y][d]) * self.d_weights[d]
+            fi_years[y] += np.sum(disp_feedin[y][d]) * self.d_weights[d]
+        ud_years[y] = ud_years[y] / num_households[1][y]
+        fi_years[y] = fi_years[y] / num_households[1][y]
+    ret[1][1] = np.mean(ud_years)
+    ret[1][2] = ret[0][2] - np.mean(fi_years)
+    return ret
