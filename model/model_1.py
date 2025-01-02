@@ -207,10 +207,10 @@ class Model_1:
         
         #Auxiliary variables
         aux_min = m.addVars(self.house, self.years, self.days, self.hours,
-                             name='min_auxilliary')
+                             name='min_auxiliary')
 
         aux_max = m.addVars(self.house, self.years, self.days, self.hours,
-                             name='max_auxilliary', lb=0)
+                             name='max_auxiliary', lb=0)
         
         z_bin = m.addVars(range(2), self.house, self.years, self.days, self.hours,
                           vtype=GRB.BINARY, name='z binary')
@@ -286,13 +286,14 @@ class Model_1:
         # Auxiliary Constraints
         M = 1000
         m.addConstrs(((aux_min[i, y, d, h] <=
-                       feed_in[i, y, d, h] + z_bin[0, i, y, d, h] * M)
+                       feed_in[i, y, d, h])
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
                       for h in range(self.hours)
                       ),
                      name='min aux 1.1')
+        
         m.addConstrs(((aux_min[i, y, d, h] >=
                        feed_in[i, y, d, h] - z_bin[0, i, y, d, h] * M)
                       for i in self.house
@@ -301,6 +302,7 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name='min aux 1.2')
+        '''
         m.addConstrs(((feed_in[i, y, d, h] <=
                        h_weight[i, y] * self.surplus[i][d][h]
                        + z_bin[0, i, y, d, h] * M)
@@ -310,16 +312,16 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name='min aux 1.3')
-        
+        '''
         m.addConstrs(((aux_min[i, y, d, h] <=
-                       h_weight[i, y] * self.surplus[i][d][h] + 
-                       (1 - z_bin[0, i,y,d,h]) * M)
+                       h_weight[i, y] * self.surplus[i][d][h])
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
                       for h in range(self.hours)
                       ),
                      name='min aux 2.1')
+                     
         m.addConstrs(((aux_min[i, y, d, h] >=
                        h_weight[i, y] * self.surplus[i][d][h] - 
                        (1 - z_bin[0, i, y, d, h]) * M)
@@ -329,6 +331,7 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name='min aux 2.2')
+        '''
         m.addConstrs(((h_weight[i, y] * self.surplus[i][d][h] <=
                        feed_in[i, y, d, h] +
                        (1 - z_bin[0, i, y, d, h]) * M)
@@ -338,6 +341,7 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name='min aux 2.3')
+        '''
         
         # Supply-demand balance constraint
         m.addConstrs(((b_out[y, d, h] 
@@ -362,14 +366,14 @@ class Model_1:
                       ),
                      name='max aux 1.1')
         m.addConstrs(((aux_max[i, y, d, h] >=
-                       h_weight[i, y] * self.surplus[i][d][h]
-                       - z_bin[1, i, y, d, h] * M)
+                       h_weight[i, y] * self.surplus[i][d][h])
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
                       for h in range(self.hours)
                       ),
                      name='max aux 1.2')
+        '''
         m.addConstrs(((h_weight[i, y] * self.surplus[i][d][h] >=
                        - z_bin[1, i, y, d, h] * M)
                       for i in self.house
@@ -379,6 +383,7 @@ class Model_1:
                       ),
                      name='max aux 1.3'
                      )
+        '''
         
         m.addConstrs(((aux_max[i, y, d, h] <=
                        (1 - z_bin[1, i, y, d, h]) * M)
@@ -389,8 +394,7 @@ class Model_1:
                       ),
                      name='max aux 2.1'
                      )
-        m.addConstrs(((aux_max[i, y, d, h] >=
-                       - (1 - z_bin[1, i, y, d, h]) * M)
+        m.addConstrs(((aux_max[i, y, d, h] >= 0)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -398,6 +402,7 @@ class Model_1:
                       ),
                      name='max aux 2.2'
                      )
+        '''
         m.addConstrs(((h_weight[i, y] * self.surplus[i][d][h] <=
                        (1 - z_bin[1, i, y, d, h]) * M)
                       for i in self.house
@@ -407,6 +412,7 @@ class Model_1:
                       ),
                      name='max aux 2.3'
                      )
+        '''
         
         # Feed-in capacity constraints
         m.addConstrs(((feed_in[i, y, d, h] <=
@@ -778,7 +784,7 @@ class Model_1:
 
         for house in self.house:
             for y in range(self.years):
-                num_households[self.house.tolist().index(house)][y] = np.abs(h_weight[house, y].X)
+                num_households[self.house.tolist().index(house)][y] = h_weight[house, y].X
 
 
         total_demand = np.zeros((self.days, self.hours))
@@ -796,4 +802,8 @@ class Model_1:
         print(tcc[5].getValue())
         print(tovc[5].getValue())
         print(tofc[5].getValue())
+        z = [z_bin[j, i, y, d, h].x for j in range(2) for i in self.house for y in range(self.years) for d in range(self.days) for h in range(self.hours)]
+        print(z)
+        f = [aux_min[i, y, d, h].x for i in self.house for y in range(self.years) for d in range(self.days) for h in range(self.hours)]
+        print(f)
         return return_array
