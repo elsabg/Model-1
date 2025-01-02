@@ -8,6 +8,11 @@ Created on Tue Oct 21 13:42:03 2024
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import FixedLocator
+import math
+
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.serif'] = 'Times New Roman'
 
 
 
@@ -18,7 +23,7 @@ import matplotlib.pyplot as plt
 def show_tables(tables):
     '''Print Tabels Installed Added Retired Capacity and Number of Households'''
 
-    (ret, inst, added, num_households) = tables
+    (ret, inst, added, num_households, pros_demandarray) = tables
 
     num_households = pd.DataFrame(
         num_households, columns=[i + 1 for i in range(num_households.shape[1])]
@@ -36,12 +41,19 @@ def show_tables(tables):
         ret, columns=[i for i in range(ret.shape[1])]
     )
 
+    pros_demandarray = pd.DataFrame(
+        pros_demandarray, columns= ['Yearly Demand', 'Supressed/Unmet Demand', 'Wasted PV Energy']
+    )
+
     names = ['Diesel Generator', 'Owned PV', 'Batteries (kw)', 'Batteries Capacity (kWh)']
     inst.index = names
     added.index = names
     ret.index = names
     names_housetypes = ['Consumer Residential', 'Prosumer Residential']#, 'Solar Farm', 'Water Pumping Station', 'Consumer Business', 'Prosumer Business']
     num_households.index = names_housetypes
+
+    names_tablecol = ['No MC Connection', 'MC Connection']
+    pros_demandarray.index = names_tablecol
 
     print('\n-----------installed capacity-----------\n')
     print(inst.round(2))
@@ -51,6 +63,8 @@ def show_tables(tables):
     print(ret.round(2))
     print('\n-----------Number of connected household types-----------\n')
     print(num_households)
+    print('\n-----------Comparison Grid Connection-----------\n')
+    print(pros_demandarray)
     return
 
 def show_binaries(binaries, year, day):
@@ -87,49 +101,65 @@ def plot_days(timeseriesArray, year, s='plot'):
 
     fig, axs = plt.subplots(2, 2, figsize=(10, 8))
     hours = np.arange(24)
+    max_y_value = 0
+    min_y_value = float('inf')
+
     for i in range(2):
-        p1 = axs[i, 1].bar(hours, disp_gen[2 * i], label='Dispatched Generation', color='blue')
+        p1 = axs[i, 1].bar(hours, disp_gen[2 * i], label='Diesel Generator', color='indianred')
 
         # Stack the other bars on top
-        p2 = axs[i, 1].bar(hours, bat_out[2 * i], bottom=disp_gen[2 * i], label='Battery Output', color='red')
         p3 = axs[i, 1].bar(hours, disp_pv[2 * i], bottom=disp_gen[2 * i] + bat_out[2 * i], label='Owned PV', color='orange')
-        p4 = axs[i, 1].bar(hours, disp_feedin[2 * i], bottom=disp_gen[2 * i] + bat_out[2 * i] + disp_pv[2 * i], label='Feed in',
+        p4 = axs[i, 1].bar(hours, disp_feedin[2 * i], bottom=disp_gen[2 * i] + bat_out[2 * i] + disp_pv[2 * i], label='Prosumer PV (Feed in)',
                            color='yellow')
+        p2 = axs[i, 1].bar(hours, bat_out[2 * i], bottom=disp_gen[2 * i], label='Battery Output', color='deepskyblue')
+        p6 = axs[i, 1].bar(hours, -bat_in[2 * i], label='Battery Input', color='limegreen')
+
         p5 = axs[i, 1].bar(hours, unmetD[2 * i], bottom=disp_gen[2 * i] + bat_out[2 * i] + disp_pv[2 * i] + disp_feedin[2 * i],
-                           label='Unmet Demand', color='purple')
-        p6 = axs[i, 1].bar(hours, -bat_in[2 * i], label='Battery Input', color='green')
+                           label='Unmet Demand', color='plum')
 
-        axs[i, 1].plot(hours, total_demand[2 * i], label='Total Demand', color='black', linestyle='-', marker='o')
+        axs[i, 1].plot(hours, total_demand[2 * i], label='Total MC Demand', color='black', linestyle='-', marker='o')
 
-        axs[i, 1].set_xlabel('Hour of Day (h)')
-        axs[i, 1].set_ylabel('Energy (kWh)')
-
-
-        p1 = axs[i, 0].bar(hours, disp_gen[1], label='Dispatched Generation', color='blue')
+        p1 = axs[i, 0].bar(hours, disp_gen[1], label='Diesel Generator', color='indianred')
 
         # Stack the other bars on top
-        p2 = axs[i, 0].bar(hours, bat_out[1], bottom=disp_gen[1], label='Battery Output', color='red')
         p3 = axs[i, 0].bar(hours, disp_pv[1], bottom=disp_gen[1] + bat_out[1], label='Owned PV',
                            color='orange')
         p4 = axs[i, 0].bar(hours, disp_feedin[1], bottom=disp_gen[1] + bat_out[1] + disp_pv[1],
-                           label='Feed in',
+                           label='Prosumer PV (Feed in)',
                            color='yellow')
+        p2 = axs[i, 0].bar(hours, bat_out[1], bottom=disp_gen[1], label='Battery Output', color='deepskyblue')
+        p6 = axs[i, 0].bar(hours, -bat_in[1], label='Battery Input', color='limegreen')
         p5 = axs[i, 0].bar(hours, unmetD[1],
                            bottom=disp_gen[1] + bat_out[1] + disp_pv[1] + disp_feedin[1],
-                           label='Unmet Demand', color='purple')
-        p6 = axs[i, 0].bar(hours, -bat_in[1], label='Battery Input', color='green')
+                           label='Unmet Demand', color='plum')
 
-        axs[i, 0].plot(hours, total_demand[1], label='Total Demand', color='black', linestyle='-', marker='o')
+        axs[i, 0].plot(hours, total_demand[1], label='Total MC Demand', color='black', linestyle='-', marker='o')
 
-        axs[i, 0].set_xlabel('Hour of Day (h)')
-        axs[i, 0].set_ylabel('Energy (kWh)')
+        max_y_value = max(max_y_value, axs[i, 0].get_ylim()[1], axs[i, 1].get_ylim()[1])
+        min_y_value = min(min_y_value, axs[i, 0].get_ylim()[0], axs[i, 1].get_ylim()[0])
+
 
         if i == 0:
-            axs[i, 0].set_title('Year ' + str(year+1) + ': Spring')
-            axs[i, 1].set_title('Year ' + str(year+1) + ': Summer')
+            axs[i, 0].set_title('Year ' + str(year+1) + ': Spring', fontsize=14)
+            axs[i, 1].set_title('Year ' + str(year+1) + ': Summer', fontsize=14)
         else:
-            axs[i, 0].set_title('Year ' + str(year+1) + ': Autumn')
-            axs[i, 1].set_title('Year ' + str(year+1) + ': Winter')
+            axs[i, 0].set_title('Year ' + str(year+1) + ': Autumn', fontsize=14)
+            axs[i, 1].set_title('Year ' + str(year+1) + ': Winter', fontsize=14)
+
+    for ax in axs.flat:
+        ax.set_xlabel('Hour of Day', fontsize=12)
+        ax.set_ylabel('Energy in kWh', fontsize=12)
+
+        ax.set_xticks(hours[::4])  # Set x-ticks to every 4th hour
+        ax.set_xticklabels(hours[::4] , fontsize=10)  # Set x-tick labels to every 4th hour
+        ax.set_ylim(math.floor(min_y_value / 100) * 100, math.ceil(max_y_value / 100) * 100)  # round up to next 100th digit
+        ax.yaxis.set_major_locator(
+            FixedLocator(np.arange(math.floor(min_y_value / 100) * 100, math.ceil(max_y_value / 100) * 100 + 100, 200)))
+
+        ax.set_yticklabels(ax.get_yticks(), fontsize=10)
+        ax.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
+
+
     axs[0, 0].legend(loc='upper left')
     plt.tight_layout()
     if s == 'save':
@@ -158,6 +188,31 @@ def plot_soc(timeseriesArray, year, day):
 
     plt.show()
 
+def plot_gridconnection(pros_demandarray):
+    '''Plot the comparison of grid connection'''
+    fig, ax = plt.subplots(figsize=(7, 5))
+    xlabels = ['Supressed Demand', 'Unused PV Production']
+    width = 0.3  # the width of the bars
+
+    # Create bar positions
+    x = np.arange(len(xlabels))
+
+    # Plot the bars excluding the first entry of pros_demandarray
+    ax.bar(x - width / 2, pros_demandarray[0][1:], width, label='Prosumer- Household without MC Connection', color='peru')
+    ax.bar(x + width / 2, pros_demandarray[1][1:], width, label='Prosumer- Household with MC Connection', color='turquoise')
+
+    # Add labels, title, and legend
+    ax.set_xticks(x)
+    ax.set_yticks(ax.get_yticks())
+    ax.set_xticklabels(xlabels, fontsize=12)
+    ax.set_yticklabels(ax.get_yticks(), fontsize=10)
+    ax.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
+
+    ax.set_ylabel('Yearly Energy in kWh', fontsize=12)
+    ax.set_title('MC Grid Connection: Benefits for Prosumers', fontsize=14)
+    ax.legend()
+
+    plt.show()
 #--------------------------------------------------------------------------------#
 # Save/Read results to/from excel file                                           #
 #--------------------------------------------------------------------------------#
@@ -184,6 +239,7 @@ def save_results(results):
     save_array2d_to_excel(num_households, 'results.xlsx', 'num_households')
     save_array2d_to_excel(price_binary, 'results.xlsx', 'price_binary')
     save_array2d_to_excel(quantity_binary, 'results.xlsx', 'quantity_binary')
+    save_array2d_to_excel(pros_demandarray, 'results.xlsx', 'pros_demandarray')
     #[save_array2d_to_excel(pros_feedin[d], 'results.xlsx', 'pros_feedin_'+str(d+1)) for d in range(3)]
     #[save_array2d_to_excel(res_Demand[d], 'results.xlsx', 'res_Demand_'+str(d+1)) for d in range(3)]
     for y in range (15):
@@ -225,8 +281,9 @@ def get_tabels(data):
     inst = data['installed_capacity'].iloc[:,:].to_numpy()
     added = data['added_capacity'].iloc[:,:].to_numpy()
     num_households = data['num_households'].iloc[:,:].to_numpy()
+    pros_demandarray = data['pros_demandarray'].iloc[:,:].to_numpy()
 
-    return [ret, inst, added, num_households]
+    return [ret, inst, added, num_households, pros_demandarray]
 
 def get_binaries(data):
     '''Get the binary variables from the dataframe'''
@@ -263,7 +320,8 @@ def single_modelrun(model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasti
         'added_capacity': pd.DataFrame(added),
         'num_households': pd.DataFrame(num_households),
         'price_binary': pd.DataFrame(price_binary),
-        'quantity_binary': pd.DataFrame(quantity_binary)
+        'quantity_binary': pd.DataFrame(quantity_binary),
+        'pros_demandarray': pd.DataFrame(pros_demandarray)
 
     }
     for y in range(15):
@@ -287,7 +345,7 @@ def show_singlerun_data(data):
     '''Process the output data of a single model run'''
     show_tables(get_tabels(data))
     show_binaries(get_binaries(data), 1, 2)  # winter in year 1
-
+    plot_gridconnection(data['pros_demandarray'].iloc[:,:].to_numpy())
     save_plots = input("Save plots? (Yes: y, No: [Enter]):")
     if save_plots == 'y':
         for y in range(data['num_households'].shape[1]):
@@ -341,13 +399,17 @@ def print_pv_fit_curve(fit_max, num_runs, year, s = 'plot'):
     for i in range(num_runs):
         disp_pv['disp_pv_fit_'+str(fit[i])] = data['disp_pv_year_'+str(fit[i])].iloc[:, :].to_numpy().flatten()
         disp_feedin['disp_feedin_fit_'+str(fit[i])] = data['disp_feedin_year_'+str(fit[i])].iloc[:, :].to_numpy().flatten()
-    fig, ax = plt.subplots()
-    ax.plot(fit, disp_pv.iloc[year - 1] / 1000, label='Installed PV', marker='o')
-    ax.plot(fit, disp_feedin.iloc[year -1] / 1000, label='Prosumer Feed-in', marker='o')
-    ax.set_xlabel('Feed in Tarif ($/kWh)')
-    ax.set_ylabel('Dispatched PV Energy per Year (MWh)')
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.plot(fit, disp_pv.iloc[year - 1] / 1000, label='Owned PV', color='orange', marker='o')
+    ax.plot(fit, disp_feedin.iloc[year -1] / 1000, label='Prosumer PV (Feed in)', color='gold', marker='o')
+    ax.set_xlabel('Feed in Tarif in $/kWh', fontsize=12)
+    ax.set_ylabel('Dispatched PV Energy per Year in MWh', fontsize=12)
+    ax.tick_params(axis='x', labelsize=10)
+    ax.set_yticks(ax.get_yticks())
+    ax.set_yticklabels(ax.get_yticks(), fontsize=10)
+    ax.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
     ax.legend(loc='upper left')
-    ax.set_title('Year '+str(year+1))
+    #ax.set_title('Year '+str(year+1), fontsize=14)
     ax.set_ylim(bottom=0)
     ax.set_xlim(left=0)
 
@@ -389,22 +451,30 @@ def print_ud_curve(ud_penalty_max, num_runs, year, s = 'plot'):
         unmetD['unmetD_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 0].to_numpy()
         num_consumers['num_consumers_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 1].to_numpy()
         num_prosumers['num_prosumers_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 2].to_numpy()
-    fig, ax1 = plt.subplots()
-    ax1.plot(ud_penalty, unmetD.iloc[year - 1] / 1000, label='Unmet Demand', marker='o')
-    ax1.set_xlabel('Unmet Demand Penalty ($/kWh)')
-    ax1.set_ylabel('Unmet Energy Demand per year (MWh)')
+    fig, ax1 = plt.subplots(figsize=(7, 5))
+    ax1.plot(ud_penalty, unmetD.iloc[year - 1] / 1000, label='Unmet Demand', color='plum', marker='o')
+    ax1.set_xlabel('Unmet Demand Penalty in $/kWh', fontsize=12)
+    ax1.set_ylabel('Unmet Energy Demand per year in MWh', fontsize=12)
     ax1.set_ylim(bottom=0)
     ax1.set_xlim(left=0)
+
+    ax1.tick_params(axis='x', labelsize=10)
+    ax1.set_yticks(ax1.get_yticks())
+    ax1.set_yticklabels(ax1.get_yticks(), fontsize=10)
+    ax1.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
 
     ax2 = ax1.twinx()
     ax2.plot(ud_penalty, num_consumers.iloc[year - 1], label='Consumers', color='black', linestyle='', marker='o')
     ax2.plot(ud_penalty, num_prosumers.iloc[year - 1], label='Prosumers', color='black', linestyle='', marker='x')
-    ax2.set_ylabel('Number of Households')
-    ax2.set_ylim(bottom=0)
+    ax2.set_ylabel('Number of Households', fontsize=12)
+    ax2.set_ylim(bottom=0, top=650)
+    ax2.yaxis.set_major_locator(
+        FixedLocator(np.arange(0, 650, 100)))
+    ax2.set_yticks(ax2.get_yticks())
+    ax2.set_yticklabels(ax2.get_yticks(), fontsize=10)
 
-    fig.legend()
-    ax1.set_title('Year '+str(year+1))
-    plt.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.15)
+    fig.legend(loc='lower left', bbox_to_anchor=(0.13, 0.13))
+    #ax1.set_title('Year '+str(year+1), fontsize=14)
 
     if s == 'save':
         plt.savefig('plots/unmet_demand/ud_plot_'+str(year)+'.png')
