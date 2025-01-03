@@ -214,64 +214,83 @@ class Model_1:
         
         z_bin = m.addVars(range(2), self.house, self.years, self.days, self.hours,
                           vtype=GRB.BINARY, name='z binary')
+        
+        #Intermediate variables
+        tr = m.addVars(self.years, name='total revenue')
+        tcc = m.addVars(self.years, name='total capital cost')
+        tovc = m.addVars(self.years, name='total operation variable cost')
+        tofc = m.addVars(self.years, name='total operation fixed cost')
+        tp = m.addVars(self.years, name='total profits')
+        
         #----------------------------------------------------------------------#
         #                                                                      #
         # Objective function                                                   #
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        tr = [0] * (self.years) #total yearly revenues
-        tcc = [0] * (self.years) #total yearly capital costs
-        tovc = [0] * (self.years) #total yearly operation variable costs
-        tofc = [0] * (self.years) #total yearly operation fixed costs
-        tcud = [0] * (self.years) #total yearly cost of unmet demand
+        m.addConstrs((tr[y] ==
+                       self.elec_price
+                       * (
+                           quicksum(disp[g, y, d, h] * self.d_weights[d]
+                                    for g in self.techs_g
+                                    for d in range(self.days)
+                                    for h in range(self.hours))
+                           + quicksum((b_out[y, d, h] - b_in[y, d, h])
+                                      * self.d_weights[d]
+                                      for d in range(self.days)
+                                      for h in range(self.hours))
+                           )
+                       for y in range(self.years)
+                       ),
+                     name='yearly total revenues')
 
-        for y in range(self.years):
-
-            # Revenue
-            tr[y] = self.elec_price * quicksum((
-                (sum(disp[g, y, d, h] for g in self.techs_g) 
-                 + b_out[y, d, h] - b_in[y, d, h]) 
-                * self.d_weights[d])
-                for d in range(self.days)
-                for h in range(self.hours)
-            )
-
-            # Capital Costs
-            tcc[y] = (quicksum(
-                (added_cap[g, y] * self.ucc[g]) for g in self.techs))
-
-
-            # Operation Variable Costs with DG heat rate curve            
-            tovc[y] = (sum((sum((self.uovc[g] * disp[g, y, d, h]) 
-                                     for g in self.techs_g)
-                               + sum((self.fit * feed_in[i, y, d, h]) 
-                                     for i in self.house)
-                               + self.uovc['Owned Batteries'] 
-                               * (b_in[y, d, h])) 
-                               * self.d_weights[d]
-                               for h in range(self.hours)
-                               for d in range(self.days))
-                       + sum(d_cons[y, d, h] * self.diesel_p[y] 
+        m.addConstrs(((tcc[y] ==
+                       quicksum(added_cap[g, y] * self.ucc[g]
+                                for g in self.techs)) 
+                       for y in range(self.years)
+                       ),
+                     name='yearly total capital costs'
+                     )
+        
+        m.addConstrs(((tovc[y] ==
+                       quicksum(self.uovc[g] * disp[g, y, d, h] 
+                                * self.d_weights[d]
+                                for g in self.techs_g
+                                for d in range(self.days)
+                                for h in range(self.hours))
+                       + quicksum(self.fit * feed_in[i, y, d, h]
                                   * self.d_weights[d]
-                                  for h in range(self.hours)
-                                  for d in range(self.days))
-                       )
-
-            # Operation Fixed Costs
-            tofc[y] = quicksum((inst_cap[g, y] * self.uofc[g]) 
-                               for g in self.techs
-            )
-            
-
-        # Net Present Value of Total Profits without unmet demand penalty
-        tp_npv = sum(
-            ((tr[y] - tcc[y] - tofc[y] - tovc[y]) * (1 / ((1 + self.i) ** y))) 
-            for y in range(self.years)
-        )
+                                  for i in self.house
+                                  for d in range(self.days)
+                                  for h in range(self.hours))
+                       + quicksum((self.diesel_p[y] * d_cons[y, d, h]
+                                   + self.uovc['Owned Batteries'] 
+                                   * b_in[y, d, h])
+                                  * self.d_weights[d]
+                                  for d in range(self.days)
+                                  for h in range(self.hours)))
+                      for y in range(self.years)
+                      ),
+                     name='yearly total operation variable costs')
+        
+        m.addConstrs(((tofc[y] == 
+                       quicksum((inst_cap[g, y] * self.uofc[g]) 
+                                for g in self.techs)) 
+                      for y in range(self.years)
+                      ),
+                     name='yearly total operation fixed costs'
+                     )
+        
+        m.addConstrs(((tp[y] == 
+                       (tr[y] - tcc[y] - tofc[y] - tovc[y]) 
+                       * (1 / ((1 + self.i) ** y)))
+                       for y in range(self.years)
+                       ),
+                     name='yearly total profits'
+                     )
         
         
-        m.setObjective(tp_npv, GRB.MAXIMIZE)
+        m.setObjective(quicksum(tp[y] for y in range(self.years)), GRB.MAXIMIZE)
 
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -302,17 +321,7 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name='min aux 1.2')
-        '''
-        m.addConstrs(((feed_in[i, y, d, h] <=
-                       h_weight[i, y] * self.surplus[i][d][h]
-                       + z_bin[0, i, y, d, h] * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='min aux 1.3')
-        '''
+
         m.addConstrs(((aux_min[i, y, d, h] <=
                        h_weight[i, y] * self.surplus[i][d][h])
                       for i in self.house
@@ -331,17 +340,6 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name='min aux 2.2')
-        '''
-        m.addConstrs(((h_weight[i, y] * self.surplus[i][d][h] <=
-                       feed_in[i, y, d, h] +
-                       (1 - z_bin[0, i, y, d, h]) * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='min aux 2.3')
-        '''
         
         # Supply-demand balance constraint
         m.addConstrs(((b_out[y, d, h] 
@@ -373,17 +371,6 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name='max aux 1.2')
-        '''
-        m.addConstrs(((h_weight[i, y] * self.surplus[i][d][h] >=
-                       - z_bin[1, i, y, d, h] * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='max aux 1.3'
-                     )
-        '''
         
         m.addConstrs(((aux_max[i, y, d, h] <=
                        (1 - z_bin[1, i, y, d, h]) * M)
@@ -394,6 +381,7 @@ class Model_1:
                       ),
                      name='max aux 2.1'
                      )
+        
         m.addConstrs(((aux_max[i, y, d, h] >= 0)
                       for i in self.house
                       for y in range(self.years)
@@ -402,17 +390,6 @@ class Model_1:
                       ),
                      name='max aux 2.2'
                      )
-        '''
-        m.addConstrs(((h_weight[i, y] * self.surplus[i][d][h] <=
-                       (1 - z_bin[1, i, y, d, h]) * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='max aux 2.3'
-                     )
-        '''
         
         # Feed-in capacity constraints
         m.addConstrs(((feed_in[i, y, d, h] <=
@@ -797,13 +774,4 @@ class Model_1:
         
 
         return_array = [ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in_energy] # total_demand
-        print(total_demand)
-        print(tr[5].getValue())
-        print(tcc[5].getValue())
-        print(tovc[5].getValue())
-        print(tofc[5].getValue())
-        z = [z_bin[j, i, y, d, h].x for j in range(2) for i in self.house for y in range(self.years) for d in range(self.days) for h in range(self.hours)]
-        print(z)
-        f = [aux_min[i, y, d, h].x for i in self.house for y in range(self.years) for d in range(self.days) for h in range(self.hours)]
-        print(f)
         return return_array
