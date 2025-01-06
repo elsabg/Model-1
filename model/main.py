@@ -7,6 +7,7 @@ Created on Mon Oct 21 14:18:06 2024
 
 import numpy as np
 import pandas as pd
+from gurobipy import *
 
 import functions as func
 
@@ -26,7 +27,7 @@ model.load_data()
 # test model run                                                                #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-fit = 0.1
+fit = 0.01
 el_price = 0.4
 
 results = model.solve(fit=fit, elec_price=el_price)

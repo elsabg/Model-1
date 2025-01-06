@@ -187,16 +187,10 @@ class Model_1:
         soc = m.addVars(self.years, self.days, self.hours, 
                         name='SoC', lb = 0)
 
-        ud = m.addVars(self.years, self.days, self.hours, 
-                       name='unmetDemand', lb = 0)
-
         h_weight = m.addVars(self.house, self.years, 
                              name='houseWeight', lb = 0, vtype=GRB.INTEGER)
-
-        int_cap_steps = m.addVars(len(self.cap_steps), self.years, 
-                                  name = 'binCapSteps', vtype=GRB.INTEGER, 
-                                  lb = 0)
-
+        
+        # Auxiliary variables for heat rate
         bin_heat_rate = m.addVars(range(5), self.years,
                       self.days, self.hours,
                       vtype=GRB.BINARY, name='binHeatRate')
@@ -205,29 +199,48 @@ class Model_1:
                            name='diesel consumption')
         
         
-        #Auxiliary variables
+        #Auxiliary variables for min and max
         aux_min = m.addVars(self.house, self.years, self.days, self.hours,
-                             name='min_auxiliary')
+                             name='min_auxiliary', lb=-GRB.INFINITY)
 
         aux_max = m.addVars(self.house, self.years, self.days, self.hours,
                              name='max_auxiliary', lb=0)
         
-        z_bin = m.addVars(range(2), self.house, self.years, self.days, self.hours,
-                          vtype=GRB.BINARY, name='z binary')
+        z_bin_min = m.addVars(self.house, self.years, self.days, self.hours,
+                          vtype=GRB.BINARY, name='min binary')
+        
+        z_bin_max = m.addVars(self.house, self.years, self.days, self.hours,
+                              vtype=GRB.BINARY, name='max binary')
         
         #Intermediate variables
-        tr = m.addVars(self.years, name='total revenue')
-        tcc = m.addVars(self.years, name='total capital cost')
-        tovc = m.addVars(self.years, name='total operation variable cost')
-        tofc = m.addVars(self.years, name='total operation fixed cost')
-        tp = m.addVars(self.years, name='total profits')
+        tr = m.addVars(self.years, name='total revenue', 
+                       lb=-GRB.INFINITY)
+        tcc = m.addVars(self.years, name='total capital cost', 
+                        lb=-GRB.INFINITY)
+        tovc = m.addVars(self.years, name='total operation variable cost', 
+                         lb=-GRB.INFINITY)
+        tofc = m.addVars(self.years, name='total operation fixed cost', 
+                         lb=-GRB.INFINITY)
+        tp = m.addVars(self.years, name='total profits', 
+                       lb=-GRB.INFINITY)
         
         #----------------------------------------------------------------------#
         #                                                                      #
         # Objective function                                                   #
         #                                                                      #
         #----------------------------------------------------------------------#
+        
+        m.setObjective(quicksum(tp[y] for y in range(self.years)), GRB.MAXIMIZE)
 
+        #----------------------------------------------------------------------#
+        #                                                                      #
+        # Constraints                                                          #
+        #                                                                      #
+        #----------------------------------------------------------------------#
+        
+        #----------------------------------------------------------------------#
+        # Total Profits                                                        #
+        #----------------------------------------------------------------------#
         m.addConstrs((tr[y] ==
                        self.elec_price
                        * (
@@ -287,22 +300,13 @@ class Model_1:
                        for y in range(self.years)
                        ),
                      name='yearly total profits'
-                     )
+                     )        
         
-        
-        m.setObjective(quicksum(tp[y] for y in range(self.years)), GRB.MAXIMIZE)
-
-        #----------------------------------------------------------------------#
-        #                                                                      #
-        # Constraints                                                          #
-        #                                                                      #
-        #----------------------------------------------------------------------#
-
         #----------------------------------------------------------------------#
         # Demand-Supply Balance                                                #
         #----------------------------------------------------------------------#
         
-        # Auxiliary Constraints
+        # Auxiliary minimum constraints
         M = 1000
         m.addConstrs(((aux_min[i, y, d, h] <=
                        feed_in[i, y, d, h])
@@ -314,7 +318,7 @@ class Model_1:
                      name='min aux 1.1')
         
         m.addConstrs(((aux_min[i, y, d, h] >=
-                       feed_in[i, y, d, h] - z_bin[0, i, y, d, h] * M)
+                       feed_in[i, y, d, h] - z_bin_min[i, y, d, h] * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -332,8 +336,8 @@ class Model_1:
                      name='min aux 2.1')
                      
         m.addConstrs(((aux_min[i, y, d, h] >=
-                       h_weight[i, y] * self.surplus[i][d][h] - 
-                       (1 - z_bin[0, i, y, d, h]) * M)
+                       h_weight[i, y] * self.surplus[i][d][h] 
+                       - (1 - z_bin_min[i, y, d, h]) * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -343,8 +347,8 @@ class Model_1:
         
         # Supply-demand balance constraint
         m.addConstrs(((b_out[y, d, h] 
-                        + sum(disp[g, y, d, h] for g in self.techs_g) 
-                        + sum(aux_min[i, y, d, h] for i in self.house) == 
+                        + quicksum(disp[g, y, d, h] for g in self.techs_g) 
+                        + quicksum(aux_min[i, y, d, h] for i in self.house) == 
                         b_in[y, d, h]) # no unmet demand
                       for h in range(self.hours)
                       for d in range(self.days)
@@ -353,16 +357,17 @@ class Model_1:
                      "Supply-demand balance"
                      )
         
-        # Auxiliary constraints
+        # Auxiliary maximum constraints
         m.addConstrs(((aux_max[i, y, d, h] <=
                        h_weight[i, y] * self.surplus[i][d][h]
-                       + z_bin[1, i, y, d, h] * M)
+                       + z_bin_max[i, y, d, h] * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
                       for h in range(self.hours)
                       ),
                      name='max aux 1.1')
+        
         m.addConstrs(((aux_max[i, y, d, h] >=
                        h_weight[i, y] * self.surplus[i][d][h])
                       for i in self.house
@@ -373,7 +378,7 @@ class Model_1:
                      name='max aux 1.2')
         
         m.addConstrs(((aux_max[i, y, d, h] <=
-                       (1 - z_bin[1, i, y, d, h]) * M)
+                       (1 - z_bin_max[i, y, d, h]) * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -726,7 +731,7 @@ class Model_1:
         #----------------------------------------------------------------------#
         # Optimization                                                         #
         #----------------------------------------------------------------------#
-
+        #m.setParam("Presolve", 0)
         m.optimize()
 
         #----------------------------------------------------------------------#
@@ -734,12 +739,13 @@ class Model_1:
         # Return Output                                                        #
         #                                                                      #
         #----------------------------------------------------------------------#
-
+        
+        self.m = m
+        
         ret = np.ones((len(self.techs), self.years)) # retired capacity
         inst = np.zeros((len(self.techs), self.years)) # installed capacity
         added = np.zeros((len(self.techs), self.years)) # added capacity
         disp_gen = np.zeros((self.days, self.hours))
-        #unmetD = np.zeros((self.days, self.hours))
         bat_in = np.zeros((self.days, self.hours))
         bat_out = np.zeros((self.days, self.hours))
         num_households = np.ones((len(self.house), self.years))
@@ -754,7 +760,6 @@ class Model_1:
         for d in range(self.days):
             for h in range(self.hours):
                 disp_gen[d][h] = disp['Diesel Generator', 1, d, h].X
-                #unmetD[d][h] = ud[12, d, h].X
                 bat_in[d][h] = b_in[12, d, h].X
                 bat_out[d][h] = b_out[12, d, h].X
                 feed_in_energy[d][h] = sum(feed_in[i, 12, d, h].X for i in self.house)
