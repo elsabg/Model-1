@@ -65,18 +65,18 @@ for h in range(24):
 # Calculate average daily pv capacity factors (per month)              #
 #----------------------------------------------------------------------#
 
-avg_pv_aug = np.zeros(24)
-avg_pv_sept = np.zeros(24)
-avg_pv_jan = np.zeros(24)
+avg_pv_summer = np.zeros(24)
+avg_pv_spraut = np.zeros(24)
+avg_pv_winter = np.zeros(24)
 
 for h in range(24):
-    avg_pv_aug[h] = np.mean(pv_data['august'].to_numpy()[h::24])
-    avg_pv_sept[h] = np.mean(pv_data['september'].to_numpy()[h::24])
-    avg_pv_jan[h] = np.mean(pv_data['jannuary'].to_numpy()[h::24])
+    avg_pv_summer[h] = np.mean(pv_data['Summer'].to_numpy()[h::24])
+    avg_pv_spraut[h] = np.mean(pv_data['SprAut'].to_numpy()[h::24])
+    avg_pv_winter[h] = np.mean(pv_data['Winter'].to_numpy()[h::24])
 
-avg_pv_aug = np.round(avg_pv_aug, 2)
-avg_pv_sept = np.round(avg_pv_sept, 2)
-avg_pv_jan = np.round(avg_pv_jan, 2)
+avg_pv_summer = np.round(avg_pv_summer, 2)
+avg_pv_spraut = np.round(avg_pv_spraut, 2)
+avg_pv_winter = np.round(avg_pv_winter, 2)
 
 #----------------------------------------------------------------------#
 # Save results to excel                                                #
@@ -85,16 +85,16 @@ avg_pv_jan = np.round(avg_pv_jan, 2)
 avg_aug = pd.DataFrame(avg_aug)
 avg_sept = pd.DataFrame(avg_sept)
 
-avg_pv_aug = pd.DataFrame(avg_pv_aug)
-avg_pv_sept = pd.DataFrame(avg_pv_sept)
-avg_pv_jan = pd.DataFrame(avg_pv_jan)
+avg_pv_summer = pd.DataFrame(avg_pv_summer)
+avg_pv_spraut = pd.DataFrame(avg_pv_spraut)
+avg_pv_winter = pd.DataFrame(avg_pv_winter)
 
 with pd.ExcelWriter('results.xlsx', engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
     avg_aug.to_excel(writer, sheet_name='August', index=False)
     avg_sept.to_excel(writer, sheet_name='September', index=False)
-    avg_pv_aug.to_excel(writer, sheet_name='PV August', index=False)
-    avg_pv_sept.to_excel(writer, sheet_name='PV September', index=False)
-    avg_pv_jan.to_excel(writer, sheet_name='PV January', index=False)
+    avg_pv_summer.to_excel(writer, sheet_name='PV Summer', index=False)
+    avg_pv_spraut.to_excel(writer, sheet_name='PV SpringAutumn', index=False)
+    avg_pv_winter.to_excel(writer, sheet_name='PV Winter', index=False)
 
 
 

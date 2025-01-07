@@ -206,7 +206,7 @@ class Model_1:
 
         self.disp_steps_year, self.disp_steps_month, self.price_steps = cd.calc_disp_price_steps(self)
 
-        #cd.plot_households(self)
+        cd.plot_households(self)
 
         #------------------------------------------------------------------------------#
         # Sets                                                                         #
@@ -227,7 +227,7 @@ class Model_1:
         self.dem_elasticity_c_run = dem_elasticity_c_run
 
         m = Model('Model_1_case_1')
-        m.setParam('MIPGap', 0.005)
+        #m.setParam('MIPGap', 0.005)
         #m.setParam('ScaleFlag', 1)
         '''
         Year 0 is outside of the planning horizon. The decisions start at year
@@ -533,14 +533,15 @@ class Model_1:
             ),
             "Link dispatch to feed in"
         )
-
         '''
+
         for d in range(self.days):
             if self.max_feedin[d] != 0:
                 m.addConstrs(
                     (
-                        quicksum(ud[y, d, h] for h in range(self.hours))
-                        <= self.max_prosdemand[d] * quicksum(feed_in[i, y, d, h]
+                        h_weight['Type 2', y-1] -
+                        quicksum(ud[y, d, h] for h in range(self.hours)) / self.max_prosdemand[d]
+                        >= quicksum(feed_in[i, y, d, h]
                         for i in self.house
                         for h in range(self.hours)
                         ) / self.max_feedin[d]
@@ -549,19 +550,19 @@ class Model_1:
                     "Unmet Demand balance Feed IN"
                 )
 
-
         '''
+        
         m.addConstrs(
             (
-                quicksum(ud[y, d, h] * self.d_weights[d]
+                h_weight['Type 2', y-1] - quicksum(ud[y, d, h] * self.d_weights[d]
                 for h in range(self.hours)
                 for d in range(self.days)
-                )
-                <= self.max_prosdemand * quicksum(feed_in[i, y, d, h] * self.d_weights[d]
+                ) / self.max_prosdemand
+                >= quicksum( quicksum(feed_in[i, y, d, h]
                 for i in self.house
-                for h in range(self.hours)
+                for h in range(self.hours)) * self.d_weights[d]
                 for d in range(self.days)
-                )/self.max_feedin # number of households kürzt sich raus
+                )/self.max_feedin
                 for y in range(1, self.years + 1)
             ),
             "Unmet Demand balance Feed IN"
