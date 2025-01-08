@@ -38,7 +38,7 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         #Initial Generation Capacities
-        self.init_cap = self.tech_df['Initial capacity'].iloc[:-1].to_dict()
+        self.init_cap = self.tech_df['Initial capacity'].to_dict()
         '''
         self.init_cap_e = (self.data['tech']['Initial capacity'].to_numpy())[-1]
         '''
@@ -68,10 +68,10 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         #Remaining lifetime
-        self.life_0 = self.tech_df['Remaining lifetime'].iloc[:-1].to_dict()
+        self.life_0 = self.tech_df['Remaining lifetime'].to_dict()
 
         #Technology lifetime
-        self.life = self.tech_df['Lifetime'].iloc[:-1].to_dict()
+        self.life = self.tech_df['Lifetime'].to_dict()
 
 
         #----------------------------------------------------------------------#
@@ -145,7 +145,7 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         # All technologies (['Disel Generator', 'Owned PV', 'Owned Batteries'])
-        self.techs = self.data['tech'].iloc[:-1, 0].to_numpy() 
+        self.techs = self.data['tech'].iloc[:, 0].to_numpy() 
         # Generation technologies (['Diesel Generator', 'Owned PV'])
         self.techs_g = self.techs[:2] 
 
@@ -213,16 +213,11 @@ class Model_1:
                               vtype=GRB.BINARY, name='max binary')
         
         #Intermediate variables
-        tr = m.addVars(self.years, name='total revenue', 
-                       lb=-GRB.INFINITY)
-        tcc = m.addVars(self.years, name='total capital cost', 
-                        lb=-GRB.INFINITY)
-        tovc = m.addVars(self.years, name='total operation variable cost', 
-                         lb=-GRB.INFINITY)
-        tofc = m.addVars(self.years, name='total operation fixed cost', 
-                         lb=-GRB.INFINITY)
-        tp = m.addVars(self.years, name='total profits', 
-                       lb=-GRB.INFINITY)
+        tr = m.addVars(self.years, name='total revenue')
+        tcc = m.addVars(self.years, name='total capital cost')
+        tovc = m.addVars(self.years, name='total operation variable cost')
+        tofc = m.addVars(self.years, name='total operation fixed cost')
+        tp = m.addVars(self.years, name='total profits', lb=-GRB.INFINITY)
         
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -659,7 +654,7 @@ class Model_1:
         m.addConstrs(
             ((bin_heat_rate[1, y, d, h] 
               + bin_heat_rate[2, y, d, h]
-              + bin_heat_rate[3, y, d, h] <=
+              + bin_heat_rate[3, y, d, h] ==
               2)
              for y in range(self.years)
              for d in range(self.days)
@@ -707,8 +702,7 @@ class Model_1:
         )
         m.addConstrs(
             (
-                (self.min_soc 
-                 * 4 * inst_cap['Owned Batteries', y] <=
+                (self.min_soc * 4 * inst_cap['Owned Batteries', y] <=
                  soc[y, d, h])
                 for y in range(self.years)
                 for d in range(self.days)
@@ -731,7 +725,8 @@ class Model_1:
         #----------------------------------------------------------------------#
         # Optimization                                                         #
         #----------------------------------------------------------------------#
-        #m.setParam("Presolve", 0)
+        
+        m.setParam("Presolve", 0)
         m.optimize()
 
         #----------------------------------------------------------------------#
@@ -778,5 +773,5 @@ class Model_1:
                     total_demand[d][h] += self.surplus[house][d][h] * num_households[self.house.tolist().index(house)][12]
         
 
-        return_array = [ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in_energy] # total_demand
+        return_array = [ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in_energy, total_demand]
         return return_array

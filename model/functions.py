@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 def output_data(resultsArray):
     '''Process output data'''
 
-    ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in = resultsArray #no feed_in_energy, total_demand
+    ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in, total_demand = resultsArray #no unmed demand
 
     disp_gen = pd.DataFrame(
         disp_gen, columns=[i for i in range(disp_gen.shape[1])]
@@ -80,26 +80,25 @@ def output_data(resultsArray):
     '''write output data to excel file'''
     return
 
-'''
+
 def plot_data(resultsArray):
-    '''
-'''plot some output data'''
-'''
-    ret, inst, added, disp_gen, unmetD, bat_in, bat_out, num_households = resultsArray #no feed_in_energy, total_demand
+    '''plot some output data'''
+
+    ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in, total_demand = resultsArray #no unmet demand
 
     fig, ax = plt.subplots()
     ax.bar(np.arange(24), bat_in[0], 0.5, label='Battery Input', color = 'green')
     ax.bar(np.arange(24), bat_out[0], 0.5, label='Battery Output', color = 'red')
-    #ax.bar(np.arange(24) + 0.5, feed_in[0], 0.5, label='Feed in', color = 'orange')
-    ax.bar(np.arange(24), unmetD[0], 0.5, label='Unmet Demand', color = 'blue')
-    #ax.plot(np.arange(24), total_demand[0], label='Total Demand', color = 'black')
-
+    ax.bar(np.arange(24) + 0.5, feed_in[0], 0.5, label='Feed in', color = 'orange')
+    #ax.bar(np.arange(24), unmetD[0], 0.5, label='Unmet Demand', color = 'blue')
+    ax.plot(np.arange(24), total_demand[0], label='Total Demand', color = 'black')
+    ax.plot(np.arange(24), disp_gen['Diesel generator', 0, 0], label='DG', color = 'blue')
+    ax.plot(np.arange(24), disp_gen['Owned PV', 0, 0], label='PV', color='magenta')
     ax.set_xlabel('Hour')
     ax.set_ylabel('Energy')
     ax.set_title('Generation and res. Load Profile over a day (year 12)')
 
     ax.legend()
     plt.show()
-'''
 
 

@@ -27,7 +27,7 @@ model.load_data()
 # test model run                                                                #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-fit = 0.01
+fit = 0.1
 el_price = 0.4
 
 results = model.solve(fit=fit, elec_price=el_price)
