@@ -156,7 +156,8 @@ def plot_households(self):
         else:
             axs[i, 0].set_title('Autumn')
             axs[i, 1].set_title('Winter')
-    axs[0, 0].legend()
+    axs[0, 0].legend(loc='lower left')
+    plt.tight_layout()
     plt.savefig('plots/households/household_demand_feedin.png')
     plt.show()
 

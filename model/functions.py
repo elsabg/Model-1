@@ -212,6 +212,7 @@ def plot_gridconnection(pros_demandarray):
     ax.set_title('MC Grid Connection: Benefits for Prosumers', fontsize=14)
     ax.legend()
 
+    plt.savefig('plots/gridconnection.png')
     plt.show()
 #--------------------------------------------------------------------------------#
 # Save/Read results to/from excel file                                           #

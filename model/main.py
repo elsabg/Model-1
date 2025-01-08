@@ -23,10 +23,9 @@ model.load_data()
 
 
 lcoe_pv = func.calc_lcoe_pv('model_inputs_testing_v4.xlsx')
-fit = 0
-ud_penalty = 0.02
-el_price = 0.4
-print(lcoe_pv)
+fit = lcoe_pv
+ud_penalty = 0.1
+el_price = 0.39
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
@@ -52,8 +51,9 @@ elif run_model == 'r':
 data_weights = pd.read_excel('model_inputs_testing_v3.xlsx', sheet_name='day_weights')
 day_weights = data_weights['Weight'].to_numpy()
 
-num_runs = 5
-ud_penalty_max = 0.1
+num_runs = 30
+ud_penalty_max = 0.5
+feedin_max = 0.1
 
 ud_runs = input("Unmet Demand multiple Model runs? (No: [Enter],Yes: [y], Only show results: [r]):")
 
@@ -67,9 +67,9 @@ elif ud_runs == 'r':
 pv_fit_runs = input("PV Fit multiple Model runs? (No: [Enter],Yes: [y], Only show results: [r]):")
 
 if pv_fit_runs == 'y':
-    func.pv_fit_modelruns(model, el_price / 2, num_runs, el_price, ud_penalty, day_weights)
+    func.pv_fit_modelruns(model, feedin_max, num_runs, el_price, ud_penalty, day_weights)
 elif pv_fit_runs == 'r':
-    func.print_pv_fit_curve(el_price / 4, num_runs, 1)
+    func.print_pv_fit_curve(feedin_max, num_runs, 1)
 
 
 
