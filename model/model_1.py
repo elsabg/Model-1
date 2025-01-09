@@ -533,25 +533,7 @@ class Model_1:
             ),
             "Link dispatch to feed in"
         )
-        '''
 
-        for d in range(self.days):
-            if self.max_feedin[d] != 0:
-                m.addConstrs(
-                    (
-                        h_weight['Type 2', y-1] -
-                        quicksum(ud[y, d, h] for h in range(self.hours)) / self.max_prosdemand[d]
-                        >= quicksum(feed_in[i, y, d, h]
-                        for i in self.house
-                        for h in range(self.hours)
-                        ) / self.max_feedin[d]
-                        for y in range(1, self.years + 1)
-                    ),
-                    "Unmet Demand balance Feed IN"
-                )
-
-        '''
-        
         m.addConstrs(
             (
                 h_weight['Type 2', y-1] - quicksum(ud[y, d, h] * self.d_weights[d]
