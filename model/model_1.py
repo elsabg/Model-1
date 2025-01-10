@@ -120,6 +120,7 @@ class Model_1:
             'Type 4': self.demand_4.tolist(),
             'Type 5': self.demand_5.tolist()
         }
+        
         for h in self.surplus: # house type
             for i in range(len(self.surplus[h])): # days
                 for j in range(len(self.surplus[h][i])): #hours
@@ -136,9 +137,6 @@ class Model_1:
 
         self.i = self.data['parameters']['Interest rate'][0]
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
-
-        self.cap_steps = self.data['capacity_steps'][
-            'Diesel Generator'].to_numpy()
 
         #----------------------------------------------------------------------#
         # Sets                                                                 #
@@ -196,21 +194,21 @@ class Model_1:
                       vtype=GRB.BINARY, name='binHeatRate')
         
         d_cons = m.addVars(self.years, self.days, self.hours,
-                           name='diesel consumption')
+                           name='dieselCons')
         
         
         #Auxiliary variables for min and max
         aux_min = m.addVars(self.house, self.years, self.days, self.hours,
-                             name='min_auxiliary', lb=-GRB.INFINITY)
+                             name='minAuxiliary', lb=-GRB.INFINITY)
 
         aux_max = m.addVars(self.house, self.years, self.days, self.hours,
-                             name='max_auxiliary', lb=0)
+                             name='maxAuxiliary', lb=0)
         
         z_bin_min = m.addVars(self.house, self.years, self.days, self.hours,
-                          vtype=GRB.BINARY, name='min binary')
+                          vtype=GRB.BINARY, name='minBinary')
         
         z_bin_max = m.addVars(self.house, self.years, self.days, self.hours,
-                              vtype=GRB.BINARY, name='max binary')
+                              vtype=GRB.BINARY, name='maxBinary')
         
         #Intermediate variables
         tr = m.addVars(self.years, name='total revenue')
@@ -302,7 +300,7 @@ class Model_1:
         #----------------------------------------------------------------------#
         
         # Auxiliary minimum constraints
-        M = 1000
+        M = 15000
         m.addConstrs(((aux_min[i, y, d, h] <=
                        feed_in[i, y, d, h])
                       for i in self.house
@@ -541,6 +539,16 @@ class Model_1:
         M = 1000
         e = 0.01
         
+        m.addConstrs(((d_cons[y, d, h] == 
+                       self.heat_r_k[0] 
+                       * disp['Diesel Generator', y, d, h])
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='test'
+                     )
+        '''
         m.addConstrs(
             ((d_cons[y, d, h] >= 
               self.heat_r_k[0] * disp['Diesel Generator', y, d, h] 
@@ -674,6 +682,7 @@ class Model_1:
              ),
             "Binary cap 2"
         )
+        '''
         
         #----------------------------------------------------------------------#
         # Battery Operation                                                    #
@@ -726,7 +735,7 @@ class Model_1:
         # Optimization                                                         #
         #----------------------------------------------------------------------#
         
-        m.setParam("Presolve", 0)
+        m.setParam("Presolve", 1)
         m.optimize()
 
         #----------------------------------------------------------------------#
@@ -736,6 +745,27 @@ class Model_1:
         #----------------------------------------------------------------------#
         
         self.m = m
+        self.feed_in = feed_in
+        self.soc = soc
+        self.aux_min = aux_min
+        self.added_cap = added_cap
+        self.inst_cap = inst_cap
+        self.disp = disp
+        self.b_in = b_in
+        self.b_out = b_out
+        self.ret_cap = ret_cap
+        self.soc = soc
+        self.h_weight = h_weight
+        self.d_cons = d_cons
+
+        #Intermediate variables
+        self.tr = tr
+        self.tcc = tcc
+        self.tovc = tovc
+        self.tofc = tofc
+        self.tp = tp
+        
+        variables = {var.VarName : var for var in m.getVars()}
         
         ret = np.ones((len(self.techs), self.years)) # retired capacity
         inst = np.zeros((len(self.techs), self.years)) # installed capacity
@@ -745,6 +775,18 @@ class Model_1:
         bat_out = np.zeros((self.days, self.hours))
         num_households = np.ones((len(self.house), self.years))
         feed_in_energy = np.zeros((self.days, self.hours))
+        aux_min_df = {'Type 1': np.zeros((self.days, self.hours)),
+                      'Type 2': np.zeros((self.days, self.hours)),
+                      'Type 3': np.zeros((self.days, self.hours)),
+                      'Type 4': np.zeros((self.days, self.hours)),
+                      'Type 5': np.zeros((self.days, self.hours))}
+        
+        for i in self.house:
+            for d in range(self.days):
+                for h in range(self.hours):
+                    aux_min_df[i][d][h] = aux_min[i, 1, d, h].X
+        
+        print(aux_min_df)
 
         for y in range(self.years):
             for g in self.techs:
@@ -755,9 +797,9 @@ class Model_1:
         for d in range(self.days):
             for h in range(self.hours):
                 disp_gen[d][h] = disp['Diesel Generator', 1, d, h].X
-                bat_in[d][h] = b_in[12, d, h].X
-                bat_out[d][h] = b_out[12, d, h].X
-                feed_in_energy[d][h] = sum(feed_in[i, 12, d, h].X for i in self.house)
+                bat_in[d][h] = b_in[1, d, h].X
+                bat_out[d][h] = b_out[1, d, h].X
+                feed_in_energy[d][h] = sum(feed_in[i, 1, d, h].X for i in self.house)
 
         for house in self.house:
             for y in range(self.years):
@@ -772,6 +814,7 @@ class Model_1:
                 for h in range(self.hours):
                     total_demand[d][h] += self.surplus[house][d][h] * num_households[self.house.tolist().index(house)][12]
         
-
+        self.total_demand = total_demand
+        self.aux_min_df = aux_min_df
         return_array = [ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in_energy, total_demand]
-        return return_array
+        return return_array, variables

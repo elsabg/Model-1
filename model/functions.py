@@ -2,12 +2,14 @@
 '''
 Created on Tue Oct 21 13:42:03 2024
 
-@author: jakobsvolba
+@author: Jakob & Elsa
 '''
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from gurobipy import *
+import os
 
 def output_data(resultsArray):
     '''Process output data'''
@@ -18,16 +20,9 @@ def output_data(resultsArray):
         disp_gen, columns=[i for i in range(disp_gen.shape[1])]
     )
     
-    
     feed_in = pd.DataFrame(
         feed_in, columns=[i for i in range(feed_in.shape[1])]
     )
-    
-    '''
-    unmetD = pd.DataFrame(
-        unmetD, columns=[i for i in range(unmetD.shape[1])]
-    )
-    '''
 
     bat_in = pd.DataFrame(
         bat_in, columns=[i for i in range(bat_in.shape[1])]
@@ -69,15 +64,12 @@ def output_data(resultsArray):
     print(disp_gen.round(2))
     print('\n-----------feed in year 1-----------\n')
     print(feed_in.round(2))
-    #print('\n-----------unmet Demand year 1-----------\n')
-    #print(unmetD.round(2))
     print('\n-----------battery Input year 1-----------\n')
     print(bat_in.round(2))
     print('\n-----------battery Output year 1-----------\n')
     print(bat_out.round(2))
     print('\n-----------Number of connected household types-----------\n')
     print(num_households)
-    '''write output data to excel file'''
     return
 
 
@@ -90,7 +82,6 @@ def plot_data(resultsArray):
     ax.bar(np.arange(24), bat_in[0], 0.5, label='Battery Input', color = 'green')
     ax.bar(np.arange(24), bat_out[0], 0.5, label='Battery Output', color = 'red')
     ax.bar(np.arange(24) + 0.5, feed_in[0], 0.5, label='Feed in', color = 'orange')
-    #ax.bar(np.arange(24), unmetD[0], 0.5, label='Unmet Demand', color = 'blue')
     ax.plot(np.arange(24), total_demand[0], label='Total Demand', color = 'black')
     ax.plot(np.arange(24), disp_gen['Diesel generator', 0, 0], label='DG', color = 'blue')
     ax.plot(np.arange(24), disp_gen['Owned PV', 0, 0], label='PV', color='magenta')
@@ -101,4 +92,99 @@ def plot_data(resultsArray):
     ax.legend()
     plt.show()
 
+def to_xlsx(model):
+    #import model ranges
+    years = model.years
+    days = model.days
+    hours = model.hours
+    house = model.house
+    techs_g = model.techs_g
+    techs = model.techs
+    
+    #Set up yearly dataframes for hourly decision variables
+    disp_dg = pd.DataFrame(np.zeros((days, hours)))
+    disp_pv = pd.DataFrame(np.zeros((days, hours)))
+    bat_in = pd.DataFrame(np.zeros((days, hours)))
+    bat_out = pd.DataFrame(np.zeros((days, hours)))
+    soc = pd.DataFrame(np.zeros((days, hours)))
+    feed_in_1 = pd.DataFrame(np.zeros((days, hours)))
+    feed_in_2 = pd.DataFrame(np.zeros((days, hours)))
+    feed_in_3 = pd.DataFrame(np.zeros((days, hours)))
+    feed_in_4 = pd.DataFrame(np.zeros((days, hours)))
+    feed_in_5 = pd.DataFrame(np.zeros((days, hours)))
+    
+    for y in range(years):
+        # Populate the hourly dataframes
+        for d in range(days):
+            for h in range(hours):
+                disp_dg[d][h] = model.disp['Diesel Generator', y, d, h].X
+                disp_pv[d][h] = model.disp['Owned PV', y, d, h].X
+                bat_in[d][h] = model.b_in[y, d, h].X
+                bat_out[d][h] = model.b_out[y, d, h].X
+                soc[d][h] = model.soc[y, d, h].X
+                feed_in_1[d][h] = model.feed_in['Type 1', y, d, h].X
+                feed_in_2[d][h] = model.feed_in['Type 2', y, d, h].X
+                feed_in_3[d][h] = model.feed_in['Type 3', y, d, h].X
+                feed_in_4[d][h] = model.feed_in['Type 4', y, d, h].X
+                feed_in_5[d][h] = model.feed_in['Type 5', y, d, h].X
+        
+        # Create dataframes of yearly variables
+        cost_names = ['Total Revenues',
+                      'Total Capital Costs',
+                      'Total Operation Variable Costs',
+                      'Total Operation Fixed Costs',
+                      'Total Profits']
+        costs = pd.DataFrame([[model.tr[y].X, model.tcc[y].X, 
+                              model.tovc[y].X, model.tofc[y].X, 
+                              model.tp[y].X]], 
+                             columns=cost_names)
+        
+        
+        cap_cols = ['Added Capacity',
+                    'Installed Capacity',
+                    'Retired Capacity']
+        cap_ind = [g for g in techs]
+        cap = pd.DataFrame(np.zeros((len(techs), len(cap_cols))),
+                           columns=cap_cols,
+                           index=cap_ind)
+        for g in techs:
+            cap[g, 'Added Capacity'] = model.added_cap[g, y].X
+            cap[g, 'Installed Capacity'] = model.inst_cap[g, y].X
+            cap[g, 'Retired Capacity'] = model.ret_cap[g, y].X
+            
 
+        num_house = pd.DataFrame([[model.h_weight['Type 1', y].X,
+                                  model.h_weight['Type 2', y].X,
+                                  model.h_weight['Type 3', y].X,
+                                  model.h_weight['Type 4', y].X,
+                                  model.h_weight['Type 5', y].X]],
+                                 columns=house)
+                    
+        # Create new file within directory for output
+        folder_name = 'Output Files'
+        current_directory = os.getcwd()
+        folder_path = os.path.join(current_directory, folder_name)
+        os.makedirs(folder_path, exist_ok=True)
+        
+        # Write dataframes to excel, with one file per year
+        with pd.ExcelWriter(os.path.join(folder_path, f"Year {y}.xlsx"), 
+                            engine='openpyxl') as writer:
+            
+            # Hourly variables, each with its own sheet
+            disp_dg.to_excel(writer, sheet_name='DG Dispatch')
+            disp_pv.to_excel(writer, sheet_name='PV Dispatch')
+            bat_in.to_excel(writer, sheet_name='Battery Input')
+            bat_out.to_excel(writer, sheet_name='Battery Output')
+            soc.to_excel(writer, sheet_name='State of Charge')
+            feed_in_1.to_excel(writer, sheet_name='Feed in from Type 1')
+            feed_in_2.to_excel(writer, sheet_name='Feed in from Type 2')
+            feed_in_3.to_excel(writer, sheet_name='Feed in from Type 3')
+            feed_in_4.to_excel(writer, sheet_name='Feed in from Type 4')
+            feed_in_5.to_excel(writer, sheet_name='Feed in from Type 5')
+            
+            # Yearly variables grouped into sheets
+            costs.to_excel(writer, sheet_name='Costs and Revenues')
+            cap.to_excel(writer, sheet_name='Capacities')
+            num_house.to_excel(writer, sheet_name='Connected Households')
+    
+    

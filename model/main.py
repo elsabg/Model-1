@@ -2,7 +2,7 @@
 '''
 Created on Mon Oct 21 14:18:06 2024
 
-@author: jakobsvolba
+@author: Jakob & Elsa
 '''
 
 import numpy as np
@@ -30,10 +30,11 @@ model.load_data()
 fit = 0.1
 el_price = 0.4
 
-results = model.solve(fit=fit, elec_price=el_price)
+results, variables = model.solve(fit=fit, elec_price=el_price)
 
 func.output_data(results)
 #func.plot_data(results)
+func.to_xlsx(model)
 #-------------------------------------------------------------------------------#
 #                                                                               #
 # model run case 2: feed in tariff                                              #
