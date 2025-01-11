@@ -117,16 +117,16 @@ def to_xlsx(model):
         # Populate the hourly dataframes
         for d in range(days):
             for h in range(hours):
-                disp_dg[d][h] = model.disp['Diesel Generator', y, d, h].X
-                disp_pv[d][h] = model.disp['Owned PV', y, d, h].X
-                bat_in[d][h] = model.b_in[y, d, h].X
-                bat_out[d][h] = model.b_out[y, d, h].X
-                soc[d][h] = model.soc[y, d, h].X
-                feed_in_1[d][h] = model.feed_in['Type 1', y, d, h].X
-                feed_in_2[d][h] = model.feed_in['Type 2', y, d, h].X
-                feed_in_3[d][h] = model.feed_in['Type 3', y, d, h].X
-                feed_in_4[d][h] = model.feed_in['Type 4', y, d, h].X
-                feed_in_5[d][h] = model.feed_in['Type 5', y, d, h].X
+                disp_dg[h][d] = model.disp['Diesel Generator', y, d, h].X
+                disp_pv[h][d] = model.disp['Owned PV', y, d, h].X
+                bat_in[h][d] = model.b_in[y, d, h].X
+                bat_out[h][d] = model.b_out[y, d, h].X
+                soc[h][d] = model.soc[y, d, h].X
+                feed_in_1[h][d] = model.feed_in['Type 1', y, d, h].X
+                feed_in_2[h][d] = model.feed_in['Type 2', y, d, h].X
+                feed_in_3[h][d] = model.feed_in['Type 3', y, d, h].X
+                feed_in_4[h][d] = model.feed_in['Type 4', y, d, h].X
+                feed_in_5[h][d] = model.feed_in['Type 5', y, d, h].X
         
         # Create dataframes of yearly variables
         cost_names = ['Total Revenues',
@@ -148,9 +148,9 @@ def to_xlsx(model):
                            columns=cap_cols,
                            index=cap_ind)
         for g in techs:
-            cap[g, 'Added Capacity'] = model.added_cap[g, y].X
-            cap[g, 'Installed Capacity'] = model.inst_cap[g, y].X
-            cap[g, 'Retired Capacity'] = model.ret_cap[g, y].X
+            cap.loc[g, 'Added Capacity'] = model.added_cap[g, y].X
+            cap.loc[g, 'Installed Capacity'] = model.inst_cap[g, y].X
+            cap.loc[g, 'Retired Capacity'] = model.ret_cap[g, y].X
             
 
         num_house = pd.DataFrame([[model.h_weight['Type 1', y].X,
@@ -160,7 +160,7 @@ def to_xlsx(model):
                                   model.h_weight['Type 5', y].X]],
                                  columns=house)
                     
-        # Create new file within directory for output
+        # Create new folder within directory for output files
         folder_name = 'Output Files'
         current_directory = os.getcwd()
         folder_path = os.path.join(current_directory, folder_name)
