@@ -206,7 +206,7 @@ class Model_1:
 
         self.disp_steps_year, self.disp_steps_month, self.price_steps = cd.calc_disp_price_steps(self)
 
-        cd.plot_households(self)
+        #cd.plot_households(self)
 
         #------------------------------------------------------------------------------#
         # Sets                                                                         #

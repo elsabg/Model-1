@@ -218,7 +218,7 @@ def plot_days_seperate(timeseriesArray, year, s='plot'):
                       unmetD[2], total_demand[2], 'Winter')
     max_y_value = max(max_y_value, ax4.get_ylim()[1])
     min_y_value = min(min_y_value, ax4.get_ylim()[0])
-    ax4.legend(loc='upper right', fontsize=20)
+    ax4.legend(loc='upper right', fontsize=25)
     # Adjust y-limits and other settings for all plots
     for ax in [ax1, ax2, ax3, ax4]:
         ax.set_xlabel('Hour of Day', fontsize=25)
@@ -288,7 +288,7 @@ def plot_gridconnection(pros_demandarray):
 
     ax.set_ylabel('Energy per Year in kWh', fontsize=25)
     #ax.set_title('MC Grid Connection: Benefits for Prosumers', fontsize=14)
-    ax.legend(fontsize=20)
+    ax.legend(fontsize=25)
     plt.tight_layout()
     plt.savefig('plots/gridconnection.png')
     plt.show()
@@ -533,11 +533,13 @@ def print_ud_curve(ud_penalty_max, num_runs, year, s = 'plot'):
         unmetD['unmetD_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 0].to_numpy()
         num_consumers['num_consumers_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 1].to_numpy()
         num_prosumers['num_prosumers_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 2].to_numpy()
+    base_szenario_energy = unmetD['unmetD_fit_'+str(base_penalty)]
     base_szenario_cons = num_consumers['num_consumers_fit_'+str(base_penalty)]
     base_szenario_pros = num_prosumers['num_prosumers_fit_'+str(base_penalty)]
 
     fig1, ax1 = plt.subplots(figsize=(10, 8))
     ax1.plot(ud_penalty, unmetD.iloc[year - 1] / 1000, label='Unmet Demand', color='red', linewidth=3)
+    ax1.plot(base_penalty, base_szenario_energy.iloc[year-1] / 1000, label='Base Szenario', linestyle='', marker='D', color='red', markersize=15)
 
     ax1.set_ylabel('Energy per year in MWh', fontsize=25)
     ax1.set_ylim(bottom=0)
@@ -575,14 +577,15 @@ def print_ud_curve(ud_penalty_max, num_runs, year, s = 'plot'):
 
 
 
-    fig1.legend(loc='lower right', bbox_to_anchor=(0.95, 0.05), fontsize=20)
-    fig2.legend(loc='upper right', bbox_to_anchor=(0.95, 0.9), fontsize=20)
+    fig1.legend(loc='lower right', bbox_to_anchor=(0.95, 0.05), fontsize=25)
+    fig2.legend(loc='upper right', bbox_to_anchor=(0.95, 0.9), fontsize=25)
     for fig in [fig1, fig2]:
         fig.tight_layout()
     #ax1.set_title('Year '+str(year+1), fontsize=14)
 
     if s == 'save':
-        plt.savefig('plots/unmet_demand/ud_plot_'+str(year)+'.png')
+        fig1.savefig('plots/unmet_demand/ud_energy_'+str(year)+'.png')
+        fig2.savefig('plots/unmet_demand/ud_households_'+str(year)+'.png')
     else:
         plt.show()
 
