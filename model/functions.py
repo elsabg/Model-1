@@ -11,17 +11,41 @@ import matplotlib.pyplot as plt
 from gurobipy import *
 import os
 
-def output_data(resultsArray):
+def output_data(model, t=0):
     '''Process output data'''
+    
+    ret = np.ones((len(model.techs), model.years)) # retired capacity
+    inst = np.zeros((len(model.techs), model.years)) # installed capacity
+    added = np.zeros((len(model.techs), model.years)) # added capacity
+    disp_gen = np.zeros((model.days, model.hours))
+    bat_in = np.zeros((model.days, model.hours))
+    bat_out = np.zeros((model.days, model.hours))
+    num_households = np.ones((len(model.house), model.years))
+    feed_in_energy = np.zeros((model.days, model.hours))
 
-    ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in, total_demand = resultsArray #no unmed demand
+    for y in range(model.years):
+        for g in model.techs:
+            ret[model.techs.tolist().index(g)][y] = model.ret_cap[g, y].X
+            inst[model.techs.tolist().index(g)][y] = model.inst_cap[g, y].X
+            added[model.techs.tolist().index(g)][y] = model.added_cap[g, y].X
+
+    for d in range(model.days):
+        for h in range(model.hours):
+            disp_gen[d][h] = model.disp['Diesel Generator', t, d, h].X
+            bat_in[d][h] = model.b_in[t, d, h].X
+            bat_out[d][h] = model.b_out[t, d, h].X
+            feed_in_energy[d][h] = sum(model.feed_in[i, t, d, h].X 
+                                       for i in model.house)
+    for house in model.house:
+        for y in range(model.years):
+            num_households[model.house.tolist().index(house)][y] = model.h_weight[house, y].X
 
     disp_gen = pd.DataFrame(
         disp_gen, columns=[i for i in range(disp_gen.shape[1])]
     )
     
     feed_in = pd.DataFrame(
-        feed_in, columns=[i for i in range(feed_in.shape[1])]
+        feed_in_energy, columns=[i for i in range(feed_in_energy.shape[1])]
     )
 
     bat_in = pd.DataFrame(
@@ -54,23 +78,22 @@ def output_data(resultsArray):
     ret.index = names
 
 
-    print('\n-----------installed capacity-----------\n')
+    print(f'\n-----------installed capacity-----------\n')
     print(inst.round(2))
-    print('\n-----------added capacity-----------\n')
+    print(f'\n-----------added capacity-----------\n')
     print(added.round(2))
-    print('\n-----------retired capacity-----------\n')
+    print(f'\n-----------retired capacity-----------\n')
     print(ret.round(2))
-    print('\n-----------dispatched Energy Generator year 1-----------\n')
+    print(f'\n-----------dispatched power from DG year {t}-----------\n')
     print(disp_gen.round(2))
-    print('\n-----------feed in year 1-----------\n')
+    print(f'\n-----------feed in year {t}-----------\n')
     print(feed_in.round(2))
-    print('\n-----------battery Input year 1-----------\n')
+    print(f'\n-----------battery Input year {t}-----------\n')
     print(bat_in.round(2))
-    print('\n-----------battery Output year 1-----------\n')
+    print(f'\n-----------battery Output year {t}-----------\n')
     print(bat_out.round(2))
-    print('\n-----------Number of connected household types-----------\n')
+    print(f'\n-----------Number of connected household per type-----------\n')
     print(num_households)
-    return
 
 
 def plot_data(resultsArray):
@@ -118,6 +141,7 @@ def to_xlsx(model):
     feed_in_3 = pd.DataFrame(np.zeros((days, hours)))
     feed_in_4 = pd.DataFrame(np.zeros((days, hours)))
     feed_in_5 = pd.DataFrame(np.zeros((days, hours)))
+    total_demand = pd.DataFrame(np.zeros((days, hours)))
     
     # Populate the hourly dataframes
     for y in range(years):
@@ -133,6 +157,9 @@ def to_xlsx(model):
                 feed_in_3[h][d] = model.feed_in['Type 3', y, d, h].X
                 feed_in_4[h][d] = model.feed_in['Type 4', y, d, h].X
                 feed_in_5[h][d] = model.feed_in['Type 5', y, d, h].X
+                total_demand[h][d] = sum(model.surplus[i][d][h]
+                                         * model.h_weight[i, y].X
+                                         for i in house)
                 
         ############################################################################
         # Create dataframes for yearly decision variables                          #
@@ -205,5 +232,6 @@ def to_xlsx(model):
             costs.to_excel(writer, sheet_name='Costs and Revenues')
             cap.to_excel(writer, sheet_name='Capacities')
             num_house.to_excel(writer, sheet_name='Connected Households')
+            total_demand.to_excel(writer, sheet_name='Yearly demand')
     
     

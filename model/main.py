@@ -30,19 +30,13 @@ model.load_data()
 fit = 0.01
 el_price = 0.4
 
-results, variables = model.solve(fit=fit, elec_price=el_price)
-
-func.output_data(results)
-#func.plot_data(results)
-func.to_xlsx(model)
-#-------------------------------------------------------------------------------#
-#                                                                               #
-# model run case 2: feed in tariff                                              #
-#                                                                               #
-#-------------------------------------------------------------------------------#
+model.solve(fit=fit, elec_price=el_price)
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
 # Process output data                                                           #
 #                                                                               #
 #-------------------------------------------------------------------------------#
+func.output_data(model, 2)
+#func.plot_data(results)
+func.to_xlsx(model)

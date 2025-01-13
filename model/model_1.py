@@ -39,9 +39,7 @@ class Model_1:
 
         #Initial Generation Capacities
         self.init_cap = self.tech_df['Initial capacity'].to_dict()
-        '''
-        self.init_cap_e = (self.data['tech']['Initial capacity'].to_numpy())[-1]
-        '''
+
         #Household capacities
         self.max_house = self.data['rent_cap'].loc[0].iloc[1::].to_numpy()
         self.avg_pv_cap = self.data['rent_cap'].loc[1].iloc[1::].to_numpy()
@@ -761,46 +759,6 @@ class Model_1:
         self.tovc = tovc
         self.tofc = tofc
         self.tp = tp
-        
+
         variables = {var.VarName : var for var in m.getVars()}
-        
-        ret = np.ones((len(self.techs), self.years)) # retired capacity
-        inst = np.zeros((len(self.techs), self.years)) # installed capacity
-        added = np.zeros((len(self.techs), self.years)) # added capacity
-        disp_gen = np.zeros((self.days, self.hours))
-        bat_in = np.zeros((self.days, self.hours))
-        bat_out = np.zeros((self.days, self.hours))
-        num_households = np.ones((len(self.house), self.years))
-        feed_in_energy = np.zeros((self.days, self.hours))
-
-        for y in range(self.years):
-            for g in self.techs:
-                ret[self.techs.tolist().index(g)][y] = ret_cap[g, y].X
-                inst[self.techs.tolist().index(g)][y] = inst_cap[g, y].X
-                added[self.techs.tolist().index(g)][y] = added_cap[g, y].X
-
-        for d in range(self.days):
-            for h in range(self.hours):
-                disp_gen[d][h] = disp['Diesel Generator', 1, d, h].X
-                bat_in[d][h] = b_in[1, d, h].X
-                bat_out[d][h] = b_out[1, d, h].X
-                feed_in_energy[d][h] = sum(feed_in[i, 1, d, h].X for i in self.house)
-
-        for house in self.house:
-            for y in range(self.years):
-                num_households[self.house.tolist().index(house)][y] = h_weight[house, y].X
-
-
-        total_demand = np.zeros((self.days, self.hours))
-
-        
-        for house in self.house:
-            for d in range(self.days):
-                for h in range(self.hours):
-                    total_demand[d][h] += self.surplus[house][d][h] * num_households[self.house.tolist().index(house)][1]
-        
-        self.total_demand = total_demand
-        self.aux_min_df = aux_min_df
-        return_array = [ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in_energy, total_demand]
-        
-        return return_array, variables
+        self.variables = variables
