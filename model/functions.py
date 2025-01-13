@@ -93,7 +93,9 @@ def plot_data(resultsArray):
     plt.show()
 
 def to_xlsx(model):
-    #import model ranges
+    ############################################################################
+    # Import model ranges                                                      #
+    ############################################################################
     years = model.years
     days = model.days
     hours = model.hours
@@ -101,7 +103,11 @@ def to_xlsx(model):
     techs_g = model.techs_g
     techs = model.techs
     
-    #Set up yearly dataframes for hourly decision variables
+    ############################################################################
+    # Create yearly dataframes for hourly decision variables                   #
+    ############################################################################
+    
+    # Set up the dataframes
     disp_dg = pd.DataFrame(np.zeros((days, hours)))
     disp_pv = pd.DataFrame(np.zeros((days, hours)))
     bat_in = pd.DataFrame(np.zeros((days, hours)))
@@ -113,8 +119,8 @@ def to_xlsx(model):
     feed_in_4 = pd.DataFrame(np.zeros((days, hours)))
     feed_in_5 = pd.DataFrame(np.zeros((days, hours)))
     
+    # Populate the hourly dataframes
     for y in range(years):
-        # Populate the hourly dataframes
         for d in range(days):
             for h in range(hours):
                 disp_dg[h][d] = model.disp['Diesel Generator', y, d, h].X
@@ -127,19 +133,27 @@ def to_xlsx(model):
                 feed_in_3[h][d] = model.feed_in['Type 3', y, d, h].X
                 feed_in_4[h][d] = model.feed_in['Type 4', y, d, h].X
                 feed_in_5[h][d] = model.feed_in['Type 5', y, d, h].X
+                
+        ############################################################################
+        # Create dataframes for yearly decision variables                          #
+        ############################################################################
         
-        # Create dataframes of yearly variables
         cost_names = ['Total Revenues',
                       'Total Capital Costs',
                       'Total Operation Variable Costs',
                       'Total Operation Fixed Costs',
                       'Total Profits']
+        label_names = ['Diesel Generator',
+                       'PV',
+                       'Batteries',
+                       'Feed-in',
+                       'Total']
         costs = pd.DataFrame([[model.tr[y].X, model.tcc[y].X, 
                               model.tovc[y].X, model.tofc[y].X, 
                               model.tp[y].X]], 
                              columns=cost_names)
         
-        
+        # Yearly capacities
         cap_cols = ['Added Capacity',
                     'Installed Capacity',
                     'Retired Capacity']
@@ -152,15 +166,20 @@ def to_xlsx(model):
             cap.loc[g, 'Installed Capacity'] = model.inst_cap[g, y].X
             cap.loc[g, 'Retired Capacity'] = model.ret_cap[g, y].X
             
-
+        
+        # Yearly connected households
         num_house = pd.DataFrame([[model.h_weight['Type 1', y].X,
                                   model.h_weight['Type 2', y].X,
                                   model.h_weight['Type 3', y].X,
                                   model.h_weight['Type 4', y].X,
                                   model.h_weight['Type 5', y].X]],
                                  columns=house)
-                    
-        # Create new folder within directory for output files
+
+        ############################################################################
+        # Export to Excel and save in current directory                        #
+        ############################################################################
+                            
+        # Create new folder within current directory for output files
         folder_name = 'Output Files'
         current_directory = os.getcwd()
         folder_path = os.path.join(current_directory, folder_name)

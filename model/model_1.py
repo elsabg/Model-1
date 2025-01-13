@@ -28,7 +28,7 @@ class Model_1:
         # Time Parameters                                                      #
         #----------------------------------------------------------------------#
 
-        self.years = 11 #int(self.data['parameters']['Planning horizon'][0])
+        self.years = int(self.data['parameters']['Planning horizon'][0])
         self.days = int(self.data['parameters']['Days'][0])
         self.hours = int(self.data['parameters']['Hours'][0])
         self.d_weights = self.data['day_weights']['Weight'].to_numpy()
@@ -217,6 +217,7 @@ class Model_1:
         tofc = m.addVars(self.years, name='total operation fixed cost')
         tp = m.addVars(self.years, name='total profits', lb=-GRB.INFINITY)
         
+        
         #----------------------------------------------------------------------#
         #                                                                      #
         # Objective function                                                   #
@@ -241,8 +242,12 @@ class Model_1:
                                     for g in self.techs_g
                                     for d in range(self.days)
                                     for h in range(self.hours))
-                           + quicksum((b_out[y, d, h] - b_in[y, d, h])
+                           + quicksum(b_out[y, d, h] - b_in[y, d, h]
+                                      for d in range(self.days)
+                                      for h in range(self.hours))
+                           + quicksum(feed_in[i, y, d, h]
                                       * self.d_weights[d]
+                                      for i in self.house
                                       for d in range(self.days)
                                       for h in range(self.hours))
                            )
@@ -259,13 +264,13 @@ class Model_1:
                      )
         
         m.addConstrs(((tovc[y] ==
-                       quicksum(self.uovc[g] * disp[g, y, d, h] 
-                                * self.d_weights[d]
+                       quicksum((self.uovc[g] * disp[g, y, d, h] 
+                                 * self.d_weights[d])
                                 for g in self.techs_g
                                 for d in range(self.days)
                                 for h in range(self.hours))
-                       + quicksum(self.fit * feed_in[i, y, d, h]
-                                  * self.d_weights[d]
+                       + quicksum((self.fit * feed_in[i, y, d, h]
+                                   * self.d_weights[d])
                                   for i in self.house
                                   for d in range(self.days)
                                   for h in range(self.hours))
@@ -767,18 +772,6 @@ class Model_1:
         bat_out = np.zeros((self.days, self.hours))
         num_households = np.ones((len(self.house), self.years))
         feed_in_energy = np.zeros((self.days, self.hours))
-        aux_min_df = {'Type 1': np.zeros((self.days, self.hours)),
-                      'Type 2': np.zeros((self.days, self.hours)),
-                      'Type 3': np.zeros((self.days, self.hours)),
-                      'Type 4': np.zeros((self.days, self.hours)),
-                      'Type 5': np.zeros((self.days, self.hours))}
-        
-        for i in self.house:
-            for d in range(self.days):
-                for h in range(self.hours):
-                    aux_min_df[i][d][h] = aux_min[i, 1, d, h].X
-        
-        print(aux_min_df)
 
         for y in range(self.years):
             for g in self.techs:
@@ -809,4 +802,5 @@ class Model_1:
         self.total_demand = total_demand
         self.aux_min_df = aux_min_df
         return_array = [ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in_energy, total_demand]
+        
         return return_array, variables
