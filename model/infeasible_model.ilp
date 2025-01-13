@@ -1,0 +1,16 @@
+\ Model Model_1_copy
+\ LP format - for model browsing. Use MPS format to capture full model detail.
+Maximize
+ 
+Subject To
+ Boundary_2.2[0,2,3]: - 0.6 instCap[Diesel_Generator,0]
+   + disp[Diesel_Generator,0,2,3] - 10000 binHeatRate[3,0,2,3] >= 0
+ Boundary_3[0,2,3]: - 0.6 instCap[Diesel_Generator,0]
+   + disp[Diesel_Generator,0,2,3] - 10000 binHeatRate[4,0,2,3] <= -0.99
+ Binary_cap_3[0,2,3]: binHeatRate[3,0,2,3] - binHeatRate[4,0,2,3] = 0
+Bounds
+ instCap[Diesel_Generator,0] free
+ disp[Diesel_Generator,0,2,3] free
+Binaries
+ binHeatRate[3,0,2,3] binHeatRate[4,0,2,3]
+End

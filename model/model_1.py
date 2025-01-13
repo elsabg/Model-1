@@ -28,7 +28,7 @@ class Model_1:
         # Time Parameters                                                      #
         #----------------------------------------------------------------------#
 
-        self.years = int(self.data['parameters']['Planning horizon'][0])
+        self.years = 11 #int(self.data['parameters']['Planning horizon'][0])
         self.days = int(self.data['parameters']['Days'][0])
         self.hours = int(self.data['parameters']['Hours'][0])
         self.d_weights = self.data['day_weights']['Weight'].to_numpy()
@@ -351,15 +351,6 @@ class Model_1:
                      )
         
         # Auxiliary maximum constraints
-        m.addConstrs(((aux_max[i, y, d, h] <=
-                       h_weight[i, y] * self.surplus[i][d][h]
-                       + z_bin_max[i, y, d, h] * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='max aux 1.1')
         
         m.addConstrs(((aux_max[i, y, d, h] >=
                        h_weight[i, y] * self.surplus[i][d][h])
@@ -368,19 +359,29 @@ class Model_1:
                       for d in range(self.days)
                       for h in range(self.hours)
                       ),
-                     name='max aux 1.2')
+                     name='max aux 1.1')
         
-        m.addConstrs(((aux_max[i, y, d, h] <=
-                       (1 - z_bin_max[i, y, d, h]) * M)
+        m.addConstrs(((aux_max[i, y, d, h] >= 0)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
                       for h in range(self.hours)
                       ),
-                     name='max aux 2.1'
+                     name='max aux 1.2'
                      )
         
-        m.addConstrs(((aux_max[i, y, d, h] >= 0)
+        m.addConstrs(((aux_max[i, y, d, h] <=
+                       h_weight[i, y] * self.surplus[i][d][h]
+                       + z_bin_max[i, y, d, h] * M)
+                      for i in self.house
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='max aux 2.1')
+        
+        m.addConstrs(((aux_max[i, y, d, h] <=
+                       (1 - z_bin_max[i, y, d, h]) * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -432,18 +433,6 @@ class Model_1:
             "Initial capacity"
         )
         
-        
-        '''
-        m.addConstrs(
-            (
-                (added_cap['Diesel Generator', y] ==
-                    quicksum(int_cap_steps[i, y] * self.cap_steps[i] 
-                             for i in range(len(self.cap_steps))))
-                for y in range(1, self.years + 1)
-            ),
-            "Steps for added diesel generator capacity"
-        )
-        '''
         
         #----------------------------------------------------------------------#
         # Generation Retirement                                                #
@@ -536,8 +525,9 @@ class Model_1:
         #----------------------------------------------------------------------#
         # Heat Rate                                                            #
         #----------------------------------------------------------------------#
-        M = 1000
+        M = 10000
         e = 0.01
+        
         
         m.addConstrs(((d_cons[y, d, h] == 
                        self.heat_r_k[0] 
@@ -574,7 +564,7 @@ class Model_1:
         m.addConstrs(
             ((disp['Diesel Generator', y, d, h] >=
               0.3 * inst_cap['Diesel Generator', y]
-              - (1 - bin_heat_rate[0, y, d, h] * M))
+              - (1 - bin_heat_rate[0, y, d, h]) * M)
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -618,7 +608,7 @@ class Model_1:
         m.addConstrs(
             ((disp['Diesel Generator', y, d, h] >= 
               0.6 * inst_cap['Diesel Generator', y] 
-              + bin_heat_rate[3, y, d, h] * M)
+              - bin_heat_rate[3, y, d, h] * M)
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -651,7 +641,8 @@ class Model_1:
         m.addConstrs(
             ((disp['Diesel Generator', y, d, h] <=
               0.6 * inst_cap['Diesel Generator', y]
-              - (1 - bin_heat_rate[4, y, d, h] * M - e))
+              + (1 - bin_heat_rate[4, y, d, h]) * M
+              - e)
              for y in range(self.years)
              for d in range(self.days)
              for h in range(self.hours)
@@ -662,7 +653,7 @@ class Model_1:
         m.addConstrs(
             ((bin_heat_rate[1, y, d, h] 
               + bin_heat_rate[2, y, d, h]
-              + bin_heat_rate[3, y, d, h] ==
+              + bin_heat_rate[3, y, d, h] <=
               2)
              for y in range(self.years)
              for d in range(self.days)
@@ -682,8 +673,8 @@ class Model_1:
              ),
             "Binary cap 2"
         )
-        '''
         
+        '''
         #----------------------------------------------------------------------#
         # Battery Operation                                                    #
         #----------------------------------------------------------------------#
@@ -757,6 +748,7 @@ class Model_1:
         self.soc = soc
         self.h_weight = h_weight
         self.d_cons = d_cons
+        self.bin_heat_rate = bin_heat_rate
 
         #Intermediate variables
         self.tr = tr
@@ -812,7 +804,7 @@ class Model_1:
         for house in self.house:
             for d in range(self.days):
                 for h in range(self.hours):
-                    total_demand[d][h] += self.surplus[house][d][h] * num_households[self.house.tolist().index(house)][12]
+                    total_demand[d][h] += self.surplus[house][d][h] * num_households[self.house.tolist().index(house)][1]
         
         self.total_demand = total_demand
         self.aux_min_df = aux_min_df
