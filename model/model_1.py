@@ -7,7 +7,6 @@ Created on Tue Oct  8 21:51:57 2024
 
 import numpy as np
 import pandas as pd
-from fontTools.misc.bezierTools import epsilon
 from gurobipy import *
 
 pd.set_option('display.max_rows', None)
@@ -30,7 +29,7 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         self.years = int(self.data['parameters']['Planning horizon'][0])
-        self.days = int(self.data['parameters']['Days'][0]) - 1 #DO NOT FORGET TO REMOVE IT LATER I WENT OVER THE LIMIT FOR IT
+        self.days = int(self.data['parameters']['Days'][0])
         self.hours = int(self.data['parameters']['Hours'][0])
         self.d_weights = self.data['day_weights']['Weight'].to_numpy()
 
@@ -133,7 +132,6 @@ class Model_1:
 
         self.min_soc = self.data['parameters']['min SoC'][0]
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
-        self.cap_power_ratio = 6    # 6 hours of storage
 
         self.i = self.data['parameters']['Interest rate'][0]
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
@@ -154,7 +152,6 @@ class Model_1:
 
         self.fit = fit
         self.elec_price = elec_price
-        self.heatrate_c_run = heatrate_c_run
 
         m = Model('Model_1')
 
@@ -727,20 +724,6 @@ class Model_1:
             'SoC capacity 2'
         )
         
-
-
-            m.addConstrs(
-                (
-                    (disp['Diesel Generator', y, d, h] >=
-                     inst_cap['Diesel Generator', y] * 0.25
-                     - bigM * (1 - bin_heat_rate[1, y, d, h]))
-                    for y in range(self.years)
-                    for d in range(self.days)
-                    for h in range(self.hours)
-                ),
-                'heat rate 2.1'
-            )
-
 
         #----------------------------------------------------------------------#
         # Optimization                                                         #

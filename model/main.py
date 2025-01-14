@@ -29,8 +29,6 @@ model.load_data()
 #-------------------------------------------------------------------------------#
 fit = 0.01
 el_price = 0.4
-heatrate_c_run = input("Run model with heatrate curve? (No: [Enter], Yes: y):")
-results = model.solve(fit=fit, elec_price=el_price, heatrate_c_run = heatrate_c_run)
 
 model.solve(fit=fit, elec_price=el_price)
 
