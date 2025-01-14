@@ -2,11 +2,12 @@
 '''
 Created on Mon Oct 21 14:18:06 2024
 
-@author: jakobsvolba
+@author: Jakob
 '''
 
 import numpy as np
 import pandas as pd
+from gurobipy import *
 
 import functions as func
 
@@ -18,7 +19,7 @@ from model_1 import Model_1
 #                                                                               #
 #-------------------------------------------------------------------------------#
 
-model = Model_1(_file_name='model_inputs_testing_v2.xlsx')
+model = Model_1(_file_name='model_inputs_feedin.xlsx')
 model.load_data()
 
 #-------------------------------------------------------------------------------#
@@ -26,21 +27,18 @@ model.load_data()
 # test model run                                                                #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-fit = 0.2
+fit = 0.01
 el_price = 0.4
 heatrate_c_run = input("Run model with heatrate curve? (No: [Enter], Yes: y):")
 results = model.solve(fit=fit, elec_price=el_price, heatrate_c_run = heatrate_c_run)
 
-func.output_data(results)
-func.plot_data(results)
-#-------------------------------------------------------------------------------#
-#                                                                               #
-# model run case 2: feed in tariff                                              #
-#                                                                               #
-#-------------------------------------------------------------------------------#
+model.solve(fit=fit, elec_price=el_price)
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
 # Process output data                                                           #
 #                                                                               #
 #-------------------------------------------------------------------------------#
+func.output_data(model, 2)
+#func.plot_data(results)
+func.to_xlsx(model)
