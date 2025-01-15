@@ -7,17 +7,16 @@ Created on Tue Oct 21 13:42:03 2024
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from gurobipy import *
 import os
 
-def output_data(model, t=0):
-    '''Process output data'''
+def get_dfs(model, t):
+    ''' get DataFrames from solved model'''
     
     ret = np.ones((len(model.techs), model.years)) # retired capacity
     inst = np.zeros((len(model.techs), model.years)) # installed capacity
     added = np.zeros((len(model.techs), model.years)) # added capacity
     disp_gen = np.zeros((model.days, model.hours))
+    disp_pv = np.zeros((model.days, model.hours))
     bat_in = np.zeros((model.days, model.hours))
     bat_out = np.zeros((model.days, model.hours))
     num_households = np.ones((len(model.house), model.years))
@@ -32,6 +31,7 @@ def output_data(model, t=0):
     for d in range(model.days):
         for h in range(model.hours):
             disp_gen[d][h] = model.disp['Diesel Generator', t, d, h].X
+            disp_pv[d][h] = model.disp['Owned PV', t, d, h].X
             bat_in[d][h] = model.b_in[t, d, h].X
             bat_out[d][h] = model.b_out[t, d, h].X
             feed_in_energy[d][h] = sum(model.feed_in[i, t, d, h].X 
@@ -39,9 +39,13 @@ def output_data(model, t=0):
     for house in model.house:
         for y in range(model.years):
             num_households[model.house.tolist().index(house)][y] = model.h_weight[house, y].X
-
+    
     disp_gen = pd.DataFrame(
         disp_gen, columns=[i for i in range(disp_gen.shape[1])]
+    )
+    
+    disp_pv = pd.DataFrame(
+        disp_pv, columns=[i for i in range(disp_gen.shape[1])]
     )
     
     feed_in = pd.DataFrame(
@@ -76,44 +80,33 @@ def output_data(model, t=0):
     inst.index = names
     added.index = names
     ret.index = names
+            
+    return ret, inst, added, disp_gen, disp_pv, bat_in, bat_out, num_households, feed_in
 
 
-    print(f'\n-----------installed capacity-----------\n')
+def output_data(model, t=0):
+    '''Process output data'''
+    ret, inst, added, disp_gen, disp_pv, bat_in, bat_out, num_households, feed_in = get_dfs(model, t)
+    
+    print('\n-----------installed capacity-----------\n')
     print(inst.round(2))
-    print(f'\n-----------added capacity-----------\n')
+    print('\n-----------added capacity-----------\n')
     print(added.round(2))
-    print(f'\n-----------retired capacity-----------\n')
+    print('\n-----------retired capacity-----------\n')
     print(ret.round(2))
-    print(f'\n-----------dispatched power from DG year {t}-----------\n')
+    print(f'\n-----------dispatched power from DG in year {t}-----------\n')
     print(disp_gen.round(2))
+    print(f'\n-----------dispatched power from PV in year {t}-----------\n')
+    print(disp_pv.round(2))
     print(f'\n-----------feed in year {t}-----------\n')
     print(feed_in.round(2))
     print(f'\n-----------battery Input year {t}-----------\n')
     print(bat_in.round(2))
     print(f'\n-----------battery Output year {t}-----------\n')
     print(bat_out.round(2))
-    print(f'\n-----------Number of connected household per type-----------\n')
+    print('\n-----------Number of connected household per type-----------\n')
     print(num_households)
 
-
-def plot_data(resultsArray):
-    '''plot some output data'''
-
-    ret, inst, added, disp_gen, bat_in, bat_out, num_households, feed_in, total_demand = resultsArray #no unmet demand
-
-    fig, ax = plt.subplots()
-    ax.bar(np.arange(24), bat_in[0], 0.5, label='Battery Input', color = 'green')
-    ax.bar(np.arange(24), bat_out[0], 0.5, label='Battery Output', color = 'red')
-    ax.bar(np.arange(24) + 0.5, feed_in[0], 0.5, label='Feed in', color = 'orange')
-    ax.plot(np.arange(24), total_demand[0], label='Total Demand', color = 'black')
-    ax.plot(np.arange(24), disp_gen['Diesel generator', 0, 0], label='DG', color = 'blue')
-    ax.plot(np.arange(24), disp_gen['Owned PV', 0, 0], label='PV', color='magenta')
-    ax.set_xlabel('Hour')
-    ax.set_ylabel('Energy')
-    ax.set_title('Generation and res. Load Profile over a day (year 12)')
-
-    ax.legend()
-    plt.show()
 
 def to_xlsx(model):
     ############################################################################
@@ -130,11 +123,13 @@ def to_xlsx(model):
     # Create yearly dataframes for hourly decision variables                   #
     ############################################################################
     
-    # Set up the dataframes
+    # Set up additional dataframes
+    '''
     disp_dg = pd.DataFrame(np.zeros((days, hours)))
     disp_pv = pd.DataFrame(np.zeros((days, hours)))
     bat_in = pd.DataFrame(np.zeros((days, hours)))
     bat_out = pd.DataFrame(np.zeros((days, hours)))
+    '''
     soc = pd.DataFrame(np.zeros((days, hours)))
     feed_in_1 = pd.DataFrame(np.zeros((days, hours)))
     feed_in_2 = pd.DataFrame(np.zeros((days, hours)))
@@ -145,12 +140,15 @@ def to_xlsx(model):
     
     # Populate the hourly dataframes
     for y in range(years):
+        ret, inst, added, disp_dg, disp_pv, bat_in, bat_out, num_house, feed_in = get_dfs(model, y)
         for d in range(days):
             for h in range(hours):
+                '''
                 disp_dg[h][d] = model.disp['Diesel Generator', y, d, h].X
                 disp_pv[h][d] = model.disp['Owned PV', y, d, h].X
                 bat_in[h][d] = model.b_in[y, d, h].X
                 bat_out[h][d] = model.b_out[y, d, h].X
+                '''
                 soc[h][d] = model.soc[y, d, h].X
                 feed_in_1[h][d] = model.feed_in['Type 1', y, d, h].X
                 feed_in_2[h][d] = model.feed_in['Type 2', y, d, h].X
@@ -193,7 +191,7 @@ def to_xlsx(model):
             cap.loc[g, 'Installed Capacity'] = model.inst_cap[g, y].X
             cap.loc[g, 'Retired Capacity'] = model.ret_cap[g, y].X
             
-        
+        '''
         # Yearly connected households
         num_house = pd.DataFrame([[model.h_weight['Type 1', y].X,
                                   model.h_weight['Type 2', y].X,
@@ -201,6 +199,7 @@ def to_xlsx(model):
                                   model.h_weight['Type 4', y].X,
                                   model.h_weight['Type 5', y].X]],
                                  columns=house)
+        '''
 
         ############################################################################
         # Export to Excel and save in current directory                        #
