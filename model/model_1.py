@@ -395,7 +395,7 @@ class Model_1:
         
         # Feed-in capacity constraints
         m.addConstrs(((feed_in[i, y, d, h] <=
-                       aux_max[i, y, d, h])
+                       0) #aux_max[i, y, d, h]
                        for i in self.house
                        for h in range(self.hours)
                        for d in range(self.days)
