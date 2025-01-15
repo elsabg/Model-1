@@ -404,7 +404,7 @@ class Model_1:
                       "Feed in cap"
             )
         
-        m.addConstrs(((h_weight[i, y] <= 0) #self.max_house_str[i]
+        m.addConstrs(((h_weight[i, y] <= self.max_house_str[i]) 
                        for i in self.house 
                        for y in range(self.years)
                        ),
