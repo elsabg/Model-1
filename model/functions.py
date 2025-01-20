@@ -130,13 +130,13 @@ def to_xlsx(model):
     bat_in = pd.DataFrame(np.zeros((days, hours)))
     bat_out = pd.DataFrame(np.zeros((days, hours)))
     '''
-    soc = pd.DataFrame(np.zeros((days, hours)))
-    feed_in_1 = pd.DataFrame(np.zeros((days, hours)))
-    feed_in_2 = pd.DataFrame(np.zeros((days, hours)))
-    feed_in_3 = pd.DataFrame(np.zeros((days, hours)))
-    feed_in_4 = pd.DataFrame(np.zeros((days, hours)))
-    feed_in_5 = pd.DataFrame(np.zeros((days, hours)))
-    total_demand = pd.DataFrame(np.zeros((days, hours)))
+    soc = pd.DataFrame(np.zeros((days * years, hours)))
+    feed_in_1 = pd.DataFrame(np.zeros((days * years, hours + 2)))
+    feed_in_2 = pd.DataFrame(np.zeros((days * years, hours + 2)))
+    feed_in_3 = pd.DataFrame(np.zeros((days * years, hours + 2)))
+    feed_in_4 = pd.DataFrame(np.zeros((days * years, hours + 2)))
+    feed_in_5 = pd.DataFrame(np.zeros((days * years, hours + 2)))
+    total_demand = pd.DataFrame(np.zeros((days * years, hours + 2)))
     
     # Populate the hourly dataframes
     for y in range(years):
