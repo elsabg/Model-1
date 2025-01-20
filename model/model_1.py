@@ -531,6 +531,15 @@ class Model_1:
         M = 10000
         e = 0.01
         
+        m.addConstrs(((d_cons[y, d, h] ==
+                       disp['Diesel Generator', y, d, h]
+                       * self.heat_r_k[1])
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     name='test')
+        '''
         m.addConstrs(((disp['Diesel Generator', y, d, h] <=
                        0.3 * inst_cap['Diesel Generator', y]
                        + (1 - bin_heat_rate[0, y, d, h]) * M)
@@ -623,6 +632,7 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name="case 3.2")
+        '''
         #----------------------------------------------------------------------#
         # Battery Operation                                                    #
         #----------------------------------------------------------------------#
