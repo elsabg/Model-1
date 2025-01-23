@@ -124,37 +124,20 @@ def to_xlsx(model):
     ############################################################################
     
     # Set up additional dataframes
-    '''
-    disp_dg = pd.DataFrame(np.zeros((days, hours)))
-    disp_pv = pd.DataFrame(np.zeros((days, hours)))
-    bat_in = pd.DataFrame(np.zeros((days, hours)))
-    bat_out = pd.DataFrame(np.zeros((days, hours)))
-    '''
     soc = pd.DataFrame(np.zeros((days * years, hours)))
-    feed_in_1 = pd.DataFrame(np.zeros((days * years, hours + 2)))
-    feed_in_2 = pd.DataFrame(np.zeros((days * years, hours + 2)))
-    feed_in_3 = pd.DataFrame(np.zeros((days * years, hours + 2)))
-    feed_in_4 = pd.DataFrame(np.zeros((days * years, hours + 2)))
-    feed_in_5 = pd.DataFrame(np.zeros((days * years, hours + 2)))
-    total_demand = pd.DataFrame(np.zeros((days * years, hours + 2)))
+    feed_in_energy = {f'Type {i+1}': 
+               pd.DataFrame(np.zeros((days, hours)))
+               for i in range(len(house))}
+    total_demand = pd.DataFrame(np.zeros((days, hours)))
     
     # Populate the hourly dataframes
     for y in range(years):
         ret, inst, added, disp_dg, disp_pv, bat_in, bat_out, num_house, feed_in = get_dfs(model, y)
         for d in range(days):
             for h in range(hours):
-                '''
-                disp_dg[h][d] = model.disp['Diesel Generator', y, d, h].X
-                disp_pv[h][d] = model.disp['Owned PV', y, d, h].X
-                bat_in[h][d] = model.b_in[y, d, h].X
-                bat_out[h][d] = model.b_out[y, d, h].X
-                '''
                 soc[h][d] = model.soc[y, d, h].X
-                feed_in_1[h][d] = model.feed_in['Type 1', y, d, h].X
-                feed_in_2[h][d] = model.feed_in['Type 2', y, d, h].X
-                feed_in_3[h][d] = model.feed_in['Type 3', y, d, h].X
-                feed_in_4[h][d] = model.feed_in['Type 4', y, d, h].X
-                feed_in_5[h][d] = model.feed_in['Type 5', y, d, h].X
+                for i in range(len(house)):
+                    feed_in_energy[f'Type {i+1}'][h][d] = model.feed_in[f'Type {i+1}', y, d, h].X
                 total_demand[h][d] = sum(model.surplus[i][d][h]
                                          * model.h_weight[i, y].X
                                          for i in house)
@@ -191,16 +174,6 @@ def to_xlsx(model):
             cap.loc[g, 'Installed Capacity'] = model.inst_cap[g, y].X
             cap.loc[g, 'Retired Capacity'] = model.ret_cap[g, y].X
             
-        '''
-        # Yearly connected households
-        num_house = pd.DataFrame([[model.h_weight['Type 1', y].X,
-                                  model.h_weight['Type 2', y].X,
-                                  model.h_weight['Type 3', y].X,
-                                  model.h_weight['Type 4', y].X,
-                                  model.h_weight['Type 5', y].X]],
-                                 columns=house)
-        '''
-
         ############################################################################
         # Export to Excel and save in current directory                        #
         ############################################################################
@@ -218,14 +191,13 @@ def to_xlsx(model):
             # Hourly variables, each with its own sheet
             disp_dg.to_excel(writer, sheet_name='DG Dispatch')
             disp_pv.to_excel(writer, sheet_name='PV Dispatch')
-            bat_in.to_excel(writer, sheet_name='Battery Input')
+            bat_in.to_excel(writer, sheet_name='Battery Input ')
             bat_out.to_excel(writer, sheet_name='Battery Output')
             soc.to_excel(writer, sheet_name='State of Charge')
-            feed_in_1.to_excel(writer, sheet_name='Feed in from Type 1')
-            feed_in_2.to_excel(writer, sheet_name='Feed in from Type 2')
-            feed_in_3.to_excel(writer, sheet_name='Feed in from Type 3')
-            feed_in_4.to_excel(writer, sheet_name='Feed in from Type 4')
-            feed_in_5.to_excel(writer, sheet_name='Feed in from Type 5')
+            for i in range(len(house)):
+                feed_in_energy[f'Type {i+1}'].to_excel(writer, 
+                                                       sheet_name 
+                                                       = f'Feed in from Type {i+1}')
             
             # Yearly variables grouped into sheets
             costs.to_excel(writer, sheet_name='Costs and Revenues')

@@ -46,20 +46,13 @@ class Model_1:
         self.cap_fact = self.data['cap_factors'].iloc[:, 1:].to_numpy()
 
         #Capacities accessible via strings
-        self.max_house_str = {
-            'Type 1': self.max_house[0],
-            'Type 2': self.max_house[1],
-            'Type 3': self.max_house[2],
-            'Type 4': self.max_house[3],
-            'Type 5': self.max_house[4]
-        }
-        self.avg_pv_cap_str = {
-            'Type 1': self.avg_pv_cap[0],
-            'Type 2': self.avg_pv_cap[1],
-            'Type 3': self.avg_pv_cap[2],
-            'Type 4': self.avg_pv_cap[3],
-            'Type 5': self.avg_pv_cap[4]
-        }
+        self.house = self.data['rent_cap'].columns.to_numpy()[1:4]
+        
+        self.max_house_str = {f'Type {i+1}' : self.max_house[i]
+                              for i in range(len(self.house))}
+
+        self.avg_pv_cap_str = {f'Type {i+1}' : self.avg_pv_cap[i]
+                              for i in range(len(self.house))}
 
         #----------------------------------------------------------------------#
         # Lifetime                                                             #
@@ -90,9 +83,6 @@ class Model_1:
         # Electricity Demand                                                   #
         #----------------------------------------------------------------------#
 
-        #Household Types
-        self.house = self.data['rent_cap'].columns.to_numpy()[1::]
-
         # Demand
         self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
         self.demand_2 = self.data['elec_demand (2)'].iloc[:, 1:].to_numpy()
@@ -100,25 +90,15 @@ class Model_1:
         self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
         self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
 
-        self.demand = {
-            'Type 1': self.demand_1.tolist(),
-            'Type 2': self.demand_2.tolist(),
-            'Type 3': self.demand_3.tolist(),
-            'Type 4': self.demand_4.tolist(),
-            'Type 5': self.demand_5.tolist()
-        }
+        self.demand = {f'Type {i+1}': 
+                       self.data[f'elec_demand ({i+1})'].iloc[:, 1:]. to_numpy()
+                       for i in range(len(self.house))}
         
         
         # Surplus
-        # Positive surplus can be fed-in, negative surplus is additional demand
-        self.surplus = {
-            'Type 1': self.demand_1.tolist(),
-            'Type 2': self.demand_2.tolist(),
-            'Type 3': self.demand_3.tolist(),
-            'Type 4': self.demand_4.tolist(),
-            'Type 5': self.demand_5.tolist()
-        }
+        self.surplus = self.demand.copy()
         
+        # Positive surplus can be fed-in, negative surplus is additional demand     
         for h in self.surplus: # house type
             for i in range(len(self.surplus[h])): # days
                 for j in range(len(self.surplus[h][i])): #hours
@@ -181,7 +161,8 @@ class Model_1:
                             name='retiredCap', lb = 0)
 
         soc = m.addVars(self.years, self.days, self.hours, 
-                        name='SoC', lb = 0)
+                        name='SoC', lb
+                        = 0)
 
         h_weight = m.addVars(self.house, self.years, 
                              name='houseWeight', lb = 0, vtype=GRB.INTEGER)
@@ -303,7 +284,7 @@ class Model_1:
         #----------------------------------------------------------------------#
         
         # Auxiliary minimum constraints
-        M = 15000
+        M = 1000000
         m.addConstrs(((aux_min[i, y, d, h] <=
                        feed_in[i, y, d, h])
                       for i in self.house
@@ -411,7 +392,7 @@ class Model_1:
                       "Max house cap"
             )
         
-        #----------------------------------------------------------------------#
+        #--------------------------------------f--------------------------------#
         # Generation Capacity                                                  #
         #----------------------------------------------------------------------#
 
@@ -528,9 +509,10 @@ class Model_1:
         #----------------------------------------------------------------------#
         # Heat Rate                                                            #
         #----------------------------------------------------------------------#
-        M = 10000
+        M = 100000
         e = 0.01
         
+        '''
         m.addConstrs(((d_cons[y, d, h] ==
                        disp['Diesel Generator', y, d, h]
                        * self.heat_r_k[1])
@@ -632,7 +614,7 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name="case 3.2")
-        '''
+        
         #----------------------------------------------------------------------#
         # Battery Operation                                                    #
         #----------------------------------------------------------------------#

@@ -28,7 +28,7 @@ model.load_data()
 #                                                                               #
 #-------------------------------------------------------------------------------#
 fit = 0.05
-el_price = 0.4
+el_price = 0.4 
 
 model.solve(fit=fit, elec_price=el_price)
 
@@ -39,4 +39,5 @@ model.solve(fit=fit, elec_price=el_price)
 #-------------------------------------------------------------------------------#
 func.output_data(model, 2)
 #func.plot_data(results)
-func.to_xlsx(model)
+if input("Save results as xlsx? {y/n}") == "y":
+    func.to_xlsx(model)
