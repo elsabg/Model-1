@@ -84,12 +84,6 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         # Demand
-        self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
-        self.demand_2 = self.data['elec_demand (2)'].iloc[:, 1:].to_numpy()
-        self.demand_3 = self.data['elec_demand (3)'].iloc[:, 1:].to_numpy()
-        self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
-        self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
-
         self.demand = {f'Type {i+1}': 
                        self.data[f'elec_demand ({i+1})'].iloc[:, 1:]. to_numpy()
                        for i in range(len(self.house))}
