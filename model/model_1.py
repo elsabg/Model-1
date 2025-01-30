@@ -46,7 +46,7 @@ class Model_1:
         self.cap_fact = self.data['cap_factors'].iloc[:, 1:].to_numpy()
 
         #Capacities accessible via strings
-        self.house = self.data['rent_cap'].columns.to_numpy()[1:4]
+        self.house = self.data['rent_cap'].columns.to_numpy()[1:5]
         
         self.max_house_str = {f'Type {i+1}' : self.max_house[i]
                               for i in range(len(self.house))}
@@ -441,6 +441,7 @@ class Model_1:
             ),
             "Retirement after initial capacity"
         )
+        
 
         m.addConstrs(
             (
@@ -451,7 +452,7 @@ class Model_1:
             ),
             "Retirement between initial capacity and life"
         )
-        
+
         #----------------------------------------------------------------------#
         # Dispatch                                                             #
         #----------------------------------------------------------------------#
