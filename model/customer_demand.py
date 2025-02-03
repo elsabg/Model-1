@@ -2,6 +2,11 @@ import numpy as np
 from gurobipy import *
 from matplotlib import pyplot as plt
 
+
+from matplotlib.ticker import FixedLocator, FuncFormatter
+
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['font.serif'] = 'Times New Roman'
 #--------------------------------------------------------------------------------#
 #                                                                                #
 # calculate the residual (without PV) demand and feed in of all households       #
@@ -130,6 +135,40 @@ def calc_disp_price_steps(self):
         price_steps[i] = delta_p0 * (i + 1)
     return disp_steps_year, disp_steps_month, price_steps
 
+def plot_demand(self):
+    hours = np.arange(24)
+    fig1, axs1 = plt.subplots(figsize=(10, 8))
+    axs1.plot(hours, self.res_demand['Type 1'][0], label='Summer', color='orange',marker='o', linewidth=4)
+    axs1.plot(hours, self.res_demand['Type 1'][1], label='Spring/Autumn', color='darkred', marker='o', linewidth=4)
+    axs1.plot(hours, self.res_demand['Type 1'][2], label='Winter', marker='o', linewidth=4)
+    fig1.suptitle("Consumer", fontsize=35)
+    #axs1.legend(loc='lower right', fontsize=30)
+
+    fig2, axs2 = plt.subplots(figsize=(10, 8))
+    axs2.plot(hours, self.res_demand['Type 2'][0], label='Summer', color='orange',marker='o', linewidth=4)
+    axs2.plot(hours, self.res_demand['Type 2'][1],  label='Spring/Autumn',color='darkred', marker='o', linewidth=4)
+    axs2.plot(hours, self.res_demand['Type 2'][2], label='Winter', marker='o', linewidth=4)
+    fig2.suptitle("Prosumer", fontsize=35)
+    axs2.legend(loc='upper center', fontsize=30)
+
+
+
+    for ax in [axs1, axs2]:
+        ax.set_ylabel('Grid Demand (kWh)', fontsize=30)
+        ax.set_xlabel('Hour of Day (h)', fontsize=30)
+        ax.set_ylim(bottom=0, top = 1.1 * max(self.res_demand['Type 1'][0]))
+        ax.set_xticks(hours[::4])
+        ax.set_xticklabels(hours[::4], fontsize=30)
+        ax.tick_params(axis='y', labelsize=30)  # Set y-tick label size
+
+        ax.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
+
+    fig1.savefig('plots/demandCons')
+    fig2.savefig('plots/demandPros')
+    fig1.tight_layout()
+    fig2.tight_layout()
+
+    plt.show()
 
 def plot_households(self):
     fig, axs = plt.subplots(2, 2, figsize=(10, 8))

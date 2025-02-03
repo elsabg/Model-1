@@ -32,6 +32,7 @@ el_price = 0.39
 # single model run                                                              #
 #                                                                               #
 #-------------------------------------------------------------------------------#
+
 run_model = input("Single Model Run? (No: [Enter],Yes: [y], Only show results: [r]):")
 if run_model == 'y':
     heatrate_c_run = input("Run model with heatrate curve? (No: [Enter], Yes: [y]):")
@@ -48,7 +49,8 @@ elif run_model == 'r':
 # multiple model runs                                                           #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-data_weights = pd.read_excel('model_inputs_testing_v3.xlsx', sheet_name='day_weights')
+
+data_weights = pd.read_excel('model_inputs_testing_v4.xlsx', sheet_name='day_weights')
 day_weights = data_weights['Weight'].to_numpy()
 
 num_runs = 30
@@ -61,6 +63,10 @@ if ud_runs == 'y':
     func.ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights)
 
 elif ud_runs == 'r':
+    save_fig = input("Save figure? (No: [Enter], Yes: [y]):")
+    if save_fig == 'y':
+        for i in range(15):
+            func.print_ud_curve(ud_penalty_max, num_runs, i, 'save')
     func.print_ud_curve(ud_penalty_max, num_runs, 1)
 
 
