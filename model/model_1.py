@@ -7,7 +7,9 @@ Created on Tue Oct  8 21:51:57 2024
 
 import numpy as np
 import pandas as pd
-from gurobipy import *
+from gurobipy import quicksum
+from gurobipy import GRB
+from gurobipy import Model
 
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
