@@ -110,6 +110,7 @@ class Model_1:
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
 
         self.i = self.data['parameters']['Interest rate'][0]
+        self.i = 0.02
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
 
         #----------------------------------------------------------------------#
