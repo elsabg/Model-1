@@ -26,21 +26,31 @@ model.load_data()
 # test model run                                                                #
 #                                                                               #
 #-------------------------------------------------------------------------------#
-best_model = 0
-best_model_obj = 0
-best_fit = 0
-best_el_price = 0
 
-for fit in range(0, 11):
-    for el_price in range(1, 41):
-        fit = fit / 100
-        el_price = el_price / 100
-        model.solve(fit=fit, elec_price=el_price)
-        if model.m.getObjective().getValue() > best_model_obj:
-            best_model = model
-            best_fit = fit
-            best_el_price = el_price
-            best_model_obj = model.m.getObjective().getValue()
+# Single run
+if input('Grid Search? y/n: ') == 'n':
+    fit = 0.01
+    el_price = 0.4
+    model.solve(fit=fit, elec_price=el_price)
+    best_model = model
+ 
+# Grid search
+else:
+    best_model = 0
+    best_model_obj = 0
+    best_fit = 0
+    best_el_price = 0
+    
+    for fit in range(0, 11):
+        for el_price in range(1, 41):
+            fit = fit / 100
+            el_price = el_price / 100
+            model.solve(fit=fit, elec_price=el_price)
+            if model.m.getObjective().getValue() > best_model_obj:
+                best_model = model
+                best_fit = fit
+                best_el_price = el_price
+                best_model_obj = model.m.getObjective().getValue()
 
 #-------------------------------------------------------------------------------#
 #                                                                               #
