@@ -50,11 +50,13 @@ def single_modelrun(model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasti
         data['unmet_demand_' + str(y + 1)] = pd.DataFrame(unmetD[y])
         data['battery_input_' + str(y + 1)] = pd.DataFrame(bat_in[y])
         data['battery_output_' + str(y + 1)] = pd.DataFrame(bat_out[y])
-        data['state_of_charge_' + str(y + 1)] = pd.DataFrame(state_of_charge[y])
+        data['state_of_charge_' +
+             str(y + 1)] = pd.DataFrame(state_of_charge[y])
         data['total_demand_' + str(y + 1)] = pd.DataFrame(total_demand[y])
         # data['price_binary_' + str(y + 1)] = pd.DataFrame(price_binary[y])
         for d in range(3):
-            data['heat_rate_binary_' + str(y + 1) + '_' + str(d + 1)] = pd.DataFrame(heat_rate_binary[y][d])
+            data['heat_rate_binary_' +
+                 str(y + 1) + '_' + str(d + 1)] = pd.DataFrame(heat_rate_binary[y][d])
             # data['pros_feedin_'+str(d+1)] = pd.DataFrame(pros_feedin[d])
             # data['res_Demand_'+str(d+1)] = pd.DataFrame(res_Demand[d])
 
@@ -74,7 +76,8 @@ def show_singlerun_data(data):
 
     while True:
         showyear = input("Year:(1-15):")
-        plot_days_seperate(get_timeseries(data, int(showyear) - 1), int(showyear) - 1)
+        plot_days_seperate(get_timeseries(
+            data, int(showyear) - 1), int(showyear) - 1)
 
 
 def calc_lcoe_pv(filename):
@@ -85,19 +88,22 @@ def calc_lcoe_pv(filename):
     mean_values = np.zeros(3)
     for i in range(3):
         mean_values[i] = np.mean(cap_factors[i][1:])
-    cap_fac = mean_values[0] * 0.25 + mean_values[1] * 0.5 + mean_values[2] * 0.25
+    cap_fac = mean_values[0] * 0.25 + \
+        mean_values[1] * 0.5 + mean_values[2] * 0.25
     interest_r = parameters['Interest rate'][0]
     lifetime = tech_values['Lifetime'][1]
     capex = tech_values['UCC'][1]
     ofc = tech_values['UOFC'][1]
     ovc = tech_values['UOVC'][1]
 
-    alpha = (((1 + interest_r)**lifetime)*interest_r)/(((1 + interest_r)**lifetime)-1)
+    alpha = (((1 + interest_r)**lifetime)*interest_r) / \
+        (((1 + interest_r)**lifetime)-1)
     return ((capex * alpha + ofc) / (cap_fac * 8760)) + ovc
 
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
 # Print Single Model Run Results in Console                                      #
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
+
 
 def show_tables(tables):
     '''Print Tabels Installed Added Retired Capacity and Number of Households'''
@@ -113,10 +119,12 @@ def show_tables(tables):
     )
 
     pros_demandarray = pd.DataFrame(
-        pros_demandarray, columns= ['Yearly Demand', 'Supressed/Unmet Demand', 'Wasted PV Energy']
+        pros_demandarray, columns=['Yearly Demand',
+                                   'Supressed/Unmet Demand', 'Wasted PV Energy']
     )
 
-    names = ['Diesel Generator', 'Owned PV', 'Batteries (kw)', 'Batteries Capacity (kWh)']
+    names = ['Diesel Generator', 'Owned PV',
+             'Batteries (kw)', 'Batteries Capacity (kWh)']
     inst.index = names
     added.index = names
     ret.index = names
@@ -133,6 +141,7 @@ def show_tables(tables):
     print('\n-----------Comparison Grid Connection-----------\n')
     print(pros_demandarray)
     return
+
 
 def show_binaries(binaries, year, day):
     '''Show the binary variables of Heatrate and Price Elasticity'''
@@ -152,9 +161,10 @@ def show_binaries(binaries, year, day):
     print(quantity_binary)
     return
 
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
 # Plot Single Model Run Results                                                  #
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
+
 
 def plot_days_seperate(timeseriesArray, year, s='plot'):
     '''plot or save all days of a year'''
@@ -168,12 +178,17 @@ def plot_days_seperate(timeseriesArray, year, s='plot'):
     # Create a function to plot each season
     def plot_season(ax, disp_gen, disp_pv, disp_feedin, bat_out, bat_in, unmetD, total_demand, season):
         ax.bar(hours, disp_gen, label='Diesel Generator', color='indianred')
-        ax.bar(hours, disp_pv, bottom=disp_gen + bat_out, label='Microgrid-Owned PV', color='orange')
-        ax.bar(hours, disp_feedin, bottom=disp_gen + bat_out + disp_pv, label='Prosumer PV (Feed-in)', color='yellow')
-        ax.bar(hours, bat_out, bottom=disp_gen, label='Battery Output', color='plum')
+        ax.bar(hours, disp_pv, bottom=disp_gen + bat_out,
+               label='Microgrid-Owned PV', color='orange')
+        ax.bar(hours, disp_feedin, bottom=disp_gen + bat_out +
+               disp_pv, label='Prosumer PV (Feed-in)', color='yellow')
+        ax.bar(hours, bat_out, bottom=disp_gen,
+               label='Battery Output', color='plum')
         ax.bar(hours, -bat_in, label='Battery Input', color='limegreen')
-        ax.bar(hours, unmetD, bottom=disp_gen + bat_out + disp_pv + disp_feedin, label='Unmet Demand', color='deepskyblue')
-        ax.plot(hours, total_demand-unmetD, label='Supplied Demand', color='black', linestyle='-', marker='o', markersize=8, linewidth=5)
+        ax.bar(hours, unmetD, bottom=disp_gen + bat_out + disp_pv +
+               disp_feedin, label='Unmet Demand', color='deepskyblue')
+        ax.plot(hours, total_demand-unmetD, label='Supplied Demand',
+                color='black', linestyle='-', marker='o', markersize=8, linewidth=5)
         ax.set_title(f'{season}', fontsize=30)
         return ax
 
@@ -200,9 +215,9 @@ def plot_days_seperate(timeseriesArray, year, s='plot'):
                       'Autumn')
     max_y_value = max(max_y_value, ax3.get_ylim()[1])
     min_y_value = min(min_y_value, ax3.get_ylim()[0])
-    #ax3.legend(loc='upper left', bbox_to_anchor=(1, 0.75), fontsize=25)
+    # ax3.legend(loc='upper left', bbox_to_anchor=(1, 0.75), fontsize=25)
 
-    #ax3lim = ax3.get_ylim()[1]
+    # ax3lim = ax3.get_ylim()[1]
 
     # Plot Winter
     fig4, ax4 = plt.subplots(figsize=(10, 8))
@@ -217,11 +232,13 @@ def plot_days_seperate(timeseriesArray, year, s='plot'):
         ax.set_ylabel('Energy in kWh', fontsize=25)
         ax.set_xticks(hours[::4])
         ax.set_xticklabels(hours[::4], fontsize=25)
-        ax.set_ylim(math.floor(min_y_value / 100) * 100, math.ceil(max_y_value / 100) * 100)
+        ax.set_ylim(math.floor(min_y_value / 100) * 100,
+                    math.ceil(max_y_value / 100) * 100)
         ax.yaxis.set_major_locator(
             FixedLocator(np.arange(math.floor(min_y_value / 100) * 100, math.ceil(max_y_value / 100) * 100 + 100, 200)))
         ax.set_yticklabels(ax.get_yticks(), fontsize=25)
-        ax.get_yaxis().set_major_formatter(FuncFormatter(lambda x, p: '{:,}'.format(int(x)).replace(",", " ")))
+        ax.get_yaxis().set_major_formatter(FuncFormatter(
+            lambda x, p: '{:,}'.format(int(x)).replace(",", " ")))
 
         ax.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
 
@@ -239,16 +256,21 @@ def plot_days_seperate(timeseriesArray, year, s='plot'):
         fig.tight_layout()
 
     if s == 'save':
-        fig1.savefig('plots/timeseries/'+str(year)+'_year_timeseries_spring.png')
-        fig2.savefig('plots/timeseries/' + str(year) + '_year_timeseries_summer.png')
-        fig3.savefig('plots/timeseries/' + str(year) + '_year_timeseries_autumn.png')
-        fig4.savefig('plots/timeseries/' + str(year) + '_year_timeseries_winter.png')
+        fig1.savefig('plots/timeseries/'+str(year) +
+                     '_year_timeseries_spring.png')
+        fig2.savefig('plots/timeseries/' + str(year) +
+                     '_year_timeseries_summer.png')
+        fig3.savefig('plots/timeseries/' + str(year) +
+                     '_year_timeseries_autumn.png')
+        fig4.savefig('plots/timeseries/' + str(year) +
+                     '_year_timeseries_winter.png')
     else:
         plt.show()
 
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
 # Save/Read results to/from excel file                                           #
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
+
 
 def save_results(results):
     '''Save the results arrays to an excel file'''
@@ -260,24 +282,34 @@ def save_results(results):
     save_array2d_to_excel(inst, 'results.xlsx', 'installed_capacity')
     save_array2d_to_excel(added, 'results.xlsx', 'added_capacity')
 
-    [save_array2d_to_excel(disp_gen[y], 'results.xlsx', 'dispatched_generation_' + str(y + 1)) for y in range(len(disp_gen))]
-    [save_array2d_to_excel(disp_pv[y], 'results.xlsx', 'dispatched_pv_' + str(y + 1)) for y in range(len(disp_pv))]
-    [save_array2d_to_excel(disp_feedin[y], 'results.xlsx', 'dispatched_feedin_' + str(y + 1)) for y in range(len(disp_feedin))]
-    [save_array2d_to_excel(unmetD[y], 'results.xlsx', 'unmet_demand_' + str(y + 1)) for y in range(len(unmetD))]
-    [save_array2d_to_excel(bat_in[y], 'results.xlsx', 'battery_input_' + str(y + 1)) for y in range(len(bat_in))]
-    [save_array2d_to_excel(bat_out[y], 'results.xlsx', 'battery_output_' + str(y + 1)) for y in range(len(bat_out))]
-    [save_array2d_to_excel(state_of_charge[y], 'results.xlsx', 'state_of_charge_' + str(y + 1)) for y in range(len(state_of_charge))]
-    [save_array2d_to_excel(total_demand[y], 'results.xlsx', 'total_demand_' + str(y + 1)) for y in range(len(total_demand))]
+    [save_array2d_to_excel(disp_gen[y], 'results.xlsx',
+                           'dispatched_generation_' + str(y + 1)) for y in range(len(disp_gen))]
+    [save_array2d_to_excel(disp_pv[y], 'results.xlsx',
+                           'dispatched_pv_' + str(y + 1)) for y in range(len(disp_pv))]
+    [save_array2d_to_excel(disp_feedin[y], 'results.xlsx',
+                           'dispatched_feedin_' + str(y + 1)) for y in range(len(disp_feedin))]
+    [save_array2d_to_excel(unmetD[y], 'results.xlsx',
+                           'unmet_demand_' + str(y + 1)) for y in range(len(unmetD))]
+    [save_array2d_to_excel(bat_in[y], 'results.xlsx',
+                           'battery_input_' + str(y + 1)) for y in range(len(bat_in))]
+    [save_array2d_to_excel(bat_out[y], 'results.xlsx',
+                           'battery_output_' + str(y + 1)) for y in range(len(bat_out))]
+    [save_array2d_to_excel(state_of_charge[y], 'results.xlsx',
+                           'state_of_charge_' + str(y + 1)) for y in range(len(state_of_charge))]
+    [save_array2d_to_excel(total_demand[y], 'results.xlsx',
+                           'total_demand_' + str(y + 1)) for y in range(len(total_demand))]
 
     save_array2d_to_excel(num_households, 'results.xlsx', 'num_households')
     save_array2d_to_excel(price_binary, 'results.xlsx', 'price_binary')
     save_array2d_to_excel(quantity_binary, 'results.xlsx', 'quantity_binary')
     save_array2d_to_excel(pros_demandarray, 'results.xlsx', 'pros_demandarray')
-    #[save_array2d_to_excel(pros_feedin[d], 'results.xlsx', 'pros_feedin_'+str(d+1)) for d in range(3)]
-    #[save_array2d_to_excel(res_Demand[d], 'results.xlsx', 'res_Demand_'+str(d+1)) for d in range(3)]
-    for y in range (15):
-        [save_array2d_to_excel(heat_rate_binary[y][d], 'results.xlsx', 'heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
-        #save_array2d_to_excel(price_binary[y], 'results.xlsx', 'price_binary_' + str(y + 1))
+    # [save_array2d_to_excel(pros_feedin[d], 'results.xlsx', 'pros_feedin_'+str(d+1)) for d in range(3)]
+    # [save_array2d_to_excel(res_Demand[d], 'results.xlsx', 'res_Demand_'+str(d+1)) for d in range(3)]
+    for y in range(15):
+        [save_array2d_to_excel(heat_rate_binary[y][d], 'results.xlsx',
+                               'heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
+        # save_array2d_to_excel(price_binary[y], 'results.xlsx', 'price_binary_' + str(y + 1))
+
 
 def save_array2d_to_excel(array2d, file_name, s_name):
     '''Save a 2D array to an excel file'''
@@ -290,6 +322,7 @@ def save_array2d_to_excel(array2d, file_name, s_name):
     with pd.ExcelWriter(file_name, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
         df_array2d.to_excel(writer, sheet_name=s_name, index=False)
 
+
 def get_results(file_name):
     '''Read the results from an excel file'''
     return pd.read_excel(file_name, decimal=',', sheet_name=None)
@@ -297,26 +330,31 @@ def get_results(file_name):
 
 def get_timeseries(data, year):
     '''Get the timeseries arrays from the dataframe'''
-    disp_gen = data['dispatched_generation_'+ str(year + 1)].iloc[:,:].to_numpy()
-    disp_pv = data['dispatched_pv_'+ str(year + 1)].iloc[:, :].to_numpy()
-    disp_feedin = data['dispatched_feedin_'+ str(year + 1)].iloc[:,:].to_numpy()
-    unmetD = data['unmet_demand_'+ str(year + 1)].iloc[:,:].to_numpy()
-    bat_in = data['battery_input_'+ str(year + 1)].iloc[:, :].to_numpy()
-    bat_out = data['battery_output_'+ str(year + 1)].iloc[:, :].to_numpy()
-    state_of_charge = data['state_of_charge_'+ str(year + 1)].iloc[:, :].to_numpy()
-    total_demand = data['total_demand_'+ str(year + 1)].iloc[:, :].to_numpy()
+    disp_gen = data['dispatched_generation_' +
+                    str(year + 1)].iloc[:, :].to_numpy()
+    disp_pv = data['dispatched_pv_' + str(year + 1)].iloc[:, :].to_numpy()
+    disp_feedin = data['dispatched_feedin_' +
+                       str(year + 1)].iloc[:, :].to_numpy()
+    unmetD = data['unmet_demand_' + str(year + 1)].iloc[:, :].to_numpy()
+    bat_in = data['battery_input_' + str(year + 1)].iloc[:, :].to_numpy()
+    bat_out = data['battery_output_' + str(year + 1)].iloc[:, :].to_numpy()
+    state_of_charge = data['state_of_charge_' +
+                           str(year + 1)].iloc[:, :].to_numpy()
+    total_demand = data['total_demand_' + str(year + 1)].iloc[:, :].to_numpy()
 
     return [disp_gen, disp_pv, disp_feedin, unmetD, bat_in, bat_out, state_of_charge, total_demand]
 
+
 def get_tabels(data):
     '''Get the tables from the dataframe'''
-    ret = data['retired_capacity'].iloc[:,:].to_numpy()
-    inst = data['installed_capacity'].iloc[:,:].to_numpy()
-    added = data['added_capacity'].iloc[:,:].to_numpy()
-    num_households = data['num_households'].iloc[:,:].to_numpy()
-    pros_demandarray = data['pros_demandarray'].iloc[:,:].to_numpy()
+    ret = data['retired_capacity'].iloc[:, :].to_numpy()
+    inst = data['installed_capacity'].iloc[:, :].to_numpy()
+    added = data['added_capacity'].iloc[:, :].to_numpy()
+    num_households = data['num_households'].iloc[:, :].to_numpy()
+    pros_demandarray = data['pros_demandarray'].iloc[:, :].to_numpy()
 
     return [ret, inst, added, num_households, pros_demandarray]
+
 
 def get_binaries(data):
     '''Get the binary variables from the dataframe'''
@@ -324,15 +362,16 @@ def get_binaries(data):
     price_binary = data['price_binary'].iloc[:, :].to_numpy()
     quantity_binary = data['quantity_binary'].iloc[:, :].to_numpy()
     for y in range(15):
-        #price_binary[y] = data['price_binary_' + str(y + 1)].iloc[:, :].to_numpy()
+        # price_binary[y] = data['price_binary_' + str(y + 1)].iloc[:, :].to_numpy()
         for d in range(3):
-            heat_rate_binary[y][d] = data['heat_rate_binary_' + str(y + 1) + '_' + str(d + 1)].iloc[:, :].to_numpy()
+            heat_rate_binary[y][d] = data['heat_rate_binary_' +
+                                          str(y + 1) + '_' + str(d + 1)].iloc[:, :].to_numpy()
     return [heat_rate_binary, price_binary, quantity_binary]
 
 
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
 # Multi Model Runs for Unmet Demand Penalty                                      #
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
 
 def sum_year(nparray, year, d_weights):
     '''Sum up values of np array over a year'''
@@ -342,13 +381,12 @@ def sum_year(nparray, year, d_weights):
     return sum
 
 
-
 def ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights):
     ud_penalty = np.round(np.linspace(0, ud_penalty_max, num_runs), 5)
-    #ud_penalty = np.linspace(0, ud_penalty_max, num_runs)
+    # ud_penalty = np.linspace(0, ud_penalty_max, num_runs)
     for i in range(num_runs):
         results = model.solve(fit=fit, elec_price=el_price, ud_penalty=ud_penalty[i],
-                              heatrate_c_run = 'y', dem_elasticity_c_run = 'n')
+                              heatrate_c_run='y', dem_elasticity_c_run='n')
         (ret, inst, added, disp_gen, disp_pv, disp_feedin,
          unmetD, bat_in, bat_out, state_of_charge, num_households,
          heat_rate_binary, price_binary, quantity_binary, total_demand,
@@ -357,7 +395,8 @@ def ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights):
         unmetD_year = np.array(
             [[sum_year(unmetD, y, day_weights), num_households[0, y], num_households[1, y]]
              for y in range(num_households.shape[1])])
-        save_array2d_to_excel(unmetD_year, 'multirun_results.xlsx', 'unmetD_year_' + str(ud_penalty[i]))
+        save_array2d_to_excel(
+            unmetD_year, 'multirun_results.xlsx', 'unmetD_year_' + str(ud_penalty[i]))
 
     save_fig = input("Save figure? (No: [Enter], Yes: [y]):")
     if save_fig == 'y':
@@ -365,25 +404,29 @@ def ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights):
             print_ud_curve(ud_penalty_max, num_runs, i, 'save')
     print_ud_curve(ud_penalty_max, num_runs, 1)
 
-def print_ud_curve(ud_penalty_max, num_runs, year, s = 'plot'):
+
+def print_ud_curve(ud_penalty_max, num_runs, year, s='plot'):
     '''Print the PV fit curve'''
     ud_penalty = np.round(np.linspace(0, ud_penalty_max, num_runs), 5)
     base_penalty = ud_penalty[np.abs(ud_penalty - 0.1).argmin()]
-    #ud_penalty = np.linspace(0, ud_penalty_max, num_runs)
+    # ud_penalty = np.linspace(0, ud_penalty_max, num_runs)
     data = pd.read_excel('multirun_results.xlsx', sheet_name=None)
     unmetD = pd.DataFrame()
     num_consumers = pd.DataFrame()
     num_prosumers = pd.DataFrame()
 
     for i in range(num_runs):
-        unmetD['unmetD_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 0].to_numpy()
-        num_consumers['num_consumers_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 1].to_numpy()
-        num_prosumers['num_prosumers_fit_'+str(ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 2].to_numpy()
+        unmetD['unmetD_fit_'+str(ud_penalty[i])] = data['unmetD_year_' +
+                                                        str(ud_penalty[i])].iloc[:, 0].to_numpy()
+        num_consumers['num_consumers_fit_'+str(
+            ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 1].to_numpy()
+        num_prosumers['num_prosumers_fit_'+str(
+            ud_penalty[i])] = data['unmetD_year_'+str(ud_penalty[i])].iloc[:, 2].to_numpy()
     base_szenario_energy = unmetD['unmetD_fit_'+str(base_penalty)]
     base_szenario_cons = num_consumers['num_consumers_fit_'+str(base_penalty)]
     base_szenario_pros = num_prosumers['num_prosumers_fit_'+str(base_penalty)]
 
-    ## trendlines
+    # trendlines
     split_indices = [3, 6, 20, 29]
     x_start = np.zeros(3)
     x_end = np.zeros(3)
@@ -400,13 +443,18 @@ def print_ud_curve(ud_penalty_max, num_runs, year, s = 'plot'):
     ud_trend = [None, None, None]
 
     for i in range(3):
-        x_start[i], x_end[i] = ud_penalty[split_indices[i]], ud_penalty[int(split_indices[i + 1])]
-        numpros_start[i], numpros_end[i] = num_prosumers.iloc[year-1, split_indices[i]], num_prosumers.iloc[year- 1, int(split_indices[i + 1])]
-        ud_start[i], ud_end[i] = unmetD.iloc[year-1, split_indices[i]], unmetD.iloc[year-1, int(split_indices[i + 1])]
+        x_start[i], x_end[i] = ud_penalty[split_indices[i]
+                                          ], ud_penalty[int(split_indices[i + 1])]
+        numpros_start[i], numpros_end[i] = num_prosumers.iloc[year-1,
+                                                              split_indices[i]], num_prosumers.iloc[year - 1, int(split_indices[i + 1])]
+        ud_start[i], ud_end[i] = unmetD.iloc[year-1, split_indices[i]
+                                             ], unmetD.iloc[year-1, int(split_indices[i + 1])]
 
         # Compute average gradient (slope)
-        slope_num[i] = (numpros_end[i] - numpros_start[i]) / (x_end[i] - x_start[i])
-        intercept_num[i] = numpros_start[i] - slope_num[i] * x_start[i]  # y = mx + b
+        slope_num[i] = (numpros_end[i] - numpros_start[i]) / \
+            (x_end[i] - x_start[i])
+        intercept_num[i] = numpros_start[i] - \
+            slope_num[i] * x_start[i]  # y = mx + b
 
         slope_ud[i] = (ud_end[i] - ud_start[i]) / (x_end[i] - x_start[i])
         intercept_ud[i] = ud_start[i] - slope_ud[i] * x_start[i]  # y = mx + b
@@ -418,17 +466,20 @@ def print_ud_curve(ud_penalty_max, num_runs, year, s = 'plot'):
 
     ##
 
-
     fig1, ax1 = plt.subplots(figsize=(10, 8))
-    ax1.plot(ud_penalty, unmetD.iloc[year - 1] / 1000, label='Unmet Demand', color='darkorange', linewidth=4)
+    ax1.plot(ud_penalty, unmetD.iloc[year - 1] / 1000,
+             label='Unmet Demand', color='darkorange', linewidth=4)
 
     base_penalty_line = np.full(50, 0.1)
     energy_line = np.linspace(0, 950, 50)
-    ax1.plot(base_penalty_line, energy_line, color='black', linestyle=':', linewidth=3, label='Base Scenario')
-    ax1.plot(x_trend[0], ud_trend[0] / 1000, color='red', linestyle='--', linewidth=5)
-    ax1.plot(x_trend[1], ud_trend[1] / 1000, color='red', linestyle='--', linewidth=5)
-    ax1.plot(x_trend[2], ud_trend[2] / 1000, color='red', linestyle='--', linewidth=5)
-
+    ax1.plot(base_penalty_line, energy_line, color='black',
+             linestyle=':', linewidth=3, label='Base Scenario')
+    ax1.plot(x_trend[0], ud_trend[0] / 1000,
+             color='red', linestyle='--', linewidth=5)
+    ax1.plot(x_trend[1], ud_trend[1] / 1000,
+             color='red', linestyle='--', linewidth=5)
+    ax1.plot(x_trend[2], ud_trend[2] / 1000,
+             color='red', linestyle='--', linewidth=5)
 
     ax1.set_ylabel('Energy per Year in MWh', fontsize=25)
     ax1.set_ylim(bottom=0, top=950)
@@ -436,49 +487,54 @@ def print_ud_curve(ud_penalty_max, num_runs, year, s = 'plot'):
         FixedLocator(np.arange(0, 950, 100)))
     ax1.set_xlim(left=0)
 
-    #ax1.tick_params(axis='x', labelsize=10)
+    # ax1.tick_params(axis='x', labelsize=10)
     ax1.invert_yaxis()
     ax1.xaxis.set_ticks_position('top')
     ax1.xaxis.set_label_position('top')
 
     fig2, ax2 = plt.subplots(figsize=(10, 8))
-    ax2.plot(ud_penalty, num_consumers.iloc[year - 1], label='Consumers', color='blue', linewidth=4)
-    ax2.plot(ud_penalty, num_prosumers.iloc[year - 1], label='Prosumers', color='dimgrey', linewidth=4)
+    ax2.plot(ud_penalty, num_consumers.iloc[year - 1],
+             label='Consumers', color='blue', linewidth=4)
+    ax2.plot(ud_penalty, num_prosumers.iloc[year - 1],
+             label='Prosumers', color='dimgrey', linewidth=4)
 
     base_penalty_line = np.full(50, 0.1)
     house_line = np.linspace(0, 650, 50)
-    ax2.plot(base_penalty_line, house_line, color='black', linestyle=':', linewidth=3, label='Base Scenario')
-    ax2.plot(x_trend[0], numpros_trend[0], color='black', linestyle='--', linewidth=5)
-    ax2.plot(x_trend[1], numpros_trend[1], color='black', linestyle='--', linewidth=5)
-    ax2.plot(x_trend[2], numpros_trend[2], color='black', linestyle='--', linewidth=5)
+    ax2.plot(base_penalty_line, house_line, color='black',
+             linestyle=':', linewidth=3, label='Base Scenario')
+    ax2.plot(x_trend[0], numpros_trend[0],
+             color='black', linestyle='--', linewidth=5)
+    ax2.plot(x_trend[1], numpros_trend[1],
+             color='black', linestyle='--', linewidth=5)
+    ax2.plot(x_trend[2], numpros_trend[2],
+             color='black', linestyle='--', linewidth=5)
 
     ax2.set_ylabel('Number of Households', fontsize=25)
     ax2.set_xlabel('Penalty for Unmet Demand in $/kWh', fontsize=25)
     ax2.set_ylim(bottom=0, top=650)
     ax2.yaxis.set_major_locator(
         FixedLocator(np.arange(0, 650, 100)))
-    #ax2.set_yticks(ax2.get_yticks())
-    #ax2.set_yticklabels(ax2.get_yticks(), fontsize=25)
+    # ax2.set_yticks(ax2.get_yticks())
+    # ax2.set_yticklabels(ax2.get_yticks(), fontsize=25)
     ax2.set_ylim(bottom=0)
     ax2.set_xlim(left=0)
 
-    xticks = np.round(np.linspace(0, ud_penalty_max, math.ceil(10 * ud_penalty_max) + 1),1)
+    xticks = np.round(np.linspace(0, ud_penalty_max,
+                      math.ceil(10 * ud_penalty_max) + 1), 1)
     for ax in [ax1, ax2]:
         ax.set_xticks(xticks)
         ax.set_xticklabels(xticks, fontsize=25)
         ax.set_yticks(ax.get_yticks())
         ax.set_yticklabels(ax.get_yticks(), fontsize=25)
-        ax.get_yaxis().set_major_formatter(FuncFormatter(lambda x, p: '{:,}'.format(int(x)).replace(",", " ")))
+        ax.get_yaxis().set_major_formatter(FuncFormatter(
+            lambda x, p: '{:,}'.format(int(x)).replace(",", " ")))
 
         ax.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
-
-
 
     fig1.legend(loc='lower right', bbox_to_anchor=(0.95, 0.05), fontsize=25)
     fig2.legend(loc='upper right', bbox_to_anchor=(0.95, 0.9), fontsize=25)
     for fig in [fig1, fig2]:
         fig.tight_layout()
-
 
     if s == 'save':
         fig1.savefig('plots/unmet_demand/ud_energy_'+str(year)+'.png')
@@ -487,17 +543,15 @@ def print_ud_curve(ud_penalty_max, num_runs, year, s = 'plot'):
         plt.show()
 
 
-
-
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
 # old pv mulit runs                                                              #
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
 
 def pv_fit_modelruns(model, fit_max, num_runs, el_price, ud_penalty, day_weights):
     fit = np.round(np.linspace(0, fit_max, num_runs), 2)
     for i in range(num_runs):
         results = model.solve(fit=fit[i], elec_price=el_price, ud_penalty=ud_penalty,
-                              heatrate_c_run = 'y', dem_elasticity_c_run = 'n')
+                              heatrate_c_run='y', dem_elasticity_c_run='n')
         (ret, inst, added, disp_gen, disp_pv, disp_feedin,
          unmetD, bat_in, bat_out, state_of_charge, num_households,
          heat_rate_binary, price_binary, quantity_binary, total_demand,
@@ -507,8 +561,10 @@ def pv_fit_modelruns(model, fit_max, num_runs, el_price, ud_penalty, day_weights
             [sum_year(disp_pv, y, day_weights) for y in range(num_households.shape[1])])
         disp_feedin_year = np.array(
             [sum_year(disp_feedin, y, day_weights) for y in range(num_households.shape[1])])
-        save_array2d_to_excel(disp_pv_year, 'multirun_results.xlsx', 'disp_pv_year_' + str(fit[i]))
-        save_array2d_to_excel(disp_feedin_year, 'multirun_results.xlsx', 'disp_feedin_year_' + str(fit[i]))
+        save_array2d_to_excel(
+            disp_pv_year, 'multirun_results.xlsx', 'disp_pv_year_' + str(fit[i]))
+        save_array2d_to_excel(
+            disp_feedin_year, 'multirun_results.xlsx', 'disp_feedin_year_' + str(fit[i]))
 
     save_fig = input("Save figure? (No: [Enter], Yes: y):")
     if save_fig == 'y':
@@ -516,18 +572,23 @@ def pv_fit_modelruns(model, fit_max, num_runs, el_price, ud_penalty, day_weights
             print_pv_fit_curve(fit_max, num_runs, i, 'save')
     print_pv_fit_curve(fit_max, num_runs, 1)
 
-def print_pv_fit_curve(fit_max, num_runs, year, s = 'plot'):
+
+def print_pv_fit_curve(fit_max, num_runs, year, s='plot'):
     '''Print the PV fit curve'''
     fit = np.round(np.linspace(0, fit_max, num_runs), 2)
     data = pd.read_excel('multirun_results.xlsx', sheet_name=None)
     disp_pv = pd.DataFrame()
     disp_feedin = pd.DataFrame()
     for i in range(num_runs):
-        disp_pv['disp_pv_fit_'+str(fit[i])] = data['disp_pv_year_'+str(fit[i])].iloc[:, :].to_numpy().flatten()
-        disp_feedin['disp_feedin_fit_'+str(fit[i])] = data['disp_feedin_year_'+str(fit[i])].iloc[:, :].to_numpy().flatten()
+        disp_pv['disp_pv_fit_'+str(fit[i])] = data['disp_pv_year_' +
+                                                   str(fit[i])].iloc[:, :].to_numpy().flatten()
+        disp_feedin['disp_feedin_fit_'+str(fit[i])] = data['disp_feedin_year_'+str(
+            fit[i])].iloc[:, :].to_numpy().flatten()
     fig, ax = plt.subplots(figsize=(7, 5))
-    ax.plot(fit, disp_pv.iloc[year - 1] / 1000, label='Owned PV', color='orange', marker='o')
-    ax.plot(fit, disp_feedin.iloc[year -1] / 1000, label='Prosumer PV (Feed in)', color='gold', marker='o')
+    ax.plot(fit, disp_pv.iloc[year - 1] / 1000,
+            label='Owned PV', color='orange', marker='o')
+    ax.plot(fit, disp_feedin.iloc[year - 1] / 1000,
+            label='Prosumer PV (Feed in)', color='gold', marker='o')
     ax.set_xlabel('Feed in Tarif in $/kWh', fontsize=12)
     ax.set_ylabel('Dispatched PV Energy per Year in MWh', fontsize=12)
     ax.tick_params(axis='x', labelsize=10)
@@ -535,7 +596,7 @@ def print_pv_fit_curve(fit_max, num_runs, year, s = 'plot'):
     ax.set_yticklabels(ax.get_yticks(), fontsize=10)
     ax.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
     ax.legend(loc='upper left')
-    #ax.set_title('Year '+str(year+1), fontsize=14)
+    # ax.set_title('Year '+str(year+1), fontsize=14)
     ax.set_ylim(bottom=0)
     ax.set_xlim(left=0)
 

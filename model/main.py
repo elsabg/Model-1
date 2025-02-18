@@ -10,12 +10,12 @@ import pandas as pd
 import functions as func
 from model_1 import Model_1
 
-#-------------------------------------------------------------------------------#
+# -------------------------------------------------------------------------------#
 #                                                                               #
 # initialize model                                                              #
 #                                                                               #
-#-------------------------------------------------------------------------------#
-filename='model_inputs.xlsx'
+# -------------------------------------------------------------------------------#
+filename = 'model_inputs.xlsx'
 
 model = Model_1(_file_name=filename)
 model.load_data()
@@ -25,30 +25,34 @@ fit = lcoe_pv
 ud_penalty = 0.1
 el_price = 0.39
 
-#-------------------------------------------------------------------------------#
+# -------------------------------------------------------------------------------#
 #                                                                               #
 # single model run                                                              #
 #                                                                               #
-#-------------------------------------------------------------------------------#
+# -------------------------------------------------------------------------------#
 
-run_model = input("Single Model Run? (No: [Enter],Yes: [y], Only show results: [r]):")
+run_model = input(
+    "Single Model Run? (No: [Enter],Yes: [y], Only show results: [r]):")
 
 if run_model == 'y':
-    heatrate_c_run = input("Run model with heatrate curve? (No: [Enter], Yes: [y]):")
-    dem_elasticity_c_run = input("Run model with demand elasticity? (No: [Enter], Yes: [y]):")
+    heatrate_c_run = input(
+        "Run model with heatrate curve? (No: [Enter], Yes: [y]):")
+    dem_elasticity_c_run = input(
+        "Run model with demand elasticity? (No: [Enter], Yes: [y]):")
 
-    data = func.single_modelrun(model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasticity_c_run)
+    data = func.single_modelrun(
+        model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasticity_c_run)
     func.show_singlerun_data(data)
 
 elif run_model == 'r':
     data = func.get_results('results.xlsx')
     func.show_singlerun_data(data)
 
-#-------------------------------------------------------------------------------#
+# -------------------------------------------------------------------------------#
 #                                                                               #
 # multiple model runs                                                           #
 #                                                                               #
-#-------------------------------------------------------------------------------#
+# -------------------------------------------------------------------------------#
 
 data_weights = pd.read_excel(filename, sheet_name='day_weights')
 day_weights = data_weights['Weight'].to_numpy()
@@ -57,10 +61,12 @@ num_runs = 30
 ud_penalty_max = 0.5
 feedin_max = 0.1
 
-ud_runs = input("Unmet Demand multiple Model runs? (No: [Enter],Yes: [y], Only show results: [r]):")
+ud_runs = input(
+    "Unmet Demand multiple Model runs? (No: [Enter],Yes: [y], Only show results: [r]):")
 
 if ud_runs == 'y':
-    func.ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights)
+    func.ud_modelruns(model, ud_penalty_max, num_runs,
+                      el_price, fit, day_weights)
 
 elif ud_runs == 'r':
     save_fig = input("Save figure? (No: [Enter], Yes: [y]):")
@@ -77,10 +83,3 @@ if pv_fit_runs == 'y':
 elif pv_fit_runs == 'r':
     func.print_pv_fit_curve(feedin_max, num_runs, 1)
 '''
-
-
-
-
-
-
-
