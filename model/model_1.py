@@ -21,7 +21,6 @@ class Model_1:
     def __init__(self, _file_name):
         self._file_name=_file_name
 
-    #loading model parameters
     def load_data(self):
         'read the excel file'
 
@@ -53,18 +52,10 @@ class Model_1:
         self.max_house_str = {
             'Type 1': self.max_house[0],
             'Type 2': self.max_house[1],
-            #'Type 3': self.max_house[2],
-            #'Type 4': self.max_house[3],
-            #'Type 5': self.max_house[4],
-            #'Type 6': self.max_house[5]
         }
         self.avg_pv_cap_str = {
             'Type 1': self.avg_pv_cap[0],
             'Type 2': self.avg_pv_cap[1],
-            #'Type 3': self.avg_pv_cap[2],
-            #'Type 4': self.avg_pv_cap[3],
-            #'Type 5': self.avg_pv_cap[4],
-            #'Type 6': self.avg_pv_cap[5]
         }
 
         #-------------------------------------------------------------------------------#
@@ -87,9 +78,6 @@ class Model_1:
         self.uofc = self.tech_df['UOFC'].to_dict()
         self.uovc = self.tech_df['UOVC'].to_dict()
 
-        #Unmet demand
-        #self.ud_penalty = self.data['parameters']['Unmet demand penalty'][0]
-
         #fixed heat rate value
         self.heat_r_v = 0.30
 
@@ -111,32 +99,22 @@ class Model_1:
         #Demand
         self.demand_1 = self.data['elec_demand (1)'].iloc[:, 1:].to_numpy()
         self.demand_2 = self.data['elec_demand (2)'].iloc[:, 1:].to_numpy()
-        #self.demand_3 = self.data['elec_demand (3)'].iloc[:, 1:].to_numpy()
-        #self.demand_4 = self.data['elec_demand (4)'].iloc[:, 1:].to_numpy()
-        #self.demand_5 = self.data['elec_demand (5)'].iloc[:, 1:].to_numpy()
-        #self.demand_6 = self.data['elec_demand (6)'].iloc[:, 1:].to_numpy()
 
 
         # Residual Demand (without PV)
         self.res_demand = {
             'Type 1': self.demand_1.tolist(),
             'Type 2': self.demand_2.tolist(),
-            #'Type 3': self.demand_3.tolist(),
-            #'Type 4': self.demand_4.tolist(),
-            #'Type 5': self.demand_5.tolist(),
-            #'Type 6': self.demand_6.tolist()
         }
 
         # feed in energy from prosumers
         self.pros_feedin = {
             'Type 1': np.zeros((self.demand_1.shape[0], self.demand_1.shape[1])),
             'Type 2': np.zeros((self.demand_1.shape[0], self.demand_1.shape[1])),
-            #'Type 3': self.demand_3.tolist(),
-            #'Type 4': self.demand_4.tolist(),
-            #'Type 5': self.demand_5.tolist(),
-            #'Type 6': self.demand_6.tolist()
         }
 
+        # unmet demand per Prosumer Household
+        self.ud_pros = self.data['ud_pros'].iloc[:, 1:].to_numpy()
 
         #-------------------------------------------------------------------------------#
         # Battery and other Parameters                                                  #
@@ -161,26 +139,19 @@ class Model_1:
         self.pv_landuse = 8 #m^2/kw
         self.pv_land = 10000 #m^2 (1/200 of toatl availiable land)
 
+
         #-------------------------------------------------------------------------------#
-        # Calculations                                                                  #
+        #                                                                               #
+        # Pre Model Run- Calculations                                                   #
+        #                                                                               #
         #-------------------------------------------------------------------------------#
 
         cd.calc_pros_demand_feedin(self)
 
-        # cd.calc_res_demand(self)
-        # cd.calc_pros_feedin(self)
-        '''
-        self.max_feedin = np.zeros(self.days)
-        for h_type in self.pros_feedin:
-            for d in range(self.days):
-                for h in range(self.hours):
-                    self.max_feedin[d] += self.pros_feedin[h_type][d][h] * self.max_house_str[h_type]
+        #-------------------------------------------------------------------------------#
+        # for Constraint: "Unmet Demand balance Feed IN"                                #
+        #-------------------------------------------------------------------------------#
 
-        self.max_prosdemand = np.zeros(self.days)
-        for d in range(self.days):
-            for h in range(self.hours):
-                self.max_prosdemand[d] += self.res_demand['Type 2'][d][h] * self.max_house_str['Type 2']
-        '''
         self.max_feedin = 0
         for h_type in self.pros_feedin:
             for d in range(self.days):
@@ -192,8 +163,10 @@ class Model_1:
             for h in range(self.hours):
                 self.max_prosdemand += self.res_demand['Type 2'][d][h] * self.d_weights[d]
 
+        #-------------------------------------------------------------------------------#
+        # for demand elasticity: historic demand                                        #
+        #-------------------------------------------------------------------------------#
 
-        # historic demand
         self.hist_demand = np.zeros(self.days)
 
         for d in range(self.days):
@@ -201,13 +174,10 @@ class Model_1:
                                    * self.d_weights[d]) # year 0 for access max_house_str without index year
 
         self.steps = 5
-
         self.hist_price = 0.4
 
         self.disp_steps_year, self.disp_steps_month, self.price_steps = cd.calc_disp_price_steps(self)
 
-        #cd.plot_households(self)
-        cd.plot_demand(self)
         #------------------------------------------------------------------------------#
         # Sets                                                                         #
         #------------------------------------------------------------------------------#
@@ -226,9 +196,9 @@ class Model_1:
         self.heatrate_c_run = heatrate_c_run
         self.dem_elasticity_c_run = dem_elasticity_c_run
 
-        m = Model('Model_1_case_1')
-        #m.setParam('MIPGap', 0.005)
-        #m.setParam('ScaleFlag', 1)
+        m = Model('Model_1')
+        #m.setParam('MIPGap', 0.0005) # uncomment if calculation takes too long
+
         '''
         Year 0 is outside of the planning horizon. The decisions start at year
         1, while year 0 only holds initial capacities.
@@ -411,7 +381,6 @@ class Model_1:
                 "Supply-demand balance"
             )
 
-
         m.addConstrs(
             (
                 (disp['Diesel Generator', y, d, h] <=
@@ -422,6 +391,7 @@ class Model_1:
             ),
             "Maximum DG dispatch"
         )
+
         m.addConstrs(
             (
                 (disp['Owned PV', y, d, h] <=
@@ -432,6 +402,7 @@ class Model_1:
             ),
             "Maximum PV dispatch"
         )
+
         m.addConstrs(
             (
                 (b_in[y, d, h] <=
@@ -442,6 +413,7 @@ class Model_1:
             ),
             "Maximum battery input"
         )
+
         m.addConstrs(
             (
                 (b_out[y, d, h] <=
@@ -476,6 +448,7 @@ class Model_1:
             ),
             "Tracking capacity"
         )
+
         m.addConstrs(
             (
                 (inst_cap[g, 0] == self.init_cap[g])
@@ -550,9 +523,6 @@ class Model_1:
             "Unmet Demand balance Feed IN"
         )
 
-
-
-
         if dem_elasticity_c_run == 'y':
             m.addConstrs(
                 (
@@ -577,9 +547,6 @@ class Model_1:
                 "max Feed in"
             )
 
-
-
-
         #----------------------------------------------------------------------#
         # Battery Operation                                                    #
         #----------------------------------------------------------------------#
@@ -595,6 +562,7 @@ class Model_1:
             ),
             'SoC tracking'
         )
+
         m.addConstrs(
             (
                 (soc[y, d, 0] == soc[y, d, 23]
@@ -605,6 +573,7 @@ class Model_1:
             ),
             ' SoC of hour 0'
         )
+
         m.addConstrs(
             (
                 (self.min_soc * inst_cap['Owned Batteries', y] * self.cap_power_ratio <=
@@ -615,6 +584,7 @@ class Model_1:
             ),
             'SoC capacity 1'
         )
+
         m.addConstrs(
             (
                 (inst_cap['Owned Batteries', y] * self.cap_power_ratio >=
@@ -625,7 +595,6 @@ class Model_1:
             ),
             'SoC capacity 2'
         )
-
 
         #----------------------------------------------------------------------#
         # Generation Retirement                                                #
@@ -638,6 +607,7 @@ class Model_1:
             ),
             "Retirement of initial capacity"
         )
+
         m.addConstrs(
             (
                 (ret_cap[g, y] == 0)
@@ -646,6 +616,7 @@ class Model_1:
             ),
             "Retirement before initial capacity"
         )
+
         m.addConstrs(
             (
                 (ret_cap[g, y] == added_cap[g, y - self.life[g]])
@@ -692,7 +663,6 @@ class Model_1:
                 ),
                 'heat rate 1.2'
             )
-
 
             m.addConstrs(
                 (
@@ -747,8 +717,6 @@ class Model_1:
         #m.write("model.ilp")
         m.optimize()
 
-
-
         #----------------------------------------------------------------------#
         #                                                                      #
         # Return Output                                                        #
@@ -794,9 +762,6 @@ class Model_1:
                         for i in range(len(self.heat_r_k)):
                             heat_rate_binary[y][d][h // 3][i] = bin_heat_rate[i, y, d, h // 3].X
 
-
-
-
         for y in range(self.years):
             if self.dem_elasticity_c_run == 'y':
                 for house in self.house:
@@ -816,7 +781,6 @@ class Model_1:
                                         / self.hist_demand[d]) * self.res_demand[house][d][h] * self.max_house_str[house])
                         total_demand[y][d][h] = hourly_demand
 
-
             else:
                 for house in self.house:
                     num_households[self.house.tolist().index(house)][y] = h_weight[house, y].X
@@ -828,7 +792,6 @@ class Model_1:
                             hourly_demand += self.res_demand[house][d][h] * h_weight[house, y].X
                         total_demand[y][d][h] = hourly_demand
         pros_demandarray = cd.fill_pros_demandarray(self, unmetD, disp_feedin, num_households)
-        #print(pros_demandarray)
 
         return_array = [ret, inst, added, disp_gen, disp_pv, disp_feedin,
                         unmetD, bat_in, bat_out, state_of_charge, num_households,

@@ -9,7 +9,7 @@ plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = 'Times New Roman'
 #--------------------------------------------------------------------------------#
 #                                                                                #
-# calculate the residual (without PV) demand and feed in of all households       #
+# calculate the residual (without PV) demand and feed in of prosumers            #
 #                                                                                #
 #--------------------------------------------------------------------------------#
 
@@ -50,23 +50,6 @@ def pros_behavoir(self, h_type, day):
                 soc[h] -= min(soc[h] - self.pros_soc_min, bat_out)
 
     return res_demand, feed_in
-
-def calc_res_demand(self):
-    """calculate customer demand subtracted by the PV generation"""
-    for h_type in self.res_demand:
-        for i in range(len(self.res_demand[h_type])):
-            for j in range(len(self.res_demand[h_type][i])):
-                self.res_demand[h_type][i][j] = max(0, (self.res_demand[h_type][i][j]
-                                                   - self.cap_fact[i][j] * self.avg_pv_cap_str[h_type]))
-
-def calc_pros_feedin(self):
-    """calculate the feed in of prosumers"""
-    for h_type in self.pros_feedin:
-        for i in range(len(self.pros_feedin[h_type])):
-            for j in range(len(self.pros_feedin[h_type][i])):
-                self.pros_feedin[h_type][i][j] = max(0, (self.cap_fact[i][j] * self.avg_pv_cap_str[h_type]
-                                                    - self.pros_feedin[h_type][i][j]))
-
 
 #--------------------------------------------------------------------------------#
 #                                                                                #
@@ -135,7 +118,14 @@ def calc_disp_price_steps(self):
         price_steps[i] = delta_p0 * (i + 1)
     return disp_steps_year, disp_steps_month, price_steps
 
+#--------------------------------------------------------------------------------#
+#                                                                                #
+# plot functions                                                                 #
+#                                                                                #
+#--------------------------------------------------------------------------------#
+
 def plot_demand(self):
+    '''plot the microgrid demand of the consumer and prosumer households'''
     hours = np.arange(24)
     fig1, axs1 = plt.subplots(figsize=(10, 8))
     axs1.plot(hours, self.res_demand['Type 1'][0], label='Summer', color='orange',marker='o', linewidth=4)
@@ -151,8 +141,6 @@ def plot_demand(self):
     fig2.suptitle("Prosumer", fontsize=35)
     axs2.legend(loc='upper center', fontsize=30)
 
-
-
     for ax in [axs1, axs2]:
         ax.set_ylabel('Grid Demand (kWh)', fontsize=30)
         ax.set_xlabel('Hour of Day (h)', fontsize=30)
@@ -160,7 +148,6 @@ def plot_demand(self):
         ax.set_xticks(hours[::4])
         ax.set_xticklabels(hours[::4], fontsize=30)
         ax.tick_params(axis='y', labelsize=30)  # Set y-tick label size
-
         ax.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
 
     fig1.savefig('plots/demandCons')
@@ -170,39 +157,32 @@ def plot_demand(self):
 
     plt.show()
 
-def plot_households(self):
-    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+def plot_pros_demand_ud(self):
+    '''plot the distribution of unmet demand for a prosumer household'''
     hours = np.arange(24)
-    for i in range(2):
-        p3 = axs[i, 1].bar(hours, 2.7 * self.cap_fact[2 * i] - self.demand_2[2 * i], label='Pros Feed in no battery', color='grey')
-        p4 = axs[i, 0].bar(hours, 2.7 * self.cap_fact[1] - self.demand_2[1], label='Pros Feed in no battery', color='grey')
-        p1 = axs[i, 1].bar(hours, self.pros_feedin['Type 2'][2 * i], label='Pros Feed in with battery', color='orange')
-        p2 = axs[i, 0].bar(hours, self.pros_feedin['Type 2'][1], label='Pros Feed in with battery', color='orange')
+    fig2, axs2 = plt.subplots(figsize=(10, 6))
+    axs2.plot(hours, self.res_demand['Type 2'][0], label='Grid Demand', color='black',marker='o', linewidth=4)
+    axs2.bar(hours, self.ud_pros[0], label='Unmet Demand', color='deepskyblue')
+    #fig2.suptitle("Prosumer", fontsize=35)
+    axs2.legend(loc='upper center', fontsize=30)
 
-        axs[i, 1].plot(hours, self.res_demand['Type 2'][2 * i], label='Pros Demand', color='black', marker='o')
-        axs[i, 0].plot(hours, self.res_demand['Type 2'][1], label='Pros Demand', color='black', marker='o')
-        axs[i, 1].plot(hours, self.res_demand['Type 1'][2 * i], label='Cons Demand', color='blue', marker='o')
-        axs[i, 0].plot(hours, self.res_demand['Type 1'][1], label='Cons Demand', color='blue', marker='o')
-        axs[i, 0].set_ylim(bottom=0)
-        axs[i, 1].set_ylim(bottom=0)
-        axs[i, 1].set_xlabel('Hour of Day (h)')
-        axs[i, 1].set_ylabel('Energy (kWh)')
-        axs[i, 0].set_xlabel('Hour of Day (h)')
-        axs[i, 0].set_ylabel('Energy (kWh)')
-        if i == 0:
-            axs[i, 0].set_title('Spring')
-            axs[i, 1].set_title('Summer')
-        else:
-            axs[i, 0].set_title('Autumn')
-            axs[i, 1].set_title('Winter')
-    axs[0, 0].legend(loc='lower left')
-    plt.tight_layout()
-    plt.savefig('plots/households/household_demand_feedin.png')
+    for ax in [axs2]:
+        ax.set_ylabel('Energy per Household (kWh)', fontsize=30)
+        ax.set_xlabel('Hour of Day (h)', fontsize=30)
+        ax.set_ylim(bottom=0, top = 1.1 * max(self.res_demand['Type 2'][0]))
+        ax.set_xticks(hours[::4])
+        ax.set_xticklabels(hours[::4], fontsize=30)
+        ax.tick_params(axis='y', labelsize=30)  # Set y-tick label size
+
+        ax.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
+
+    fig2.tight_layout()
+    fig2.savefig('plots/demand_unmet_Pros')
+
     plt.show()
 
-
 def fill_pros_demandarray(self, unmetD, disp_feedin, num_households):
-    """retruns Array with pros demand data"""
+    """retruns Array with prosumer demand data"""
     ret = np.zeros((2,3))
     ud_years = np.zeros((self.years))
     fi_years = np.zeros((self.years))
@@ -219,4 +199,5 @@ def fill_pros_demandarray(self, unmetD, disp_feedin, num_households):
         fi_years[y] = fi_years[y] / num_households[1][y]
     ret[1][1] = np.mean(ud_years)
     ret[1][2] = ret[0][2] - np.mean(fi_years)
+
     return ret
