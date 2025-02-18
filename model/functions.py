@@ -20,7 +20,7 @@ plt.rcParams['font.serif'] = 'Times New Roman'
 # --------------------------------------------------------------------------------#
 
 def single_modelrun(model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasticity_c_run):
-    '''Single model run with given parameters'''
+    '''Executes a single model run with given parameters'''
     results = model.solve(fit=fit, elec_price=el_price, ud_penalty=ud_penalty,
                           heatrate_c_run=heatrate_c_run, dem_elasticity_c_run=dem_elasticity_c_run)
 
@@ -64,7 +64,7 @@ def single_modelrun(model, fit, el_price, ud_penalty, heatrate_c_run, dem_elasti
 
 
 def show_singlerun_data(data):
-    '''Process the output data of a single model run'''
+    '''Prints and Plots the output data of a single model run in the console and as plots'''
     show_tables(get_tabels(data))
     show_binaries(get_binaries(data), 1, 2)  # winter in year 1
     # plot_gridconnection(data['pros_demandarray'].iloc[:,:].to_numpy())
@@ -81,7 +81,7 @@ def show_singlerun_data(data):
 
 
 def calc_lcoe_pv(filename):
-    '''Calculate the LCOE of PV'''
+    '''returns the Levelized Costs of PV'''
     parameters = pd.read_excel(filename, sheet_name='parameters')
     tech_values = pd.read_excel(filename, sheet_name='tech')
     cap_factors = pd.read_excel(filename, sheet_name='cap_factors').to_numpy()
@@ -106,7 +106,7 @@ def calc_lcoe_pv(filename):
 
 
 def show_tables(tables):
-    '''Print Tabels Installed Added Retired Capacity and Number of Households'''
+    '''prints Tables of installed Capacity, Number of connected Households and Prosumer Demand in the Console'''
 
     (ret, inst, added, num_households, pros_demandarray) = tables
 
@@ -144,7 +144,7 @@ def show_tables(tables):
 
 
 def show_binaries(binaries, year, day):
-    '''Show the binary variables of Heatrate and Price Elasticity'''
+    '''Prints the binary variables of and elastic electricity Price and Demand in the Console'''
 
     (heat_rate_binary, price_binary, quantity_binary) = binaries
 
@@ -167,7 +167,7 @@ def show_binaries(binaries, year, day):
 
 
 def plot_days_seperate(timeseriesArray, year, s='plot'):
-    '''plot or save all days of a year'''
+    '''plots and/or saves the microgrid demand coverage for all seasons days of a year'''
     (disp_gen, disp_pv, disp_feedin, unmetD, bat_in, bat_out,
      state_of_charge, total_demand) = timeseriesArray
 
@@ -243,7 +243,7 @@ def plot_days_seperate(timeseriesArray, year, s='plot'):
         ax.grid(which="major", axis="y", color="#758D99", alpha=0.4, zorder=1)
 
     '''
-    #tempoary
+    #tempoary for conference paper
     #ax3lim = 1200
     ax3.set_ylim(math.floor(min_y_value / 100) * 100, math.ceil(ax3lim / 100) * 100)
     ax.yaxis.set_major_locator(
@@ -273,7 +273,7 @@ def plot_days_seperate(timeseriesArray, year, s='plot'):
 
 
 def save_results(results):
-    '''Save the results arrays to an excel file'''
+    '''Saves the result arrays of a single model run to an excel file'''
     (ret, inst, added, disp_gen, disp_pv, disp_feedin,
      unmetD, bat_in, bat_out, state_of_charge, num_households,
      heat_rate_binary, price_binary, quantity_binary, total_demand,
@@ -303,16 +303,13 @@ def save_results(results):
     save_array2d_to_excel(price_binary, 'results.xlsx', 'price_binary')
     save_array2d_to_excel(quantity_binary, 'results.xlsx', 'quantity_binary')
     save_array2d_to_excel(pros_demandarray, 'results.xlsx', 'pros_demandarray')
-    # [save_array2d_to_excel(pros_feedin[d], 'results.xlsx', 'pros_feedin_'+str(d+1)) for d in range(3)]
-    # [save_array2d_to_excel(res_Demand[d], 'results.xlsx', 'res_Demand_'+str(d+1)) for d in range(3)]
     for y in range(15):
         [save_array2d_to_excel(heat_rate_binary[y][d], 'results.xlsx',
                                'heat_rate_binary_' + str(y + 1)+'_'+str(d + 1)) for d in range(3)]
-        # save_array2d_to_excel(price_binary[y], 'results.xlsx', 'price_binary_' + str(y + 1))
 
 
 def save_array2d_to_excel(array2d, file_name, s_name):
-    '''Save a 2D array to an excel file'''
+    '''Saves a 2D array to an excel file'''
     # Convert the ret array to a pandas DataFrame
     if array2d.ndim == 1:
         df_array2d = pd.DataFrame(array2d.reshape(1, -1))
@@ -324,12 +321,12 @@ def save_array2d_to_excel(array2d, file_name, s_name):
 
 
 def get_results(file_name):
-    '''Read the results from an excel file'''
+    '''returns the data from an excel file'''
     return pd.read_excel(file_name, decimal=',', sheet_name=None)
 
 
 def get_timeseries(data, year):
-    '''Get the timeseries arrays from the dataframe'''
+    '''returns the hourly timeseries arrays from the dataframe'''
     disp_gen = data['dispatched_generation_' +
                     str(year + 1)].iloc[:, :].to_numpy()
     disp_pv = data['dispatched_pv_' + str(year + 1)].iloc[:, :].to_numpy()
@@ -346,7 +343,7 @@ def get_timeseries(data, year):
 
 
 def get_tabels(data):
-    '''Get the tables from the dataframe'''
+    '''returns the console printed tables from the dataframe'''
     ret = data['retired_capacity'].iloc[:, :].to_numpy()
     inst = data['installed_capacity'].iloc[:, :].to_numpy()
     added = data['added_capacity'].iloc[:, :].to_numpy()
@@ -357,7 +354,7 @@ def get_tabels(data):
 
 
 def get_binaries(data):
-    '''Get the binary variables from the dataframe'''
+    '''returns the binary variables from the dataframe'''
     heat_rate_binary = np.zeros((15, 3, 8, 2))
     price_binary = data['price_binary'].iloc[:, :].to_numpy()
     quantity_binary = data['quantity_binary'].iloc[:, :].to_numpy()
@@ -374,7 +371,7 @@ def get_binaries(data):
 # --------------------------------------------------------------------------------#
 
 def sum_year(nparray, year, d_weights):
-    '''Sum up values of np array over a year'''
+    '''returns the summed up annual value of a np array'''
     sum = 0
     for d in range(nparray.shape[1]):
         sum += np.sum(nparray[year][d]) * d_weights[d]
@@ -382,6 +379,7 @@ def sum_year(nparray, year, d_weights):
 
 
 def ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights):
+    """Executes multiple model runs for a range of unmet demand penalties"""
     ud_penalty = np.round(np.linspace(0, ud_penalty_max, num_runs), 5)
     # ud_penalty = np.linspace(0, ud_penalty_max, num_runs)
     for i in range(num_runs):
@@ -406,7 +404,7 @@ def ud_modelruns(model, ud_penalty_max, num_runs, el_price, fit, day_weights):
 
 
 def print_ud_curve(ud_penalty_max, num_runs, year, s='plot'):
-    '''Print the PV fit curve'''
+    '''Plots and/or saves the Number of connected households and annual unmet demand for a range of penalty values'''
     ud_penalty = np.round(np.linspace(0, ud_penalty_max, num_runs), 5)
     base_penalty = ud_penalty[np.abs(ud_penalty - 0.1).argmin()]
     # ud_penalty = np.linspace(0, ud_penalty_max, num_runs)

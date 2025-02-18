@@ -2,9 +2,6 @@ import numpy as np
 from gurobipy import *
 from matplotlib import pyplot as plt
 
-
-from matplotlib.ticker import FixedLocator, FuncFormatter
-
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['font.serif'] = 'Times New Roman'
 #--------------------------------------------------------------------------------#
@@ -14,7 +11,7 @@ plt.rcParams['font.serif'] = 'Times New Roman'
 #--------------------------------------------------------------------------------#
 
 def calc_pros_demand_feedin(self):
-    """calculates Prosumer demand and feedin electricity"""
+    """sets self.res_demand and self.pros_feedin for Type 2 (Prosumers)"""
     for h_type in self.res_demand:
         if h_type != 'Type 1':
             for i in range(len(self.res_demand[h_type])):
@@ -24,7 +21,7 @@ def calc_pros_demand_feedin(self):
                     self.pros_feedin[h_type][i][h] = feedin[h]
 
 def pros_behavoir(self, h_type, day):
-    """returns the prosumer demand and feedin with an energy storage"""
+    """calculates returns the redidual demand and surplus feedin of prosumers with an energy storage"""
     pv_generation = np.zeros(self.hours)
     res_demand = np.zeros(self.hours)
     feed_in = np.zeros(self.hours)
@@ -58,7 +55,7 @@ def pros_behavoir(self, h_type, day):
 #--------------------------------------------------------------------------------#
 
 def mc_demand(self, num_house, y, d, h):
-    """returns hourly Microgrid demand of all household types"""
+    """returns the hourly microgrid demand (sum of all household types)"""
     hourly_demand = 0
     if y == 0:
         for i in self.house:
@@ -69,7 +66,7 @@ def mc_demand(self, num_house, y, d, h):
     return hourly_demand
 
 def elastic_mc_demand(self, bin_price_curve, y, d, h):
-    """return hourly Microgrid demand of all household types depending on the electricity price"""
+    """returns the hourly microgrid demand (sum of all household types) as a function of the electricity price"""
     hourly_demand = 0
     for i in self.house:
         hourly_demand += ((calc_elastic_monthdem_const(self, bin_price_curve, y, d) / self.hist_demand[d])
@@ -83,17 +80,17 @@ def elastic_mc_demand(self, bin_price_curve, y, d, h):
 #--------------------------------------------------------------------------------#
 
 def calc_elastic_mondemand(self, elec_price, d):
-    """calculates the monthly demand depending on electricity price"""
+    """returns the monthly microgrid demand (sum of all household types) as a function of the electricity price"""
     return (self.hist_demand[d] *
             (1 - self.elasticity + self.elasticity * (elec_price / self.hist_price)))
 
 def calc_elastic_monthdem_const(self, bin_price_curve, y, d):
-    """calculates the monthly demand depending on electricity price for the balance constraint"""
+    """returns the monthly microgrid demand (sum of all household types) as a linear combination"""
     return quicksum(self.disp_steps_month[self.steps - 1 - i][d] * bin_price_curve[i] for i in range(self.steps))
 
 
 def demand_sum_year(self, year, disp, ud, b_out, b_in):
-    """calculates the annual demand in the grid"""
+    """retruns the annual microgrid demand (sum of all household types) as a linear combination"""
     dem_year = quicksum(
             quicksum(
         quicksum(disp[g, year, d, h] for g in self.techs_g) + ud[year, d, h] + b_out[year, d, h] - b_in[year, d, h]
@@ -103,7 +100,7 @@ def demand_sum_year(self, year, disp, ud, b_out, b_in):
     return dem_year
 
 def calc_disp_price_steps(self):
-    """calculate the steps of disp for demand elasticity"""
+    """retruns discrete steps of micorgrid demand per year & month and electricity price"""
     demand_0 = sum(calc_elastic_mondemand(self, 0, d) for d in range(self.days))
     delta_q0 = demand_0 / self.steps
     price_0 = (- demand_0) * self.hist_price / (np.sum(self.hist_demand[d] for d in range(self.days)) * self.elasticity)
@@ -125,7 +122,7 @@ def calc_disp_price_steps(self):
 #--------------------------------------------------------------------------------#
 
 def plot_demand(self):
-    '''plot the microgrid demand of the consumer and prosumer households'''
+    '''plots the microgrid demand of the consumer and prosumer households'''
     hours = np.arange(24)
     fig1, axs1 = plt.subplots(figsize=(10, 8))
     axs1.plot(hours, self.res_demand['Type 1'][0], label='Summer', color='orange',marker='o', linewidth=4)
@@ -158,7 +155,7 @@ def plot_demand(self):
     plt.show()
 
 def plot_pros_demand_ud(self):
-    '''plot the distribution of unmet demand for a prosumer household'''
+    '''plots the summer demand and distribiuted unmet demand for a prosumer household'''
     hours = np.arange(24)
     fig2, axs2 = plt.subplots(figsize=(10, 6))
     axs2.plot(hours, self.res_demand['Type 2'][0], label='Grid Demand', color='black',marker='o', linewidth=4)
@@ -182,7 +179,7 @@ def plot_pros_demand_ud(self):
     plt.show()
 
 def fill_pros_demandarray(self, unmetD, disp_feedin, num_households):
-    """retruns Array with prosumer demand data"""
+    """retruns an array with annual prosumer demand, unmet demand and unused PV surplus"""
     ret = np.zeros((2,3))
     ud_years = np.zeros((self.years))
     fi_years = np.zeros((self.years))
