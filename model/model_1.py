@@ -110,7 +110,6 @@ class Model_1:
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
 
         self.i = self.data['parameters']['Interest rate'][0]
-        self.i = 0.02
         self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
 
         #----------------------------------------------------------------------#
@@ -200,7 +199,8 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
         
-        m.setObjective(quicksum(tp[y] for y in range(self.years)), GRB.MAXIMIZE)
+        m.setObjective(quicksum(tp[y] * (1 / ((1 + self.i) ** y))
+                                for y in range(self.years)), GRB.MAXIMIZE)
 
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -269,8 +269,7 @@ class Model_1:
                      )
         
         m.addConstrs(((tp[y] == 
-                       (tr[y] - tcc[y] - tofc[y] - tovc[y]) 
-                       * (1 / ((1 + self.i) ** y)))
+                       (tr[y] - tcc[y] - tofc[y] - tovc[y]))
                        for y in range(self.years)
                        ),
                      name='yearly total profits'
