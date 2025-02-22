@@ -73,6 +73,7 @@ class Model_1:
 
         #Technology costs
         self.ucc = self.tech_df['UCC'].to_dict()
+        #self.ucc['Diesel Generator'] = 1561
         self.uofc = self.tech_df['UOFC'].to_dict()
         self.uovc = self.tech_df['UOVC'].to_dict()
 
@@ -658,7 +659,18 @@ class Model_1:
             'SoC capacity 2'
         )
         
-
+        '''
+        # Test constraints
+        m.addConstrs(((h_weight[i, y] == self.max_house_str[i])
+                     for y in range(self.years)
+                     for i in self.house),
+                     name = 'test house')
+        
+        m.addConstrs(((added_cap['Owned PV', y] == 0)
+                      for y in range(self.years)
+                      ),
+                     name = 'test cap DG')
+        '''
         #----------------------------------------------------------------------#
         # Optimization                                                         #
         #----------------------------------------------------------------------#
