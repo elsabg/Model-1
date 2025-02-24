@@ -241,7 +241,7 @@ def to_xlsx(model, fit, elec_price):
     ############################################################################
                         
     # Create new folder within current directory for output files
-    folder_name = 'Output Files'
+    folder_name = 'Output_Files'
     current_directory = os.getcwd()
     folder_path = os.path.join(current_directory, folder_name)
     os.makedirs(folder_path, exist_ok=True)
