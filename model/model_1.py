@@ -158,8 +158,7 @@ class Model_1:
                             name='retiredCap', lb = 0)
 
         soc = m.addVars(self.years, self.days, self.hours, 
-                        name='SoC', lb
-                        = 0)
+                        name='SoC', lb = 0)
 
         h_weight = m.addVars(self.house, self.years, 
                              name='houseWeight', lb = 0, vtype=GRB.INTEGER)
@@ -332,7 +331,6 @@ class Model_1:
                      )
         
         # Auxiliary maximum constraints
-        
         m.addConstrs(((aux_max[i, y, d, h] >=
                        h_weight[i, y] * self.surplus[i][d][h])
                       for i in self.house
@@ -510,7 +508,7 @@ class Model_1:
         M = 100000
         e = 0.01
         
-        '''
+        
         m.addConstrs(((d_cons[y, d, h] ==
                        disp['Diesel Generator', y, d, h]
                        * self.heat_r_k[1])
@@ -612,7 +610,7 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name="case 3.2")
-        
+        '''
         #----------------------------------------------------------------------#
         # Battery Operation                                                    #
         #----------------------------------------------------------------------#

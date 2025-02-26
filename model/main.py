@@ -29,7 +29,7 @@ model.load_data()
 
 # Single run
 if input('Grid Search? y/n: ') == 'n':
-    best_fit = 0.1
+    best_fit = 0.11
     best_el_price = 0.4
     model.solve(fit=best_fit, elec_price=best_el_price)
     best_model = model
@@ -58,6 +58,5 @@ else:
 #                                                                              #
 #------------------------------------------------------------------------------#
 func.output_data(best_model, 2)
-#func.plot_data(results)
 if input("Save results as xlsx? {y/n} -") == "y":
     func.to_xlsx(best_model, int(best_fit * 100), int(best_el_price * 100))

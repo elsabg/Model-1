@@ -33,7 +33,9 @@ def get_dfs(model, t):
     feed_in_energy = np.zeros((model.days, model.hours))
     costs = np.zeros((len(cost_names), model.years))
     total_demand = np.zeros((model.days, model.hours))
-
+    net_demand = np.zeros((model.days, model.hours))
+    net_surplus = np.zeros((model.days, model.hours))
+    
     ############################################################################
     # Fill arrays from solved model                                            #
     ############################################################################
@@ -63,6 +65,13 @@ def get_dfs(model, t):
             total_demand[d][h] = sum(model.surplus[i][d][h]
                                      * model.h_weight[i, t].X
                                      for i in model.house)
+            for i in model.house:
+                if model.surplus[i][d][h] >= 0:
+                    net_surplus[d][h] += (model.surplus[i][d][h] 
+                                          * model.h_weight[i, t].X)
+                else:
+                    net_demand[d][h] += (model.surplus[i][d][h]
+                                         * model.h_weight[i, t].X)
             
     for h in model.house:
         for y in range(model.years):
@@ -98,6 +107,12 @@ def get_dfs(model, t):
     total_demand = pd.DataFrame(
         total_demand, columns = [i for i in range(model.hours)])
 
+    net_demand = pd.DataFrame(
+        net_demand, columns = [i for i in range(model.hours)])
+
+    net_surplus = pd.DataFrame(
+        net_surplus, columns = [i for i in range(model.hours)])
+    
     num_households = pd.DataFrame(
         num_households, columns=[i for i in range(model.years)]
     )
@@ -131,13 +146,14 @@ def get_dfs(model, t):
     
     dfs = [ret, inst, added, disp_gen, disp_pv, 
            bat_in, bat_out, num_households, feed_in,
-           costs, soc, total_demand]
+           costs, soc, total_demand, net_demand, net_surplus]
         
     return dfs
 
 
 def output_data(model, t=0):
-    '''Process output data'''
+    '''Print output data in console'''
+    
     dfs = get_dfs(model, t)
     ret = dfs[0]
     inst = dfs[1]
@@ -181,7 +197,7 @@ def to_xlsx(model, fit, elec_price):
     techs = model.techs
     
     ############################################################################
-    # Create empty DataFrames for yearly decisions                             #
+    # Create empty DataFrames for hourly decisions                             #
     ############################################################################
     y_d_index = [f'{y}.'+f'{d}'
                 for y in range(years)
@@ -201,6 +217,12 @@ def to_xlsx(model, fit, elec_price):
                            columns = [h for h in range(hours)])
     total_demand = pd.DataFrame(index = y_d_index, 
                                 columns = [h for h in range(hours)])
+    total_demand = pd.DataFrame(index = y_d_index, 
+                                columns = [h for h in range(hours)])
+    net_demand = pd.DataFrame(index = y_d_index,
+                              columns = [h for h in range(hours)])
+    net_surplus= pd.DataFrame(index = y_d_index,
+                              columns = [h for h in range(hours)])
     
     ############################################################################
     # Import One-time DataFrames                                               #
@@ -226,6 +248,8 @@ def to_xlsx(model, fit, elec_price):
         feed_in_y = dfs[8]
         soc_y = dfs[10]
         total_demand_y = dfs[11]
+        net_demand_y = dfs[12]
+        net_surplus_y = dfs[13]
         
         for d in range(days):
             disp_gen.loc[f'{y}.'+f'{d}'] = disp_gen_y.loc[d]
@@ -235,13 +259,15 @@ def to_xlsx(model, fit, elec_price):
             feed_in.loc[f'{y}.'+f'{d}'] = feed_in_y.loc[d]
             soc.loc[f'{y}.'+f'{d}'] = soc_y.loc[d]
             total_demand.loc[f'{y}.'+f'{d}'] = total_demand_y.loc[d]
+            net_demand.loc[f'{y}.'+f'{d}'] = net_demand_y.loc[d]
+            net_surplus.loc[f'{y}.'+f'{d}'] = net_surplus_y.loc[d]
             
     ############################################################################
     # Export to Excel and save in current directory                            #
     ############################################################################
                         
     # Create new folder within current directory for output files
-    folder_name = 'Output_Files'
+    folder_name = 'Output Files'
     current_directory = os.getcwd()
     folder_path = os.path.join(current_directory, folder_name)
     os.makedirs(folder_path, exist_ok=True)
@@ -263,3 +289,5 @@ def to_xlsx(model, fit, elec_price):
         soc.to_excel(writer, sheet_name='State of Charge')
         feed_in.to_excel(writer, sheet_name='Fed-in Capacity')
         total_demand.to_excel(writer, sheet_name='Yearly demand')
+        net_demand.to_excel(writer, sheet_name='Net demand')
+        net_surplus.to_excel(writer, sheet_name='Net surplus')
