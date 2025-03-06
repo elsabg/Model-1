@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jan 15 12:04:12 2025
+Created on Thu Mar  6 22:18:29 2025
 
 @author: Elsa
 """
@@ -37,6 +37,7 @@ def rep_day(outFile, year, day):
     tot_dem = out['Yearly demand'].set_index('Unnamed: 0')
     net_dem = out['Net demand'].set_index('Unnamed: 0')
     net_sur = out['Net surplus'].set_index('Unnamed: 0')
+    ud = out['Unmet Demand'].set_index('Unnamed: 0')
 
     fig, ax = plt.subplots()
 
@@ -56,6 +57,11 @@ def rep_day(outFile, year, day):
            bottom=(disp_dg.loc[index]
                    + disp_pv.loc[index] + feed_in.loc[index]),
            width=0.5, label='Battery Output', color='red')
+    ax.bar(np.arange(24), ud.loc[index],
+           bottom=(disp_dg.loc[index]
+                   + disp_pv.loc[index] + feed_in.loc[index]
+                   + bat_out.loc[index]),
+           width=0.5, label='Unmet Demand', color='orange')
 
     ax.plot(np.arange(24), tot_dem.loc[index].to_numpy() * -1,
             label='Total Demand', color='black')

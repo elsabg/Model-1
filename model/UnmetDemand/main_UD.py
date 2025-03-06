@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
-'''
-Created on Mon Oct 21 14:18:06 2024
+"""
+Created on Thu Mar  6 22:08:07 2025
 
-@author: Jakob & Elsa
-'''
+@author: Elsa
+"""
 
 import numpy as np
 import pandas as pd
 
 import functions as func
 
-from model_1 import Model_1
+from model_1_ud import Model_1
 
 #------------------------------------------------------------------------------#
 #                                                                              #
@@ -27,11 +27,15 @@ model.load_data()
 #                                                                              #
 #------------------------------------------------------------------------------#
 
+ud_penalty = 0.05
+ud_level = 0.1
+
 # Single run
 if input('Grid Search? y/n: ') == 'n':
     best_fit = 0.11
     best_el_price = 0.4
-    model.solve(fit=best_fit, elec_price=best_el_price)
+    model.solve(fit=best_fit, elec_price=best_el_price, 
+                ud_penalty=ud_penalty, ud_level = ud_level)
     best_model = model
  
 # Grid search
@@ -45,7 +49,8 @@ else:
         for el_price in range(1, 41):
             fit = fit / 100
             el_price = el_price / 100
-            model.solve(fit=fit, elec_price=el_price)
+            model.solve(fit=best_fit, elec_price=best_el_price, 
+                        ud_penalty=ud_penalty, ud_level = ud_level)
             if model.m.getObjective().getValue() > best_model_obj:
                 best_model = model
                 best_fit = fit
