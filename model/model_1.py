@@ -48,7 +48,7 @@ class Model_1:
         self.cap_fact = self.data['cap_factors'].iloc[:, 1:].to_numpy()
 
         #Capacities accessible via strings
-        self.house = self.data['rent_cap'].columns.to_numpy()[1:5]
+        self.house = self.data['rent_cap'].columns.to_numpy()[1::]
         
         self.max_house_str = {f'Type {i+1}' : self.max_house[i]
                               for i in range(len(self.house))}
@@ -111,7 +111,6 @@ class Model_1:
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
 
         self.i = self.data['parameters']['Interest rate'][0]
-        self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
 
         #----------------------------------------------------------------------#
         # Sets                                                                 #

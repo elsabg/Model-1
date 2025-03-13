@@ -117,7 +117,7 @@ def get_dfs(model, t):
     
     num_households = pd.DataFrame(
         num_households, columns=[i for i in range(model.years)],
-        index = ['Consumers', 'Prosumers', 'Industry', 'Solar Farm']
+        index = ['Consumers', 'Prosumers']
     )
 
     inst = pd.DataFrame(
