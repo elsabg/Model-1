@@ -44,30 +44,30 @@ def rep_day(outFile, year, day):
     # Representative day
     index = float(f'{year}' + '.' + f'{day}')
     ax.bar(np.arange(24), bat_in.loc[index] * -1,
-           width=0.5, label='Battery Input', color='green')
+           width=0.5, label='Battery Input', color='#b1b1b1')
     ax.bar(np.arange(24), disp_dg.loc[index],
-           width=0.5, label='DG', color='blue')
+           width=0.5, label='DG', color='#d14b4b')
     ax.bar(np.arange(24), disp_pv.loc[index],
            bottom=disp_dg.loc[index],
-           width=0.5, label='PV', color='magenta')
+           width=0.5, label='PV', color='#f9e395')
     ax.bar(np.arange(24), feed_in.loc[index],
            bottom=disp_dg.loc[index] + disp_pv.loc[index],
-           width=0.5, label='Feed in', color='cyan')
+           width=0.5, label='Feed in', color='#dbe4ed')
     ax.bar(np.arange(24), bat_out.loc[index],
            bottom=(disp_dg.loc[index]
                    + disp_pv.loc[index] + feed_in.loc[index]),
-           width=0.5, label='Battery Output', color='red')
+           width=0.5, label='Battery Output', color='#c2deaf')
     ax.bar(np.arange(24), ud.loc[index],
            bottom=(disp_dg.loc[index]
                    + disp_pv.loc[index] + feed_in.loc[index]
                    + bat_out.loc[index]),
-           width=0.5, label='Unmet Demand', color='orange')
+           width=0.5, label='Unmet Demand', color='#f2b382')
 
     ax.plot(np.arange(24), tot_dem.loc[index].to_numpy() * -1,
-            label='Total Demand', color='black')
+            label='Total Demand', color='#595755')
     ax.plot(np.arange(24), net_sur.loc[index].to_numpy(),
             label='Total Surplus', linestyle='dashed',
-            color='black')
+            color='#595755')
 
     ax.set_xlabel('Hour')
     ax.set_ylabel('Energy')
@@ -99,14 +99,14 @@ def inst_cap(fit, el_price):
     fig, ax = plt.subplots()
 
     ax.bar(np.arange(15), inst.loc['Diesel Generator'],
-           width=0.5, label='Diesel generator', color="blue")
+           width=0.5, label='Diesel generator', color="#d14b4b")
     ax.bar(np.arange(15), inst.loc['Owned PV'],
            width=0.5, label='Owned PV',
-           bottom=inst.loc['Diesel Generator'], color="magenta")
+           bottom=inst.loc['Diesel Generator'], color="#f9e395")
     ax.bar(np.arange(15), inst.loc['Owned Batteries'],
            width=0.5, label='Owned batteries',
            bottom=inst.loc['Owned PV'] + inst.loc['Diesel Generator'],
-           color="green")
+           color="#c2deaf")
 
     ax.set_xlabel('Year')
     ax.set_ylabel('Capacity installed in kW')

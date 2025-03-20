@@ -196,6 +196,7 @@ class Model_1:
         tofc = m.addVars(self.years, name='total operation fixed cost')
         tudc = m.addVars(self.years, name='total unmet demand cost')
         tp = m.addVars(self.years, name='total profits', lb=-GRB.INFINITY)
+        salvage = m.addVars(self.techs, name='salvage value')
         
         
         #----------------------------------------------------------------------#
@@ -205,7 +206,11 @@ class Model_1:
         #----------------------------------------------------------------------#
         
         m.setObjective(quicksum(tp[y] * (1 / ((1 + self.i) ** y))
-                                for y in range(self.years)), GRB.MAXIMIZE)
+                                for y in range(self.years))
+                       - quicksum(salvage[g]
+                                  for g in self.techs)
+                       * (1 / ((1 + self.i)) ** self.years), 
+                       GRB.MAXIMIZE)
 
         #----------------------------------------------------------------------#
         #                                                                      #
@@ -286,6 +291,15 @@ class Model_1:
                        for y in range(self.years)
                        ),
                      name='yearly total profits'
+                     )
+
+        m.addConstrs(((salvage[g] ==
+                       quicksum(added_cap[g, y] 
+                       * self.ucc[g]
+                       *(1 - (self.years - y) / self.years)
+                       for y in range(self.years - self.life[g]))
+                       for g in self.techs)
+                      ), name='Salvage value'
                      )        
         
         #----------------------------------------------------------------------#
