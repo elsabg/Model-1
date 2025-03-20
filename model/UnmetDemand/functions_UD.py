@@ -115,6 +115,9 @@ def get_dfs(model, t):
     net_surplus = pd.DataFrame(
         net_surplus, columns = [i for i in range(model.hours)])
     
+    ud = pd.DataFrame(
+        ud, columns = [i for i in range(model.hours)])
+    
     num_households = pd.DataFrame(
         num_households, columns=[i for i in range(model.years)],
         index = ['Consumers', 'Prosumers']
@@ -136,6 +139,7 @@ def get_dfs(model, t):
         costs, columns = [i for i in range(model.years)]
         )
     
+
 
     # Fix string indices
     inst.index = model.techs.tolist()
@@ -225,7 +229,7 @@ def to_xlsx(model, fit, elec_price):
     net_surplus = pd.DataFrame(index = y_d_index,
                               columns = [h for h in range(hours)])
     ud = pd.DataFrame(index=y_d_index,
-                      columns = [h for h in range(hours) ])
+                      columns = [h for h in range(hours)])
     
     ############################################################################
     # Import One-time DataFrames                                               #

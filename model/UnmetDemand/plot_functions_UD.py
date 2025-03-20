@@ -121,8 +121,41 @@ def inst_cap(fit, el_price):
     
     print(f"Saved plot: {plot_path}")
 
+def get_houses(file):
+    cwd = os.getcwd()
+    files_path = os.path.join(cwd, "Output Files")
+    out = pd.read_excel(os.path.join(files_path, file), 
+                        sheet_name="Connected Households")
+    out.set_index('Unnamed: 0', inplace=True)
+    fig, ax = plt.subplots()
+    fit = int(file.split('_')[1])
+    el_price = int(file.split('_')[2].split('.')[0])
+    max_house = {"Consumers": [635] * 15,"Prosumers": [440] * 15}
+    for house in out.index:
+        ax.plot(out.loc[house], label=house)
+        ax.plot(max_house[house], linestyle='dashed', 
+                label=f'Maximum {house}')
+    
+    ax.set_xlabel('Year')
+    ax.set_ylabel('Connected households')
+    ax.set_title(f'Connected households for FiT={fit}c and grid price={el_price}c')
+
+    ax.legend(loc='upper right')
+
+    new_plots_folder = os.path.join(os.getcwd(), "Connected households")
+    os.makedirs(new_plots_folder, exist_ok=True)
+    plot_path = os.path.join(new_plots_folder, f"Connected_households_{fit}_{el_price}.png")
+    plt.savefig(plot_path)
+    plt.close()
 
 # Run the functions for different FiT values
-for fit in [0.01, 0.1, 0.25, 0.3, 0.4]:
-    rep_day(f'Output_{int(fit * 100)}_40.xlsx', 10, 1)
-    inst_cap(fit, 0.4)
+cwd = os.getcwd()
+files_path = os.path.join(cwd, "Output Files")
+files = os.listdir(files_path)
+
+for file in files:
+    fit = int(file.split('_')[1])
+    el_price = int(file.split('_')[2].split('.')[0])
+    rep_day(file, 10, 1)
+    inst_cap(fit/100, el_price/100)
+    get_houses(file)

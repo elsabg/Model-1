@@ -111,7 +111,6 @@ class Model_1:
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
 
         self.i = self.data['parameters']['Interest rate'][0]
-        self.max_tariff = self.data['tariffs']['Ministry Tariff'].to_numpy()
 
         #----------------------------------------------------------------------#
         # Sets                                                                 #
@@ -124,12 +123,12 @@ class Model_1:
 
 
 
-    def solve(self, fit, elec_price, ud_level, ud_penalty):
+    def solve(self, fit, elec_price, md_level, ud_penalty):
         'Create and solve the model'
 
         self.fit = fit
         self.elec_price = elec_price
-        self.ud_level = ud_level
+        self.md_level = md_level
         self.ud_penalty = ud_penalty
 
         m = Model('Model_1')
@@ -187,21 +186,15 @@ class Model_1:
         aux_max = m.addVars(self.house, self.years, self.days, self.hours,
                              name='maxAuxiliary', lb=0)
         
-        z_bin_min = m.addVars(self.house, self.years, self.days, self.hours,
-                          vtype=GRB.BINARY, name='minBinary')
-        
-        z_bin_min_ud = m.addVars(self.house, self.years, self.days, self.hours,
-                             vtype=GRB.BINARY, name='minBinaryUD')
-        
-        z_bin_max = m.addVars(self.house, self.years, self.days, self.hours,
-                              vtype=GRB.BINARY, name='maxBinary')
-        
+        b = m.addVars(self.house, self.years, self.days, self.hours,
+                      vtype=GRB.BINARY, name='Binary')
+    
         #Intermediate variables
         tr = m.addVars(self.years, name='total revenue')
         tcc = m.addVars(self.years, name='total capital cost')
         tovc = m.addVars(self.years, name='total operation variable cost')
         tofc = m.addVars(self.years, name='total operation fixed cost')
-        tudc = m.addVars(self.year, name='total unmet demand cost')
+        tudc = m.addVars(self.years, name='total unmet demand cost')
         tp = m.addVars(self.years, name='total profits', lb=-GRB.INFINITY)
         
         
@@ -311,7 +304,7 @@ class Model_1:
                      name='min aux 1.1')
         
         m.addConstrs(((aux_min[i, y, d, h] >=
-                       feed_in[i, y, d, h] - z_bin_min[i, y, d, h] * M)
+                       feed_in[i, y, d, h] - b[i, y, d, h] * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -330,7 +323,7 @@ class Model_1:
                      
         m.addConstrs(((aux_min[i, y, d, h] >=
                        h_weight[i, y] * self.surplus[i][d][h] 
-                       - (1 - z_bin_min[i, y, d, h]) * M)
+                       - (1 - b[i, y, d, h]) * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -348,7 +341,7 @@ class Model_1:
                      name='min aux UD 1.1')
         
         m.addConstrs(((aux_min_ud[i, y, d, h] >= 
-                       - z_bin_min_ud[i, y, d, h] * M)
+                       - b[i, y, d, h] * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -367,7 +360,7 @@ class Model_1:
                      
         m.addConstrs(((aux_min_ud[i, y, d, h] >=
                        h_weight[i, y] * self.surplus[i][d][h] 
-                       - (1 - z_bin_min_ud[i, y, d, h]) * M)
+                       - (1 - b[i, y, d, h]) * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -389,7 +382,7 @@ class Model_1:
                      )
         
         m.addConstrs(((ud[y, d, h] <=
-                       (1 - self.ud_level)
+                       (1 - self.md_level)
                        * (b_in[y, d, h] - 
                           quicksum(aux_min_ud[i, y, d, h] for i in self.house)))
                       for h in range(self.hours)
@@ -420,7 +413,7 @@ class Model_1:
         
         m.addConstrs(((aux_max[i, y, d, h] <=
                        h_weight[i, y] * self.surplus[i][d][h]
-                       + z_bin_max[i, y, d, h] * M)
+                       + b[i, y, d, h] * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -429,7 +422,7 @@ class Model_1:
                      name='max aux 2.1')
         
         m.addConstrs(((aux_max[i, y, d, h] <=
-                       (1 - z_bin_max[i, y, d, h]) * M)
+                       (1 - b[i, y, d, h]) * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)

@@ -45,12 +45,12 @@ def rep_day(outFile, year, day):
     ax.bar(np.arange(24), bat_in.loc[index] * -1,
            width=0.5, label='Battery Input', color='green')
     ax.bar(np.arange(24), disp_dg.loc[index],
+           bottom=feed_in.loc[index],
            width=0.5, label='DG', color='blue')
     ax.bar(np.arange(24), disp_pv.loc[index],
-           bottom=disp_dg.loc[index],
+           bottom=disp_dg.loc[index] + feed_in.loc[index],
            width=0.5, label='PV', color='magenta')
     ax.bar(np.arange(24), feed_in.loc[index],
-           bottom=disp_dg.loc[index] + disp_pv.loc[index],
            width=0.5, label='Feed in', color='cyan')
     ax.bar(np.arange(24), bat_out.loc[index],
            bottom=(disp_dg.loc[index]
@@ -123,8 +123,11 @@ def get_houses(file):
     fig, ax = plt.subplots()
     fit = int(file.split('_')[1])
     el_price = int(file.split('_')[2].split('.')[0])
+    max_house = {"Consumers": [635] * 15,"Prosumers": [440] * 15}
     for house in out.index:
         ax.plot(out.loc[house], label=house)
+        ax.plot(max_house[house], linestyle='dashed', 
+                label=f'Maximum {house}')
     
     ax.set_xlabel('Year')
     ax.set_ylabel('Connected households')
