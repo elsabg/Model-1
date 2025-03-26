@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-'''
-Created on Tue Oct 21 13:42:03 2024
+"""
+Created on Thu Mar  6 22:12:55 2025
 
-@author: Jakob & Elsa
-'''
+@author: Elsa
+"""
 
 import numpy as np
 import pandas as pd
@@ -35,6 +35,7 @@ def get_dfs(model, t):
     net_demand = np.zeros((model.days, model.hours))
     total_demand = np.zeros((model.days, model.hours))
     net_surplus = np.zeros((model.days, model.hours))
+    ud = np.zeros((model.days, model.hours))
     
     ############################################################################
     # Fill arrays from solved model                                            #
@@ -72,6 +73,7 @@ def get_dfs(model, t):
                 else:
                     total_demand[d][h] += (model.surplus[i][d][h]
                                          * model.h_weight[i, t].X)
+            ud[d][h] = model.ud[t, d, h].X
             
     for h in model.house:
         for y in range(model.years):
@@ -113,6 +115,9 @@ def get_dfs(model, t):
     net_surplus = pd.DataFrame(
         net_surplus, columns = [i for i in range(model.hours)])
     
+    ud = pd.DataFrame(
+        ud, columns = [i for i in range(model.hours)])
+    
     num_households = pd.DataFrame(
         num_households, columns=[i for i in range(model.years)],
         index = ['Consumers', 'Prosumers']
@@ -135,6 +140,7 @@ def get_dfs(model, t):
         )
     
 
+
     # Fix string indices
     inst.index = model.techs.tolist()
     added.index = model.techs.tolist()
@@ -147,7 +153,7 @@ def get_dfs(model, t):
     
     dfs = [ret, inst, added, disp_gen, disp_pv, 
            bat_in, bat_out, num_households, feed_in,
-           costs, soc, net_demand, total_demand, net_surplus]
+           costs, soc, net_demand, total_demand, net_surplus, ud]
         
     return dfs
 
@@ -220,8 +226,10 @@ def to_xlsx(model, fit, elec_price):
                                 columns = [h for h in range(hours)])
     total_demand = pd.DataFrame(index = y_d_index,
                               columns = [h for h in range(hours)])
-    net_surplus= pd.DataFrame(index = y_d_index,
+    net_surplus = pd.DataFrame(index = y_d_index,
                               columns = [h for h in range(hours)])
+    ud = pd.DataFrame(index=y_d_index,
+                      columns = [h for h in range(hours)])
     
     ############################################################################
     # Import One-time DataFrames                                               #
@@ -249,6 +257,7 @@ def to_xlsx(model, fit, elec_price):
         net_demand_y = dfs[11]
         total_demand_y = dfs[12]
         net_surplus_y = dfs[13]
+        ud_y = dfs[14]
         
         for d in range(days):
             disp_gen.loc[f'{y}.'+f'{d}'] = disp_gen_y.loc[d]
@@ -260,6 +269,7 @@ def to_xlsx(model, fit, elec_price):
             total_demand.loc[f'{y}.'+f'{d}'] = total_demand_y.loc[d]
             net_demand.loc[f'{y}.'+f'{d}'] = net_demand_y.loc[d]
             net_surplus.loc[f'{y}.'+f'{d}'] = net_surplus_y.loc[d]
+            ud.loc[f'{y}.'+f'{d}'] = ud_y.loc[d]
             
     ############################################################################
     # Export to Excel and save in current directory                            #
@@ -290,3 +300,4 @@ def to_xlsx(model, fit, elec_price):
         total_demand.to_excel(writer, sheet_name='Yearly demand')
         net_demand.to_excel(writer, sheet_name='Net demand')
         net_surplus.to_excel(writer, sheet_name='Net surplus')
+        ud.to_excel(writer, sheet_name='Unmet Demand')
