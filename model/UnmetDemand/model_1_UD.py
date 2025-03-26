@@ -207,7 +207,7 @@ class Model_1:
         
         m.setObjective(quicksum(tp[y] * (1 / ((1 + self.i) ** y))
                                 for y in range(self.years))
-                       - quicksum(salvage[g]
+                       + quicksum(salvage[g]
                                   for g in self.techs)
                        * (1 / ((1 + self.i)) ** self.years), 
                        GRB.MAXIMIZE)

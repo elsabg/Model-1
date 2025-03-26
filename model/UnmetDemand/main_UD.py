@@ -27,10 +27,11 @@ model.load_data()
 #                                                                              #
 #------------------------------------------------------------------------------#
 
-ud_penalty = 0.05
-md_level = 0.9
+ud_penalty = 0
+md_level = 0
 
-    
+
+'''    
 for fit in range(1, 42, 5):
     fit = fit / 100
     for el_price in range(1, 42, 5):
@@ -40,7 +41,15 @@ for fit in range(1, 42, 5):
         func.output_data(model, 2)
         func.to_xlsx(model, int(fit * 100), 
                      int(el_price * 100))
-            
+'''
+
+fit = 0
+el_price = 0.4
+model.solve(fit=fit, elec_price=el_price, 
+            ud_penalty=ud_penalty, md_level = md_level)
+func.output_data(model, 2)
+func.to_xlsx(model, int(fit * 100), 
+             int(el_price * 100))            
 
 #------------------------------------------------------------------------------#
 #                                                                              #
