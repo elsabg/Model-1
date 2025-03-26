@@ -8,9 +8,9 @@ Created on Thu Mar  6 22:08:07 2025
 import numpy as np
 import pandas as pd
 
-import functions_UD as func
+import functions as func
 
-from model_1_UD import Model_1
+from model_1 import Model_1
 
 #------------------------------------------------------------------------------#
 #                                                                              #
@@ -30,30 +30,16 @@ model.load_data()
 ud_penalty = 0
 md_level = 0
 
-
-'''    
-for fit in range(1, 42, 5):
-    fit = fit / 100
-    for el_price in range(1, 42, 5):
-        el_price = el_price / 100
-        model.solve(fit=fit, elec_price=el_price, 
-                    ud_penalty=ud_penalty, md_level = md_level)
-        func.output_data(model, 2)
-        func.to_xlsx(model, int(fit * 100), 
-                     int(el_price * 100))
-'''
-
 fit = 0
 el_price = 0.4
 model.solve(fit=fit, elec_price=el_price, 
-            ud_penalty=ud_penalty, md_level = md_level)
-func.output_data(model, 2)
-func.to_xlsx(model, int(fit * 100), 
-             int(el_price * 100))            
+            ud_penalty=ud_penalty, md_level = md_level)        
 
 #------------------------------------------------------------------------------#
 #                                                                              #
 # Process output data                                                          #
 #                                                                              #
 #------------------------------------------------------------------------------#
-#func.output_data(model, 2)
+func.output_data(model, 2)
+func.to_xlsx(model, int(fit * 100), 
+             int(el_price * 100))    
