@@ -75,7 +75,6 @@ def rep_day(outFile, year, day):
     ax.set_title(f'Representative day for FiT={fit}c and grid price={el_price}c',
                  pad=30)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=4)
-    ax.set_yticks([i for i in range (0, 1401, 200)])  
     
     plot_path = os.path.join(new_plots_folder, 
                              f"Representative_day_{fit}_{el_price}.png")
@@ -112,8 +111,7 @@ def inst_cap(fit, el_price):
     ax.set_ylabel('Capacity installed in kW')
     ax.set_title(f'Yearly installed capacities for FiT={fit}c and grid price={el_price}c',
                  pad=30)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=3)
-    ax.set_yticks([i for i in range (0, 2251, 250)])  
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=3) 
 
     # Save figure to "Corresponding Plots (Thanks to Julien)" folder
     plot_path = os.path.join(new_plots_folder, f"Installed_Capacities_{fit}_{el_price}.png")
@@ -140,8 +138,7 @@ def get_houses(file):
     ax.set_title(f'Connected households for FiT={fit}c and grid price={el_price}c',
                  pad=30)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=2)
-    ax.set_yticks([i for i in range (0, 701, 100)])  
-
+    
     new_plots_folder = os.path.join(os.getcwd(), "Output plots")
     os.makedirs(new_plots_folder, exist_ok=True)
     plot_path = os.path.join(new_plots_folder, 
@@ -239,7 +236,6 @@ def gen_year(file):
     ax.set_title(f'Yearly generation for FiT={fit}c and grid price={el_price}c',
                  pad=30)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=3)
-    ax.set_yticks([i for i in range (0, 7000001, 1000000)])
     
     plot_path = os.path.join(new_plots_folder, 
                              f"Yearly_gen_{fit}_{el_price}.png")
@@ -288,7 +284,6 @@ def add_ret(file):
     ax.set_title(f'Yearly added and retired capacities for FiT={fit}c and grid price={el_price}c',
                  pad=30)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=3)
-    ax.set_yticks([i for i in range (-1000, 1751, 250)])  
 
     # Save figure to "Corresponding Plots (Thanks to Julien)" folder
     plot_path = os.path.join(new_plots_folder, f"Add_Ret_Capacities_{fit}_{el_price}.png")

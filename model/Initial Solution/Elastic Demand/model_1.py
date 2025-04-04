@@ -180,9 +180,6 @@ class Model_1:
         aux_min = m.addVars(self.house, self.years, self.days, self.hours,
                              name='minAuxiliary', lb=-GRB.INFINITY)
         
-        aux_min_ud = m.addVars(self.house, self.years, self.days, self.hours,
-                                name='minAuxiliaryUD', lb=-GRB.INFINITY)
-        
         aux_max = m.addVars(self.house, self.years, self.days, self.hours,
                              name='maxAuxiliary', lb=0)
         
@@ -307,9 +304,9 @@ class Model_1:
         #----------------------------------------------------------------------#
         
         # Auxiliary minimum constraints
-        M = 1000000
-        m.addConstrs(((aux_min[i, y, d, h] <=
-                       feed_in[i, y, d, h])
+        M = np.max(self.surplus[max(self.surplus)]) * max(self.max_house)
+        
+        m.addConstrs(((aux_min[i, y, d, h] <= 0)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -318,7 +315,7 @@ class Model_1:
                      name='min aux 1.1')
         
         m.addConstrs(((aux_min[i, y, d, h] >=
-                       feed_in[i, y, d, h] - b[i, y, d, h] * M)
+                        - b[i, y, d, h] * M)
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -345,49 +342,15 @@ class Model_1:
                       ),
                      name='min aux 2.2')
         
-        # Auxiliary minimum constraints for unmet demand
-        m.addConstrs(((aux_min_ud[i, y, d, h] <= 0)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='min aux UD 1.1')
-        
-        m.addConstrs(((aux_min_ud[i, y, d, h] >= 
-                       - b[i, y, d, h] * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='min aux UD 1.2')
-
-        m.addConstrs(((aux_min_ud[i, y, d, h] <=
-                       h_weight[i, y] * self.surplus[i][d][h])
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='min aux 2.1')
-                     
-        m.addConstrs(((aux_min_ud[i, y, d, h] >=
-                       h_weight[i, y] * self.surplus[i][d][h] 
-                       - (1 - b[i, y, d, h]) * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='min aux 2.2')
+       
         
         # Supply-demand balance constraint
         m.addConstrs(((b_out[y, d, h] 
                         + quicksum(disp[g, y, d, h] for g in self.techs_g) 
-                        + quicksum(aux_min[i, y, d, h] for i in self.house) 
+                        + quicksum(feed_in[i, y, d, h] for i in self.house) 
                         + ud[y, d, h] == 
-                        b_in[y, d, h])
+                        b_in[y, d, h]
+                        - quicksum(aux_min[i, y, d, h] for i in self.house))
                       for h in range(self.hours)
                       for d in range(self.days)
                       for y in range(self.years)
@@ -398,7 +361,7 @@ class Model_1:
         m.addConstrs(((ud[y, d, h] <=
                        (1 - self.md_level)
                        * (b_in[y, d, h] - 
-                          quicksum(aux_min_ud[i, y, d, h] for i in self.house)))
+                          quicksum(aux_min[i, y, d, h] for i in self.house)))
                       for h in range(self.hours)
                       for d in range(self.days)
                       for y in range(self.years)
@@ -581,7 +544,9 @@ class Model_1:
         #----------------------------------------------------------------------#
         # Heat Rate                                                            #
         #----------------------------------------------------------------------#
-        M = 100000
+        M = - (np.min(self.demand[min(self.demand)]) 
+               * max(self.max_house) 
+               * max(self.heat_r_k))
         e = 0.01
         
         

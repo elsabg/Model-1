@@ -243,6 +243,14 @@ def to_xlsx(model, fit, elec_price):
     costs = dfs[9]
     
     ############################################################################
+    # Create summary DataFrame                                                 #
+    ############################################################################
+    summary_info = [model.i, model.ud_penalty, model.md_level, model.obj]
+    summary_index = ['Interest Rate', 'Unmet Demand Penalty',
+                     'Required Level of Met Demand', 'NPV']
+    summary = pd.DataFrame(summary_info, index = summary_index)
+    
+    ############################################################################
     # Populate yearly DataFrames                                               #
     ############################################################################
     
@@ -275,17 +283,12 @@ def to_xlsx(model, fit, elec_price):
     # Export to Excel and save in current directory                            #
     ############################################################################
                         
-    # Create new folder within current directory for output files
-    folder_name = 'Output Files'
-    current_directory = os.getcwd()
-    folder_path = os.path.join(current_directory, folder_name)
-    os.makedirs(folder_path, exist_ok=True)
-    
-    # Write dataframes to excel
-    with pd.ExcelWriter(os.path.join(folder_path, 
-                                     f"Output_{fit}_{elec_price}.xlsx"), 
+
+    # Write dataframes to current working directory
+    with pd.ExcelWriter(f"Output_{fit}_{elec_price}.xlsx", 
                         engine='openpyxl') as writer:
         
+        summary.to_excel(writer, sheet_name='Summary')
         costs.to_excel(writer, sheet_name='Costs and Revenues')
         num_households.to_excel(writer, sheet_name='Connected Households')
         inst.to_excel(writer, sheet_name='Installed Capacities')

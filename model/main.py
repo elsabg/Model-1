@@ -8,9 +8,9 @@ Created on Thu Mar  6 22:08:07 2025
 import numpy as np
 import pandas as pd
 
-import functions_UD as func
+import functions as func
 
-from model_1_UD import Model_1
+from Model_1 import Model_1
 
 #------------------------------------------------------------------------------#
 #                                                                              #

@@ -15,12 +15,10 @@ import os
 def rep_day(outFile, year, day):
     '''Plot some output data and save to folder'''
 
-    new_plots_folder = os.path.join(os.getcwd(), "Representative days")
+    new_plots_folder = os.path.join(os.getcwd(), "Output plots")
     os.makedirs(new_plots_folder, exist_ok=True)
 
-    script_dir = os.getcwd()
-    file_path = os.path.join(script_dir, "Output Files", outFile)
-    out = pd.read_excel(file_path, sheet_name=None)
+    out = pd.read_excel(outFile, sheet_name=None)
 
     fit = int(outFile.split('_')[1])
     el_price = int(outFile.split('_')[2].split('.')[0])
@@ -41,6 +39,8 @@ def rep_day(outFile, year, day):
     net_sur = out['Net surplus'].set_index('Unnamed: 0')
     ud = out['Unmet Demand'].set_index('Unnamed: 0')
 
+    sur = net_sur - feed_in
+    
     fig, ax = plt.subplots()
 
     # Representative day
@@ -68,37 +68,33 @@ def rep_day(outFile, year, day):
 
     ax.plot(np.arange(24), tot_dem.loc[index].to_numpy() * -1,
             label='Total Demand', color='#595755')
-    ax.plot(np.arange(24), net_sur.loc[index].to_numpy(),
-            label='Total Surplus', linestyle='dashed',
+    ax.plot(np.arange(24), sur.loc[index].to_numpy(),
+            label='Wasted Surplus', linestyle='dashed',
             color='#595755')
 
     ax.set_xlabel('Hour')
     ax.set_ylabel('Energy')
     ax.set_title(f'Representative day for FiT={fit}c and grid price={el_price}c',
                  pad=30)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=4)
-    ax.set_yticks([i for i in range (0, 1401, 200)])  
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=4) 
     
     plot_path = os.path.join(new_plots_folder, 
                              f"Representative_day_{fit}_{el_price}.png")
     plt.savefig(plot_path)
     plt.close()
     
-    print(f"Saved plot: {plot_path}")
 
 def inst_cap(fit, el_price):
     '''Plot installed capacities and save to folder'''
 
-    new_plots_folder = os.path.join(os.getcwd(), "Installed capacities")
+    new_plots_folder = os.path.join(os.getcwd(), "Output plots")
     os.makedirs(new_plots_folder, exist_ok=True)
 
     fit = int(fit * 100)
     el_price = int(el_price * 100)
 
-    script_dir = os.getcwd()
     outFile = f'Output_{fit}_{el_price}.xlsx'
-    file_path = os.path.join(script_dir, "Output Files", outFile)
-    inst = pd.read_excel(file_path, sheet_name='Installed Capacities')
+    inst = pd.read_excel(outFile, sheet_name='Installed Capacities')
     inst.set_index('Unnamed: 0', inplace=True)
 
     fig, ax = plt.subplots()
@@ -118,20 +114,16 @@ def inst_cap(fit, el_price):
     ax.set_title(f'Yearly installed capacities for FiT={fit}c and grid price={el_price}c',
                  pad=30)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=3)
-    ax.set_yticks([i for i in range (0, 2251, 250)])  
 
     # Save figure to "Corresponding Plots (Thanks to Julien)" folder
     plot_path = os.path.join(new_plots_folder, f"Installed_Capacities_{fit}_{el_price}.png")
     plt.savefig(plot_path)
     plt.close()
     
-    print(f"Saved plot: {plot_path}")
 
 def get_houses(file):
-    cwd = os.getcwd()
-    files_path = os.path.join(cwd, "Output Files")
-    out = pd.read_excel(os.path.join(files_path, file), 
-                        sheet_name="Connected Households")
+
+    out = pd.read_excel(file, sheet_name="Connected Households")
     out.set_index('Unnamed: 0', inplace=True)
     fig, ax = plt.subplots()
     fit = int(file.split('_')[1])
@@ -148,9 +140,8 @@ def get_houses(file):
     ax.set_title(f'Connected households for FiT={fit}c and grid price={el_price}c',
                  pad=30)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=2)
-    ax.set_yticks([i for i in range (0, 701, 100)])  
 
-    new_plots_folder = os.path.join(os.getcwd(), "Connected households")
+    new_plots_folder = os.path.join(os.getcwd(), "Output plots")
     os.makedirs(new_plots_folder, exist_ok=True)
     plot_path = os.path.join(new_plots_folder, 
                              f"Connected_households_{fit}_{el_price}.png")
@@ -159,12 +150,10 @@ def get_houses(file):
 
 def gen_year(file):
     
-    new_plots_folder = os.path.join(os.getcwd(), "Yearly Generation")
+    new_plots_folder = os.path.join(os.getcwd(), "Output plots")
     os.makedirs(new_plots_folder, exist_ok=True)
 
-    script_dir = os.getcwd()
-    file_path = os.path.join(script_dir, "Output Files", file)
-    out = pd.read_excel(file_path, sheet_name=None)
+    out = pd.read_excel(file, sheet_name=None)
 
     fit = int(file.split('_')[1])
     el_price = int(file.split('_')[2].split('.')[0])
@@ -249,7 +238,6 @@ def gen_year(file):
     ax.set_title(f'Yearly generation for FiT={fit}c and grid price={el_price}c',
                  pad=30)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=3)
-    ax.set_yticks([i for i in range (0, 7000001, 1000000)])
     
     plot_path = os.path.join(new_plots_folder, 
                              f"Yearly_gen_{fit}_{el_price}.png")
@@ -258,11 +246,9 @@ def gen_year(file):
         
 def add_ret(file):
     
-    script_dir = os.getcwd()
-    new_plots_folder = os.path.join(script_dir, "Added and Retired capacities")
-    file_path = os.path.join(script_dir, "Output Files", file)
+    new_plots_folder = os.path.join(os.getcwd(), "Output plots")
     os.makedirs(new_plots_folder, exist_ok=True)
-    out = pd.read_excel(file_path, sheet_name=None)
+    out = pd.read_excel(file, sheet_name=None)
     
     fit = int(file.split('_')[1])
     el_price = int(file.split('_')[2].split('.')[0])
@@ -300,7 +286,6 @@ def add_ret(file):
     ax.set_title(f'Yearly added and retired capacities for FiT={fit}c and grid price={el_price}c',
                  pad=30)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=3)
-    ax.set_yticks([i for i in range (-1000, 1751, 250)])  
 
     # Save figure to "Corresponding Plots (Thanks to Julien)" folder
     plot_path = os.path.join(new_plots_folder, f"Add_Ret_Capacities_{fit}_{el_price}.png")
@@ -350,20 +335,14 @@ def get_npv(i): #takes interest rate as argument
     plt.savefig("NPV.png", dpi=300, bbox_inches='tight')
     
     
-# Run the functions for different FiT values
-cwd = os.getcwd()
-files_path = os.path.join(cwd, "Output Files")
-files = os.listdir(files_path)
+# Run the functions
+file = 'Output_0_40.xlsx'
 
-get_npv(.11)
-
-
-for file in files:
-    fit = int(file.split('_')[1])
-    el_price = int(file.split('_')[2].split('.')[0])
-    add_ret(file)
-    gen_year(file)
-    rep_day(file, 10, 1)
-    inst_cap(fit/100, el_price/100)
-    get_houses(file)
+fit = int(file.split('_')[1])
+el_price = int(file.split('_')[2].split('.')[0])
+add_ret(file)
+gen_year(file)
+rep_day(file, 10, 1)
+inst_cap(fit/100, el_price/100)
+get_houses(file)
 

@@ -9,9 +9,13 @@ import numpy as np
 import pandas as pd
 
 import functions as func
-
 from model_1 import Model_1
+import importlib
 
+'''
+importlib.reload(functions)
+importlib.reload(model_1)
+'''
 #------------------------------------------------------------------------------#
 #                                                                              #
 # initialize model                                                             #

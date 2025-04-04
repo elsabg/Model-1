@@ -40,6 +40,8 @@ def rep_day(outFile, year, day):
     net_dem = out['Net demand'].set_index('Unnamed: 0')
     net_sur = out['Net surplus'].set_index('Unnamed: 0')
     ud = out['Unmet Demand'].set_index('Unnamed: 0')
+    
+    sur = net_sur - feed_in
 
     fig, ax = plt.subplots()
 
@@ -68,8 +70,8 @@ def rep_day(outFile, year, day):
 
     ax.plot(np.arange(24), tot_dem.loc[index].to_numpy() * -1,
             label='Total Demand', color='#595755')
-    ax.plot(np.arange(24), net_sur.loc[index].to_numpy(),
-            label='Total Surplus', linestyle='dashed',
+    ax.plot(np.arange(24), sur.loc[index].to_numpy(),
+            label='Surplus', linestyle='dashed',
             color='#595755')
 
     ax.set_xlabel('Hour')
@@ -84,7 +86,6 @@ def rep_day(outFile, year, day):
     plt.savefig(plot_path)
     plt.close()
     
-    print(f"Saved plot: {plot_path}")
 
 def inst_cap(fit, el_price):
     '''Plot installed capacities and save to folder'''
@@ -125,7 +126,6 @@ def inst_cap(fit, el_price):
     plt.savefig(plot_path)
     plt.close()
     
-    print(f"Saved plot: {plot_path}")
 
 def get_houses(file):
     cwd = os.getcwd()
@@ -349,13 +349,35 @@ def get_npv(i): #takes interest rate as argument
     plt.show()
     plt.savefig("NPV.png", dpi=300, bbox_inches='tight')
     
+def fit_v_price(file):
+    out = pd.read_excel(file).set_index('Unnamed: 0')
+    fits = out.loc['Feed-in Tariffs'].to_list()
+    unfeas_fits = [fit for fit in fits if fit == 0]
+    prices = out.loc['Prices'].to_list()
+    base_npv = out.loc['Base NPV', 0]
+    
+    fig, ax = plt.subplots()
+    ax.plot(prices[len(unfeas_fits) - 2 ::], fits[len(unfeas_fits) - 2 ::], 
+            marker='o', linestyle='-', color='#595755', zorder=1)
+    ax.scatter(prices[len(unfeas_fits) -2 : len(unfeas_fits)], 
+               unfeas_fits[len(unfeas_fits) - 2 ::], 
+               marker='x', color='red', zorder=2)
+    
+    ax.set_xlabel('Price in USD')
+    ax.set_ylabel('Feed-in Tariff in USD')
+    ax.set_title(f'Price and FiT pairs for NPV={base_npv}')
+    
+    ax.set_xticks([i / 100 for i in range(len(unfeas_fits) - 2, 51, 5)])
+    plt.savefig('fits_v_prices.png')
+    plt.close()
     
 # Run the functions for different FiT values
 cwd = os.getcwd()
 files_path = os.path.join(cwd, "Output Files")
 files = os.listdir(files_path)
 
-get_npv(.11)
+
+fit_v_price('Summary.xlsx')
 
 
 for file in files:
@@ -366,4 +388,3 @@ for file in files:
     rep_day(file, 10, 1)
     inst_cap(fit/100, el_price/100)
     get_houses(file)
-

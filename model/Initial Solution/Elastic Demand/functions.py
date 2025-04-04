@@ -243,6 +243,14 @@ def to_xlsx(model, fit, elec_price):
     costs = dfs[9]
     
     ############################################################################
+    # Create summary DataFrame                                                 #
+    ############################################################################
+    summary_info = [model.i, model.ud_penalty, model.md_level, model.obj]
+    summary_index = ['Interest Rate', 'Unmet Demand Penalty',
+                     'Required Level of Met Demand', 'NPV']
+    summary = pd.DataFrame(summary_info, index = summary_index)
+    
+    ############################################################################
     # Populate yearly DataFrames                                               #
     ############################################################################
     
@@ -279,6 +287,7 @@ def to_xlsx(model, fit, elec_price):
     with pd.ExcelWriter(f"Output_{fit}_{elec_price}.xlsx", 
                         engine='openpyxl') as writer:
         
+        summary.to_excel(writer, sheet_name='Summary')
         costs.to_excel(writer, sheet_name='Costs and Revenues')
         num_households.to_excel(writer, sheet_name='Connected Households')
         inst.to_excel(writer, sheet_name='Installed Capacities')

@@ -488,6 +488,11 @@ class Model_1:
             "Initial capacity"
         )
         
+        m.addConstrs(((inst_cap["Owned PV", y] == 0)
+                      for y in range(self.years)
+                      ),
+                     name='No PV'
+                     )
         
         #----------------------------------------------------------------------#
         # Generation Retirement                                                #
@@ -733,6 +738,16 @@ class Model_1:
             'SoC capacity 2'
         )
         
+        
+        #base case (no feed-in) condition
+        m.addConstrs(((feed_in[i, y, d, h] == 0)
+                       for i in self.house
+                       for y in range(self.years)
+                       for d in range(self.days)
+                       for h in range(self.hours)
+                       ),name='base case'
+                     )
+        
         #----------------------------------------------------------------------#
         # Optimization                                                         #
         #----------------------------------------------------------------------#
@@ -771,3 +786,4 @@ class Model_1:
 
         variables = {var.VarName : var for var in m.getVars()}
         self.variables = variables
+        self.obj = m.getObjective().getValue()
