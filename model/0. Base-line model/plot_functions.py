@@ -41,6 +41,8 @@ def rep_day(outFile, year, day):
     net_sur = out['Net surplus'].set_index('Unnamed: 0')
     ud = out['Unmet Demand'].set_index('Unnamed: 0')
 
+    sur = net_sur - feed_in
+    
     fig, ax = plt.subplots()
 
     # Representative day
@@ -68,13 +70,13 @@ def rep_day(outFile, year, day):
 
     ax.plot(np.arange(24), tot_dem.loc[index].to_numpy() * -1,
             label='Total Demand', color='#595755')
-    ax.plot(np.arange(24), net_sur.loc[index].to_numpy(),
-            label='Total Surplus', linestyle='dashed',
+    ax.plot(np.arange(24), sur.loc[index].to_numpy(),
+            label='Surplus', linestyle='dashed',
             color='#595755')
 
     ax.set_xlabel('Hour')
     ax.set_ylabel('Energy')
-    ax.set_title(f'Representative day for FiT={fit}c and grid price={el_price}c',
+    ax.set_title(f'Representative generation profile for FiT={fit}c and grid price={el_price}c',
                  pad=30)
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=4)
     ax.set_yticks([i for i in range (0, 1401, 200)])  

@@ -75,11 +75,15 @@ def rep_day(outFile, year, day):
     ax.set_xlabel('Hour')
     ax.set_ylabel('Energy')
     ax.set_title(f'Representative day for FiT={fit}c and grid price={el_price}c',
-                 pad=30)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=4) 
+                 pad=50)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 0.94), ncol=4,
+              bbox_transform=fig.transFigure) 
     
     plot_path = os.path.join(new_plots_folder, 
                              f"Representative_day_{fit}_{el_price}.png")
+    
+    plt.subplots_adjust(top=.85)
+    plt.tight_layout()
     plt.savefig(plot_path)
     plt.close()
     
@@ -112,10 +116,11 @@ def inst_cap(fit, el_price):
     ax.set_xlabel('Year')
     ax.set_ylabel('Capacity installed in kW')
     ax.set_title(f'Yearly installed capacities for FiT={fit}c and grid price={el_price}c',
-                 pad=30)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=3)
+                 pad=40)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, .94), ncol=3,
+              bbox_transform=fig.transFigure)
 
-    # Save figure to "Corresponding Plots (Thanks to Julien)" folder
+    plt.subplots_adjust(top=.85)
     plot_path = os.path.join(new_plots_folder, f"Installed_Capacities_{fit}_{el_price}.png")
     plt.savefig(plot_path)
     plt.close()
@@ -138,9 +143,11 @@ def get_houses(file):
     ax.set_xlabel('Year')
     ax.set_ylabel('Connected households')
     ax.set_title(f'Connected households for FiT={fit}c and grid price={el_price}c',
-                 pad=30)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=2)
-
+                 pad=38)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=2,
+              bbox_transform=fig.transFigure)
+    
+    plt.subplots_adjust(top=.85)
     new_plots_folder = os.path.join(os.getcwd(), "Output plots")
     os.makedirs(new_plots_folder, exist_ok=True)
     plot_path = os.path.join(new_plots_folder, 
@@ -236,9 +243,11 @@ def gen_year(file):
     ax.set_xlabel('Year')
     ax.set_ylabel('Energy')
     ax.set_title(f'Yearly generation for FiT={fit}c and grid price={el_price}c',
-                 pad=30)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=3)
+                 pad=40)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
+              bbox_transform=fig.transFigure)
     
+    plt.subplots_adjust(top=.85)
     plot_path = os.path.join(new_plots_folder, 
                              f"Yearly_gen_{fit}_{el_price}.png")
     plt.savefig(plot_path)
@@ -284,10 +293,11 @@ def add_ret(file):
     ax.set_xlabel('Year')
     ax.set_ylabel('Capacity added and retired in kW')
     ax.set_title(f'Yearly added and retired capacities for FiT={fit}c and grid price={el_price}c',
-                 pad=30)
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=3)
+                 pad=40)
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
+              bbox_transform=fig.transFigure)
 
-    # Save figure to "Corresponding Plots (Thanks to Julien)" folder
+    plt.subplots_adjust(top=.85)
     plot_path = os.path.join(new_plots_folder, f"Add_Ret_Capacities_{fit}_{el_price}.png")
     plt.savefig(plot_path)
     plt.close()
