@@ -421,6 +421,7 @@ rep_day(outFile_1, multi=0, year=10, day=1)
 inst_cap(outFile_1, multi=0)
 get_houses(outFile_1, multi=0)
 
+
 # No PV
 outFile_2 = os.path.join(outFile, '2. No PV', 'Output Files')
 files = os.listdir(outFile_2)
