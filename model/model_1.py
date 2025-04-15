@@ -131,13 +131,14 @@ class Model_1:
 
 
 
-    def solve(self, fit, elec_price, md_level, ud_penalty):
+    def solve(self, fit, elec_price, md_level, ud_penalty, re_level=0):
         'Create and solve the model'
 
         self.fit = fit
         self.elec_price = elec_price
         self.md_level = md_level
         self.ud_penalty = ud_penalty
+        self.re_level = re_level
 
         m = Model('Model_1')
 
@@ -427,15 +428,21 @@ class Model_1:
                       "Feed in cap"
             )
         
-        m.addConstrs(((feed_in[i, y, d, h] >=
-                       0.2 * self.feedIn_max
-                       * max(self.max_house_str[i] * self.surplus[i][d][h], 0))
-                      for i in self.house
-                      for h in range(self.hours)
-                      for d in range(self.days)
+        m.addConstrs(((quicksum(feed_in[i, y, d, h]
+                                for i in self.house
+                                for h in range(self.hours))
+                       + quicksum(disp['Owned PV', y, d, h]
+                                  for h in range(self.hours))
+                       >= (quicksum(disp[g, y, d, h]
+                                    for g in self.techs_g
+                                    for h in range(self.hours))
+                           + quicksum(b_out[y, d, h]
+                                      for h in range(self.hours)))
+                       * self.re_level * self.feedIn_max)
                       for y in range(self.years)
+                      for d in range(self.days)
                       ),
-                     name='Feed-in min'
+                     name='Min Renewable Energy'
                      )
         
         m.addConstrs(((h_weight[i, y] <= self.max_house_str[i])
@@ -470,10 +477,11 @@ class Model_1:
             "Initial capacity"
         )
         
+        
         M = - (np.min(self.demand[min(self.demand)]) 
                * max(self.max_house))
         
-        m.addConstrs(((inst_cap['Owned PV', y] <= self.PV_max * M)
+        m.addConstrs(((inst_cap['Owned PV', y] <= self.PV_max * M * 10)
                       for y in range(self.years)
                       ),
                      name = 'max PV'

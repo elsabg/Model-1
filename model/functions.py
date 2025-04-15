@@ -245,9 +245,11 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
     ############################################################################
     # Create summary DataFrame                                                 #
     ############################################################################
-    summary_info = [model.i, model.ud_penalty, model.md_level, model.obj]
+    summary_info = [model.i, model.ud_penalty, model.md_level, 
+                    model.re_level, model.obj]
     summary_index = ['Interest Rate', 'Unmet Demand Penalty',
-                     'Required Level of Met Demand', 'NPV']
+                     'Required Level of Met Demand', 'Minimum Feed-in %',
+                     'NPV']
     summary = pd.DataFrame(summary_info, index = summary_index)
     
     ############################################################################
@@ -286,7 +288,8 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
     # Create new folder within current directory for output files
     if multi == 1:
         folder_name = 'Output Files'
-        folder_path = os.path.join(out_path, folder_name)
+        folder_path = os.path.join(out_path, folder_name,
+                                   str(int(model.re_level * 100)))
         os.makedirs(folder_path, exist_ok=True)
     
     else:

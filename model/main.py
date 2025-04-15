@@ -13,29 +13,31 @@ import functions as func
 from model_1 import Model_1
 
 def single_run(in_path, fit, elec_price, out_path,
-               md_level=0, ud_penalty=0):
+               md_level=0, ud_penalty=0, re_level=0):
     model = Model_1(_file_name=in_path)
     model.load_data()
     model.solve(fit=fit, elec_price=elec_price, 
-                md_level = md_level, ud_penalty=ud_penalty)
+                md_level = md_level, ud_penalty=ud_penalty, 
+                re_level=re_level)
     func.output_data(model, 2)
     func.to_xlsx(model, int(fit * 100), int(elec_price * 100), 
                  out_path, multi=0)
 
 def multi_run(in_path, fits, elec_prices, out_path,
-              md_level=0, ud_penalty=0):
+              md_level=0, ud_penalty=0, re_level=0):
     for elec_price in elec_prices:
         for fit in fits:
             model = Model_1(_file_name=in_path)
             model.load_data()
             model.solve(fit=fit, elec_price=elec_price, 
-                        md_level = md_level, ud_penalty=ud_penalty)
+                        md_level = md_level, ud_penalty=ud_penalty, 
+                        re_level=re_level)
             func.output_data(model, 2)
             func.to_xlsx(model, int(fit * 100), int(elec_price * 100), 
                          out_path)    
 
-def fit_search(in_path, out_path,
-               md_level=0, ud_penalty=0):
+def fit_search(in_path, out_path, prices,
+               md_level=0, ud_penalty=0, re_level=0):
     
     # Initialize model
     model = Model_1(_file_name=in_path)
@@ -51,7 +53,8 @@ def fit_search(in_path, out_path,
 
 
     # Grid search
-    prices = [i / 100 for i in range(1, 51, 1)]
+    global fits
+    global fit_mid
     fits = []
     objs = []
     
@@ -59,7 +62,8 @@ def fit_search(in_path, out_path,
         # Check if there is a positive solution
         fit = 0
         model.solve(fit=fit, elec_price=el_price,
-                    ud_penalty=ud_penalty, md_level=md_level)
+                    ud_penalty=ud_penalty, md_level=md_level,
+                    re_level=re_level)
         if model.m.getObjective().getValue() < base_npv:
             print(f'No positive solution for {el_price}')
             fits.append(0)
@@ -68,13 +72,22 @@ def fit_search(in_path, out_path,
         # If yes, run a binary grid search to find it
         elif len(fits) != 0:
             fit_left = fits[-1]
-            fit_right = 100
+            fit_right = 4
             fit_mid = (fit_left + fit_right) / 2
             model.m.reset()
             model.solve(fit=fit_mid, elec_price=el_price,
-                        ud_penalty=ud_penalty, md_level=md_level)
+                        ud_penalty=ud_penalty, md_level=md_level, 
+                        re_level=re_level)
     
             while abs(model.m.getObjective().getValue() - base_npv) >= 1000:
+                model_feed_in = sum(model.feed_in[i, y, d, h].X 
+                                    for (i, y, d, h) in model.feed_in.keys())
+                model_obj = model.m.getObjective().getValue()
+                
+                if model_feed_in == 0 and model_obj >= base_npv:
+                    fit_mid = 'inf'
+                    break
+                
                 if model.m.getObjective().getValue() >= base_npv:
                     fit_left = fit_mid
                 else:
@@ -82,21 +95,35 @@ def fit_search(in_path, out_path,
                 fit_mid = (fit_right + fit_left) / 2
                 model.m.reset()
                 model.solve(fit=fit_mid, elec_price=el_price,
-                            ud_penalty=ud_penalty, md_level=md_level)
-           
+                            ud_penalty=ud_penalty, md_level=md_level, 
+                            re_level=re_level)
+                
+            if fit_mid == 'inf':
+                break
+            
             fits.append(fit_mid)
             objs.append(model.m.getObjective().getValue())
             func.output_data(model, 2)
-            func.to_xlsx(model, int(fit_mid * 100), int(el_price * 100), out_path)
+            func.to_xlsx(model, int(fit_mid * 100), int(el_price * 100), 
+                         os.path.join(out_path))
             
         else:
             fit_left = 0
-            fit_right = 100
+            fit_right = 4
             fit_mid = (fit_left + fit_right) / 2
             model.m.reset()
             model.solve(fit=fit_mid, elec_price=el_price,
-                        ud_penalty=ud_penalty, md_level=md_level) 
+                        ud_penalty=ud_penalty, md_level=md_level,
+                        re_level = re_level) 
             while abs(model.m.getObjective().getValue() - base_npv) >= 1000:
+                model_feed_in = sum(model.feed_in[i, y, d, h].X 
+                                    for (i, y, d, h) in model.feed_in.keys())
+                model_obj = model.m.getObjective().getValue()
+                
+                if model_feed_in == 0 and model_obj >= base_npv:
+                    fit_mid = 'inf'
+                    break
+                
                 if model.m.getObjective().getValue() >= base_npv:
                     fit_left = fit_mid
                 else:
@@ -104,21 +131,38 @@ def fit_search(in_path, out_path,
                 fit_mid = (fit_right + fit_left) / 2
                 model.m.reset()
                 model.solve(fit=fit_mid, elec_price=el_price,
-                            ud_penalty=ud_penalty, md_level=md_level)
+                            ud_penalty=ud_penalty, md_level=md_level, 
+                            re_level=re_level)
+                
+                model_feed_in = sum(model.feed_in[i, y, d, h].X 
+                                    for (i, y, d, h) in model.feed_in.keys())
+                if model_feed_in <= 100:
+                    fit_mid = 'inf'
+                    break
                     
             fits.append(fit_mid)
             objs.append(model.m.getObjective().getValue())
             func.output_data(model, 2)
-            func.to_xlsx(model, int(fit_mid * 100), int(el_price * 100), out_path)
+            func.to_xlsx(model, int(fit_mid * 100), int(el_price * 100), 
+                         out_path)
+        
             
     summary = pd.DataFrame((prices, fits, [base_npv]*len(fits), objs), 
                            index=['Prices', 'Feed-in Tariffs', 
                                   'Base NPV', 'NPV'])
-    summary.to_excel(os.path.join(out_path, 'Summary.xlsx'))           
-
-
+    try:
+        with pd.ExcelWriter(os.path.join(out_path, 'Summary.xlsx'), 
+                            mode='a', engine='openpyxl', 
+                            if_sheet_exists='new') as writer:
+            summary.to_excel(writer, sheet_name=str(re_level))
+        
+    except FileNotFoundError:
+        with pd.ExcelWriter(os.path.join(out_path, 'Summary.xlsx'), 
+                            mode='w', engine='openpyxl') as writer:
+            summary.to_excel(writer, sheet_name=str(re_level))
 
 cwd = os.getcwd()
+
 
 # Initial Solution
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
@@ -130,12 +174,20 @@ in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noFI_noPV.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '1. Base Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path)
 
-# FiT search with no PV
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noPV.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '2. No PV')
-fit_search(in_path, out_path)
+'''
+re_levels = [0, 0.05, 0.1, 0.15, 0.2]
 
 # FiT search with no PV
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '3. With PV')
-fit_search(in_path, out_path)
+prices = np.arange(0, 0.5, 0.01)
+for re_level in re_levels:
+    in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noPV.xlsx')
+    out_path = os.path.join(cwd, 'Outputs', '2. No PV')
+    fit_search(in_path, out_path, prices, re_level=re_level)
+
+# FiT search with PV
+prices = np.arange(0, 0.5, 0.01)
+for re_level in re_levels:
+    in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
+    out_path = os.path.join(cwd, 'Outputs', '3. With PV')
+    fit_search(in_path, out_path, prices, re_level=re_level)
+'''

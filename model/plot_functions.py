@@ -18,8 +18,9 @@ def rep_day(outFile, year, day, multi=1):
     new_plots_folder = os.path.join(outFile, "..")
 
     if multi == 1:
-        new_plots_folder = os.path.join(new_plots_folder, "..",
-                                        "Daily Generation")
+        re_folder = os.path.basename(os.path.dirname(outFile))
+        new_plots_folder = os.path.join(new_plots_folder, "..", "..",
+                                        "Daily Generation", re_folder)
         os.makedirs(new_plots_folder, exist_ok=True)
 
     out = pd.read_excel(outFile, sheet_name=None)
@@ -97,8 +98,9 @@ def inst_cap(outFile, multi=1):
     new_plots_folder = os.path.join(outFile, "..")
 
     if multi == 1:
-        new_plots_folder = os.path.join(new_plots_folder, "..",
-                                        "Installed capaities")
+        re_folder = os.path.basename(os.path.dirname(outFile))
+        new_plots_folder = os.path.join(new_plots_folder, "..", "..",
+                                        "Installed capaities", re_folder)
         os.makedirs(new_plots_folder, exist_ok=True)
 
     inst = pd.read_excel(outFile, sheet_name='Installed Capacities')
@@ -140,8 +142,9 @@ def get_houses(outFile, multi=1):
     new_plots_folder = os.path.join(outFile, "..")
 
     if multi == 1:
-        new_plots_folder = os.path.join(new_plots_folder, "..",
-                                        "Connected households")
+        re_folder = os.path.basename(os.path.dirname(outFile))
+        new_plots_folder = os.path.join(new_plots_folder, "..", "..",
+                                        "Connected households", re_folder)
         os.makedirs(new_plots_folder, exist_ok=True)
 
     out = pd.read_excel(outFile, sheet_name="Connected Households")
@@ -179,8 +182,9 @@ def gen_year(outFile, multi):
     new_plots_folder = os.path.join(outFile, "..")
 
     if multi == 1:
-        new_plots_folder = os.path.join(new_plots_folder, "..",
-                                        "Yearly generation")
+        re_folder = os.path.basename(os.path.dirname(outFile))
+        new_plots_folder = os.path.join(new_plots_folder, "..", "..",
+                                        "Yearly generation", re_folder)
         os.makedirs(new_plots_folder, exist_ok=True)
 
     out = pd.read_excel(outFile, sheet_name=None)
@@ -283,8 +287,10 @@ def add_ret(outFile, multi):
     new_plots_folder = os.path.join(outFile, "..")
 
     if multi == 1:
-        new_plots_folder = os.path.join(new_plots_folder, "..",
-                                        "Added and retired capacities")
+        re_folder = os.path.basename(os.path.dirname(outFile))
+        new_plots_folder = os.path.join(new_plots_folder, "..", "..",
+                                        "Added and retired capacities",
+                                        re_folder)
         os.makedirs(new_plots_folder, exist_ok=True)
 
     out = pd.read_excel(outFile, sheet_name=None)
@@ -380,17 +386,27 @@ def fit_v_price(casePath):
     new_plots_folder = os.path.join(casePath, "FiTs v Prices.png")
     outFile = os.path.join(casePath, "Summary.xlsx")
     
-    out = pd.read_excel(outFile).set_index('Unnamed: 0')
-    fits = out.loc['Feed-in Tariffs'].to_list()
-    unfeas_fits = [fit for fit in fits if fit == 0]
-    prices = out.loc['Prices'].to_list()
-    
+    out = pd.read_excel(outFile, sheet_name=None)
     fig, ax = plt.subplots()
-    ax.plot(prices[len(unfeas_fits) - 2 ::], fits[len(unfeas_fits) - 2 ::], 
-            marker='o', linestyle='-', color='#595755', zorder=1)
-    ax.scatter(prices[len(unfeas_fits) -2 : len(unfeas_fits)], 
-               unfeas_fits[len(unfeas_fits) - 2 ::], 
-               marker='x', color='red', zorder=2, label='Infeasible')
+    colors = ["#f9e395", "#595755", "#c2deaf", "#85a4c4", "#f2b382" ]
+    i = 0
+    show_infeasible_label = True
+    
+    for key in out:
+        out[key].set_index('Unnamed: 0', inplace=True)
+        fits = out[key].loc['Feed-in Tariffs'].to_list()
+        unfeas_fits = [fit for fit in fits if fit == 0]
+        prices = out[key].loc['Prices'].to_list()
+    
+        ax.plot(prices[len(unfeas_fits) - 2 ::], fits[len(unfeas_fits) - 2 ::], 
+                marker='o', linestyle='-', color=colors[i], zorder=1,
+                label=float(key))
+        ax.scatter(prices[len(unfeas_fits) -2 : len(unfeas_fits)], 
+                   unfeas_fits[len(unfeas_fits) - 2 ::], 
+                   marker='x', color='red', zorder=2, 
+                   label='Infeasible' if show_infeasible_label else "")
+        i+=1
+        show_infeasible_label = False
     
     ax.set_xlabel('Price in USD')
     ax.set_ylabel('Feed-in Tariff in USD')
@@ -421,31 +437,40 @@ rep_day(outFile_1, multi=0, year=10, day=1)
 inst_cap(outFile_1, multi=0)
 get_houses(outFile_1, multi=0)
 
-
+'''
 # No PV
 outFile_2 = os.path.join(outFile, '2. No PV', 'Output Files')
-files = os.listdir(outFile_2)
-for file in files:
-    outFile_2_1 = os.path.join(outFile, '2. No PV', 'Output Files', file)
-    add_ret(outFile_2_1, multi=1)
-    gen_year(outFile_2_1, multi=1)
-    rep_day(outFile_2_1, multi=1, year=10, day=1)
-    inst_cap(outFile_2_1, multi=1)
-    get_houses(outFile_2_1, multi=1)
+re_levels = os.listdir(outFile_2)
+
+for re_level in re_levels:
+    files = os.listdir(os.path.join(outFile_2, re_level))
+
+    for file in files:
+        outFile_2_1 = os.path.join(outFile, '2. No PV', 'Output Files', re_level, file)
+        add_ret(outFile_2_1, multi=1)
+        gen_year(outFile_2_1, multi=1)
+        rep_day(outFile_2_1, multi=1, year=10, day=1)
+        inst_cap(outFile_2_1, multi=1)
+        get_houses(outFile_2_1, multi=1)
     
-    outFile_2_2 = os.path.join(outFile, '2. No PV')
-    fit_v_price(outFile_2_2)
+outFile_2_2 = os.path.join(outFile, '2. No PV')
+fit_v_price(outFile_2_2)
+
 
 # With PV
 outFile_3 = os.path.join(outFile, '3. With PV', 'Output Files')
-files = os.listdir(outFile_2)
-for file in files:
-    outFile_3_1 = os.path.join(outFile, '3. With PV', 'Output Files', file)
-    add_ret(outFile_3_1, multi=1)
-    gen_year(outFile_3_1, multi=1)
-    rep_day(outFile_3_1, multi=1, year=10, day=1)
-    inst_cap(outFile_3_1, multi=1)
-    get_houses(outFile_3_1, multi=1)
-    
-    outFile_3_2 = os.path.join(outFile, '3. With PV')
-    fit_v_price(outFile_3_2)
+re_levels = os.listdir(outFile_3)
+
+for re_level in re_levels:
+    files = os.listdir(os.path.join(outFile_3, re_level))
+    for file in files:
+        outFile_3_1 = os.path.join(outFile, '3. With PV', 'Output Files', re_level, file)
+        add_ret(outFile_3_1, multi=1)
+        gen_year(outFile_3_1, multi=1)
+        rep_day(outFile_3_1, multi=1, year=10, day=1)
+        inst_cap(outFile_3_1, multi=1)
+        get_houses(outFile_3_1, multi=1)
+        
+outFile_3_2 = os.path.join(outFile, '3. With PV')
+fit_v_price(outFile_3_2)
+'''
