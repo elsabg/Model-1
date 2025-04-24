@@ -51,14 +51,30 @@ def fit_search(in_path, out_path, prices,
     file.set_index('Unnamed: 0', inplace=True)
     base_npv = file.loc['NPV', 0]
 
-
     # Grid search
     global fits
     global fit_mid
-    fits = []
-    objs = []
     
-    for el_price in prices:
+    output_files = os.listdir(out_path)
+    if "Summary.xlsx" in output_files:
+        prev_summary = pd.read_excel(os.path.join(out_path, "Summary.xlsx"),
+                                     sheet_name=None)
+        last_re = float(list(prev_summary.keys())[-1])
+        if last_re == re_level:
+            last_re_summary = prev_summary[str(last_re)].set_index('Unnamed: 0')
+            fits = last_re_summary.loc['Feed-in Tariffs'].dropna()
+            fits = list(fits)
+            objs = last_re_summary.loc['NPV'].dropna()
+            objs = list(objs)
+            
+        elif last_re < re_level:
+            fits = []
+            objs = []
+            
+        else:
+            return
+    
+    for el_price in prices[len(fits)::]:
         # Check if there is a positive solution
         fit = 0
         model.solve(fit=fit, elec_price=el_price,
@@ -79,7 +95,7 @@ def fit_search(in_path, out_path, prices,
                         ud_penalty=ud_penalty, md_level=md_level, 
                         re_level=re_level)
     
-            while abs(model.m.getObjective().getValue() - base_npv) >= 1000:
+            while abs(model.m.getObjective().getValue() - base_npv) >= 10000:
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
                                     for (i, y, d, h) in model.feed_in.keys())
                 model_obj = model.m.getObjective().getValue()
@@ -115,7 +131,7 @@ def fit_search(in_path, out_path, prices,
             model.solve(fit=fit_mid, elec_price=el_price,
                         ud_penalty=ud_penalty, md_level=md_level,
                         re_level = re_level) 
-            while abs(model.m.getObjective().getValue() - base_npv) >= 1000:
+            while abs(model.m.getObjective().getValue() - base_npv) >= 10000:
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
                                     for (i, y, d, h) in model.feed_in.keys())
                 model_obj = model.m.getObjective().getValue()
@@ -136,7 +152,7 @@ def fit_search(in_path, out_path, prices,
                 
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
                                     for (i, y, d, h) in model.feed_in.keys())
-                if model_feed_in <= 100:
+                if model_feed_in <= 25000:
                     fit_mid = 'inf'
                     break
                     
@@ -153,7 +169,7 @@ def fit_search(in_path, out_path, prices,
     try:
         with pd.ExcelWriter(os.path.join(out_path, 'Summary.xlsx'), 
                             mode='a', engine='openpyxl', 
-                            if_sheet_exists='new') as writer:
+                            if_sheet_exists='replace') as writer:
             summary.to_excel(writer, sheet_name=str(re_level))
         
     except FileNotFoundError:
@@ -163,7 +179,7 @@ def fit_search(in_path, out_path, prices,
 
 cwd = os.getcwd()
 
-
+'''
 # Initial Solution
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '0. Initial Solution')
@@ -175,7 +191,7 @@ out_path = os.path.join(cwd, 'Outputs', '1. Base Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path)
 
 '''
-re_levels = [0, 0.05, 0.1, 0.15, 0.2]
+re_levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
 # FiT search with no PV
 prices = np.arange(0, 0.5, 0.01)
@@ -190,4 +206,3 @@ for re_level in re_levels:
     in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
     out_path = os.path.join(cwd, 'Outputs', '3. With PV')
     fit_search(in_path, out_path, prices, re_level=re_level)
-'''

@@ -50,7 +50,7 @@ class Model_1:
         #Initial Generation Capacities
         self.init_cap = self.tech_df['Initial capacity'].to_dict()
 
-        #Household capacities
+        #Household capacitiesm
         self.max_house = self.data['rent_cap'].loc[0].iloc[1::].to_numpy()
         self.avg_pv_cap = self.data['rent_cap'].loc[1].iloc[1::].to_numpy()
         self.cap_fact = self.data['cap_factors'].iloc[:, 1:].to_numpy()
@@ -367,12 +367,17 @@ class Model_1:
                      "Supply-demand balance"
                      )
         
-        m.addConstrs(((ud[y, d, h] <=
-                       (1 - self.md_level)
-                       * (b_in[y, d, h] - 
-                          quicksum(aux_min[i, y, d, h] for i in self.house)))
-                      for h in range(self.hours)
-                      for d in range(self.days)
+        m.addConstrs(((quicksum(ud[y, d, h]
+                                for d in range(self.days)
+                                for h in range(self.hours)) 
+                       <= (1 - self.md_level) 
+                       * (quicksum(b_in[y, d, h]
+                                   for d in range(self.days)
+                                   for h in range(self.years)) 
+                          - quicksum(aux_min[i, y, d, h]
+                                     for i in self.house
+                                     for d in range(self.days)
+                                     for h in range(self.hours))))
                       for y in range(self.years)
                       ),
                      "maximum unmet demand"
@@ -428,19 +433,26 @@ class Model_1:
                       "Feed in cap"
             )
         
-        m.addConstrs(((quicksum(feed_in[i, y, d, h]
+        m.addConstrs(((quicksum(feed_in[i, y, d, h] 
                                 for i in self.house
+                                for d in range(self.days)
                                 for h in range(self.hours))
-                       + quicksum(disp['Owned PV', y, d, h]
+                       + quicksum(disp['Owned PV', y, d, h] 
+                                  for d in range(self.days)
                                   for h in range(self.hours))
                        >= (quicksum(disp[g, y, d, h]
                                     for g in self.techs_g
+                                    for d in range(self.days)
                                     for h in range(self.hours))
-                           + quicksum(b_out[y, d, h]
-                                      for h in range(self.hours)))
+                           + quicksum(b_out[y, d, h] 
+                                      for d in range(self.days)
+                                      for h in range(self.hours))
+                           + quicksum(feed_in[i, y, d, h] 
+                                for i in self.house
+                                for d in range(self.days)
+                                for h in range(self.hours)))
                        * self.re_level * self.feedIn_max)
                       for y in range(self.years)
-                      for d in range(self.days)
                       ),
                      name='Min Renewable Energy'
                      )

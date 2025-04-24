@@ -168,8 +168,7 @@ def get_houses(outFile, multi=1):
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=2,
               bbox_transform=fig.transFigure)
     
-    if multi == 1:
-        ax.set_yticks([i for i in range (0, 701, 100)])  
+    ax.set_yticks([i for i in range (0, 701, 100)])  
     
     plt.subplots_adjust(top=.85)
     plot_path = os.path.join(new_plots_folder, 
@@ -391,8 +390,11 @@ def fit_v_price(casePath):
     colors = ["#f9e395", "#595755", "#c2deaf", "#85a4c4", "#f2b382" ]
     i = 0
     show_infeasible_label = True
-    
-    for key in out:
+    keys = list(out.keys())
+    if len(keys) >= 5:
+        keys = keys[-5::]
+        
+    for key in keys:
         out[key].set_index('Unnamed: 0', inplace=True)
         fits = out[key].loc['Feed-in Tariffs'].to_list()
         unfeas_fits = [fit for fit in fits if fit == 0]
@@ -417,10 +419,64 @@ def fit_v_price(casePath):
     plt.savefig(new_plots_folder)
     plt.close()
     
+
+def fi_level(casePath): #takes the case folder as input
+    
+    new_plots_folder = os.path.join(casePath, "Feed in Levels.png")
+    summaryPath = os.path.join(casePath, "Summary.xlsx")
+    summary = pd.read_excel(summaryPath, sheet_name=None)
+
+    re_levels = list(summary.keys())
+    if len(re_levels) >= 5:
+        re_levels = re_levels[-5::]
+    
+    fig, ax = plt.subplots()
+    colors = ["#f9e395", "#595755", "#c2deaf", "#85a4c4", "#f2b382" ]
+    i=0
+    
+    
+    for re_level in re_levels:
+        outPath = os.path.join(casePath, 'Output Files', 
+                               str(int(float(re_level)*100)))
+        outFiles = os.listdir(outPath)
+        fi_levels = []
+        prices = []
+        
+        for outFile in outFiles:
+            price = int(outFile.split('_')[2].split('.')[0])
+            out = pd.read_excel(os.path.join(outPath, outFile), sheet_name=None)
+            feed_in = out['Fed-in Capacity'].set_index('Unnamed: 0')
+            dg = out['DG Dispatch'].set_index('Unnamed: 0')
+            pv = out['PV Dispatch'].set_index('Unnamed: 0')
+            b_out = out['Battery Output'].set_index('Unnamed: 0')
+        
+            total_feed_in = feed_in.values.sum()
+            total_dg = dg.values.sum()
+            total_pv = pv.values.sum()
+            total_b_out = b_out.values.sum()
+        
+            feed_in_level = total_feed_in / (total_feed_in + total_dg
+                                             + total_pv + total_b_out)
+            fi_levels.append(feed_in_level)
+            prices.append(price)
+            levels_df = pd.DataFrame(fi_levels, index=prices)
+            levels_df.sort_index(inplace=True)
+            fi_levels = levels_df[0].to_list()
+            prices = levels_df.index.to_list()
+        ax.plot(fi_levels, prices, color=colors[i], marker='o', label=re_level)
+        i+=1
+
+    ax.set_xlabel('Price in USD')
+    ax.set_ylabel('Fed-in capacity as % of total dispatch')
+    ax.legend()
+    
+    plt.savefig(new_plots_folder)
+    plt.close()
+    
 # Run the functions for the different cases
 cwd = os.getcwd()
 outFile = os.path.join(cwd, "Outputs")
-
+'''
 # Initial Solution
 outFile_0 = os.path.join(outFile, '0. Initial Solution', 'Output_0_40.xlsx')
 add_ret(outFile_0, multi=0)
@@ -441,7 +497,7 @@ get_houses(outFile_1, multi=0)
 # No PV
 outFile_2 = os.path.join(outFile, '2. No PV', 'Output Files')
 re_levels = os.listdir(outFile_2)
-
+'''
 for re_level in re_levels:
     files = os.listdir(os.path.join(outFile_2, re_level))
 
@@ -452,15 +508,16 @@ for re_level in re_levels:
         rep_day(outFile_2_1, multi=1, year=10, day=1)
         inst_cap(outFile_2_1, multi=1)
         get_houses(outFile_2_1, multi=1)
-    
+''' 
 outFile_2_2 = os.path.join(outFile, '2. No PV')
 fit_v_price(outFile_2_2)
+fi_level(outFile_2_2)
 
 
 # With PV
 outFile_3 = os.path.join(outFile, '3. With PV', 'Output Files')
 re_levels = os.listdir(outFile_3)
-
+'''
 for re_level in re_levels:
     files = os.listdir(os.path.join(outFile_3, re_level))
     for file in files:
@@ -470,7 +527,7 @@ for re_level in re_levels:
         rep_day(outFile_3_1, multi=1, year=10, day=1)
         inst_cap(outFile_3_1, multi=1)
         get_houses(outFile_3_1, multi=1)
-        
+'''
 outFile_3_2 = os.path.join(outFile, '3. With PV')
 fit_v_price(outFile_3_2)
-'''
+fi_level(outFile_3_2)
