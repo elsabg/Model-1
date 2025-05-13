@@ -131,7 +131,8 @@ class Model_1:
 
 
 
-    def solve(self, fit, elec_price, md_level, ud_penalty, re_level=0):
+    def solve(self, fit, elec_price, md_level, ud_penalty, re_level=0, 
+              voll=0.7):
         'Create and solve the model'
 
         self.fit = fit
@@ -139,6 +140,7 @@ class Model_1:
         self.md_level = md_level
         self.ud_penalty = ud_penalty
         self.re_level = re_level
+        self.voll = voll
 
         m = Model('Model_1')
 
@@ -371,13 +373,10 @@ class Model_1:
                                 for d in range(self.days)
                                 for h in range(self.hours)) 
                        <= (1 - self.md_level) 
-                       * (quicksum(b_in[y, d, h]
-                                   for d in range(self.days)
-                                   for h in range(self.years)) 
-                          - quicksum(aux_min[i, y, d, h]
-                                     for i in self.house
-                                     for d in range(self.days)
-                                     for h in range(self.hours))))
+                       * ( - quicksum(aux_min[i, y, d, h]
+                                      for i in self.house
+                                      for d in range(self.days)
+                                      for h in range(self.hours))))
                       for y in range(self.years)
                       ),
                      "maximum unmet demand"
@@ -444,9 +443,6 @@ class Model_1:
                                     for g in self.techs_g
                                     for d in range(self.days)
                                     for h in range(self.hours))
-                           + quicksum(b_out[y, d, h] 
-                                      for d in range(self.days)
-                                      for h in range(self.hours))
                            + quicksum(feed_in[i, y, d, h] 
                                 for i in self.house
                                 for d in range(self.days)

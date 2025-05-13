@@ -202,6 +202,8 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
     house = model.house
     techs_g = model.techs_g
     techs = model.techs
+    voll = model.voll
+    interest = model.i
     
     ############################################################################
     # Create empty DataFrames for hourly decisions                             #
@@ -243,16 +245,6 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
     costs = dfs[9]
     
     ############################################################################
-    # Create summary DataFrame                                                 #
-    ############################################################################
-    summary_info = [model.i, model.ud_penalty, model.md_level, 
-                    model.re_level, model.obj]
-    summary_index = ['Interest Rate', 'Unmet Demand Penalty',
-                     'Required Level of Met Demand', 'Minimum Feed-in %',
-                     'NPV']
-    summary = pd.DataFrame(summary_info, index = summary_index)
-    
-    ############################################################################
     # Populate yearly DataFrames                                               #
     ############################################################################
     
@@ -280,6 +272,62 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
             net_demand.loc[f'{y}.'+f'{d}'] = net_demand_y.loc[d]
             net_surplus.loc[f'{y}.'+f'{d}'] = net_surplus_y.loc[d]
             ud.loc[f'{y}.'+f'{d}'] = ud_y.loc[d]
+    
+    ############################################################################
+    # Create summary DataFrame                                                 #
+    ############################################################################
+    
+    # Summary Information
+    waste = 0
+    total_waste = 0
+    unmet_d = 0
+    total_ud = 0
+    met_d = 0
+    house_surplus = pd.DataFrame(columns=['surplus'])
+    disc_surplus = 0
+    
+    for y in range(model.years):
+        feed_in_y = 0
+        for d in range(model.days):
+            feed_in_y += sum(feed_in.loc[f'{y}.'+f'{d}'])
+            for h in range(model.hours):
+                unmet_d += model.ud[y, d, h].X
+                met_d += 1 * (model.ud[y, d, h].X + model.b_in[y, d, h].X)
+                total_ud += model.ud[y, d, h].X
+                for i in model.house:
+            
+                    waste += (model.cap_fact[d][h] 
+                              * model.avg_pv_cap_str[i]
+                              * model.h_weight[i, y].X
+                              - model.feed_in[i, y, d, h].X)
+                    
+                    total_waste += (model.cap_fact[d][h]
+                                    * model.avg_pv_cap_str[i]
+                                    * model.max_house_str[i]
+                                    - model.feed_in[i, y, d, h].X)
+                    
+                    total_ud += (max(-1 * model.surplus[i][d][h], 0)
+                                 * (model.max_house_str[i]
+                                    - model.h_weight[i, y].X))
+                    
+                    met_d += (max(-1 * model.surplus[i][d][h], 0)
+                              * model.h_weight[i, y].X)
+        
+        house_surplus.loc[y] = (met_d * (voll - elec_price / 100) 
+                                + feed_in_y * fit / 100)
+        disc_surplus += house_surplus.loc[y][0] * (1 / (1 + interest) ** y)
+    
+    # Summary DataFrame
+    summary_info = [model.i, model.ud_penalty, model.md_level, 
+                    model.re_level, model.obj, waste, total_waste,
+                    unmet_d, total_ud, model.voll, disc_surplus]
+    summary_index = ['Interest Rate', 'Unmet Demand Penalty',
+                     'Required Level of Met Demand', 'Minimum Feed-in %',
+                     'NPV', 'Wasted Prosumer Surplus', 
+                     'Total Wasted Prosumer Surplus',
+                     'Unmet Demand', 'Total Unmet Demand', 'VoLL',
+                     'Household Surplus']
+    summary = pd.DataFrame(summary_info, index = summary_index)
             
     ############################################################################
     # Export to Excel and save in current directory                            #
@@ -316,3 +364,4 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
         net_demand.to_excel(writer, sheet_name='Net demand')
         net_surplus.to_excel(writer, sheet_name='Net surplus')
         ud.to_excel(writer, sheet_name='Unmet Demand')
+        house_surplus.to_excel(writer, sheet_name='Household Surplus')

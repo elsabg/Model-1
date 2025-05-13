@@ -10,6 +10,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import griddata
+import seaborn as sns
+
 import os
 
 def rep_day(outFile, year, day, multi=1):
@@ -412,14 +414,14 @@ def fit_v_price(casePath):
     
     ax.set_xlabel('Price in USD')
     ax.set_ylabel('Feed-in Tariff in USD')
-    ax.legend()
+    ax.legend(title = 'Renewable Energy Requirement')
     
     ax.set_xticks([i / 100 for i in range(len(unfeas_fits) - 2, 
                                           len(prices)+1, 5)])
     plt.savefig(new_plots_folder)
     plt.close()
     
-
+'''
 def fi_level(casePath): #takes the case folder as input
     
     new_plots_folder = os.path.join(casePath, "Feed in Levels.png")
@@ -441,9 +443,12 @@ def fi_level(casePath): #takes the case folder as input
         outFiles = os.listdir(outPath)
         fi_levels = []
         prices = []
+        fits = summary[re_level].set_index('Unnamed: 0').loc['Feed-in Tariffs']
+        fits = fits.to_list()
+        fits = [fit for fit in fits if fit > 0]
         
         for outFile in outFiles:
-            price = int(outFile.split('_')[2].split('.')[0])
+            price = int(outFile.split('_')[2].split('.')[0]) / 100
             out = pd.read_excel(os.path.join(outPath, outFile), sheet_name=None)
             feed_in = out['Fed-in Capacity'].set_index('Unnamed: 0')
             dg = out['DG Dispatch'].set_index('Unnamed: 0')
@@ -457,21 +462,219 @@ def fi_level(casePath): #takes the case folder as input
         
             feed_in_level = total_feed_in / (total_feed_in + total_dg
                                              + total_pv + total_b_out)
-            fi_levels.append(feed_in_level)
+            fi_levels.append(feed_in_level * 100)
             prices.append(price)
-            levels_df = pd.DataFrame(fi_levels, index=prices)
-            levels_df.sort_index(inplace=True)
-            fi_levels = levels_df[0].to_list()
-            prices = levels_df.index.to_list()
-        ax.plot(fi_levels, prices, color=colors[i], marker='o', label=re_level)
+            
+        levels_df = pd.DataFrame(fi_levels, index=prices)
+        levels_df.sort_index(inplace=True)
+        fi_levels = levels_df[0].to_list()
+        prices = levels_df.index.to_list()
+        sizes = [((fi - min(fi_levels)) / (max(fi_levels) - min(fi_levels)) 
+                 * 500 + 50) 
+                 for fi in fi_levels]
+        ax.scatter(prices, fits, s=sizes, color=colors[i])
+        ax.plot(prices, fits, color=colors[i], marker='o', label=re_level)
         i+=1
 
     ax.set_xlabel('Price in USD')
-    ax.set_ylabel('Fed-in capacity as % of total dispatch')
+    ax.set_ylabel('Feed-in tariff')
+    #ax.set_ylabel('Fed-in capacity as % of total dispatch')
     ax.legend()
     
     plt.savefig(new_plots_folder)
     plt.close()
+'''
+    
+def unmet_demand(casePath):
+    new_plots_folder = os.path.join(casePath, "Unmet Demand.png")
+    summaryPath = os.path.join(casePath, "Summary.xlsx")
+    summary = pd.read_excel(summaryPath, sheet_name=None)
+
+    re_levels = list(summary.keys())
+    if len(re_levels) >= 5:
+        re_levels = re_levels[-5::]
+    
+    fig, ax = plt.subplots()
+    colors = ["#f9e395", "#595755", "#c2deaf", "#85a4c4", "#f2b382" ]
+    i=0
+    
+    for re_level in re_levels:
+        outPath = os.path.join(casePath, 'Output Files', 
+                               str(int(float(re_level)*100)))
+        outFiles = os.listdir(outPath)
+        uds = []
+        t_uds = []
+        prices = []
+        fits = summary[re_level].set_index('Unnamed: 0').loc['Feed-in Tariffs']
+        fits = fits.to_list()
+        fits = [fit for fit in fits if fit > 0]
+        
+        for outFile in outFiles:
+            price = int(outFile.split('_')[2].split('.')[0]) / 100
+            out = pd.read_excel(os.path.join(outPath, outFile), 
+                                sheet_name="Summary").set_index('Unnamed: 0')
+            ud = out.loc['Unmet Demand']
+            tot_ud = out.loc['Total Unmet Demand']
+            
+            uds.append(ud[0])
+            t_uds.append(tot_ud)
+            prices.append(price)
+            
+        ud_df = pd.DataFrame({0: uds, 1: t_uds}, index=prices)
+        ud_df.sort_index(inplace=True)
+        uds = ud_df[0].to_list()
+        t_uds = ud_df[1].to_list()
+        prices = ud_df.index.to_list()
+        
+        ax.plot(prices, t_uds, linestyle='--', color=colors[i], 
+                marker='o', label=f'Total UD, {re_level}')
+        ax.plot(prices, uds, color=colors[i], 
+                marker='o', label=f'Connected UD, {re_level}')
+        fit_labels = [f'FiT={fit:.2f}' for fit in fits]
+        for x, y, label in zip(prices, uds, fit_labels):
+            ax.text(x, y-0.5, label, fontsize=9, ha='right')
+        '''
+        sizes = [((ud - min(uds)) / (max(uds) - min(uds)) 
+                 * 500 + 50) 
+                 for ud in uds]
+        ax.scatter(prices, fits, s=sizes, color=colors[i])
+        ax.plot(prices, fits, color=colors[i], marker='o', label=re_level)
+        '''
+        i+=1
+        
+    ax.set_xlabel('Price in USD')
+    ax.set_ylabel('Unmet Demand in kWh')
+    ax.legend()
+    
+    plt.savefig(new_plots_folder)
+    plt.close()
+    
+def wasted_surplus(casePath):
+    global ws
+    global wss
+    
+    new_plots_folder = os.path.join(casePath, "Wasted Surplus.png")
+    summaryPath = os.path.join(casePath, "Summary.xlsx")
+    summary = pd.read_excel(summaryPath, sheet_name=None)
+
+    re_levels = list(summary.keys())
+    if len(re_levels) >= 5:
+        re_levels = re_levels[-5::]
+    
+    fig, ax = plt.subplots()
+    colors = ["#f9e395", "#595755", "#c2deaf", "#85a4c4", "#f2b382" ]
+    i=0
+    
+    for re_level in re_levels:
+        outPath = os.path.join(casePath, 'Output Files', 
+                               str(int(float(re_level)*100)))
+        outFiles = os.listdir(outPath)
+        wss = []
+        t_wss = []
+        prices = []
+        fits = summary[re_level].set_index('Unnamed: 0').loc['Feed-in Tariffs']
+        fits = fits.to_list()
+        fits = [fit for fit in fits if fit > 0]
+        
+        for outFile in outFiles:
+            price = int(outFile.split('_')[2].split('.')[0]) / 100
+            out = pd.read_excel(os.path.join(outPath, outFile), 
+                                sheet_name="Summary").set_index('Unnamed: 0')
+            ws = out.loc['Wasted Prosumer Surplus']
+            tot_ws = out.loc['Total Wasted Prosumer Surplus']
+            
+            wss.append(ws[0])
+            t_wss.append(tot_ws)
+            prices.append(price)
+            
+        ws_df = pd.DataFrame({0: wss, 1: t_wss}, index=prices)
+        ws_df.sort_index(inplace=True)
+        wss = ws_df[0].to_list()
+        t_wss = ws_df[1].to_list()
+        prices = ws_df.index.to_list()
+        
+        
+        ax.plot(prices, t_wss, linestyle='--', color=colors[i], 
+                marker='o', label=f'Total WS, {re_level}')
+        ax.plot(prices, wss, color=colors[i], 
+                marker='o', label=f'Connected WS, {re_level}')
+        '''
+        sizes = [((ws - min(wss)) / (max(wss) - min(wss)) 
+                 * 500 + 50) 
+                 for ws in wss]
+        ax.scatter(prices, fits, s=sizes, color=colors[i])
+        ax.plot(prices, fits, color=colors[i], marker='o', label=re_level)
+        '''
+        i+=1
+        
+    ax.set_xlabel('Price in USD')
+    ax.set_ylabel('Wasted Prosumer Surplus in kWh')
+    ax.legend()
+    
+    plt.savefig(new_plots_folder)
+    plt.close()
+
+def ud_heatmap(casePath, re_level):
+    
+    new_plots_folder = os.path.join(casePath, "UD heatmap.png")
+    filesPath = os.path.join(casePath, 'Output Files', str(int(re_level * 100)))
+    files = os.listdir(filesPath)
+    
+    data = {'Prices': [],
+            'FiTs': [],
+            'Unmet Demand': []}
+    for file in files:
+        price = int(file.split('_')[2].split('.')[0]) / 100
+        data['Prices'].append(price)
+        fit = int(file.split('_')[1]) / 100
+        data['FiTs'].append(fit)
+
+        out = pd.read_excel(os.path.join(filesPath, file), sheet_name='Summary')
+        out.set_index("Unnamed: 0", inplace=True)
+        data['Unmet Demand'].append(out.loc["Unmet Demand"][0])
+    
+    
+    df = pd.DataFrame(data)
+    
+    # Pivot the data to make F columns, P rows, and U the values
+    heatmap_data = df.pivot(index='Prices', 
+                            columns='FiTs', 
+                            values='Unmet Demand')
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="YlGnBu", cbar_kws={'label': 'U value'})
+    
+    plt.savefig(new_plots_folder)
+    
+def surp_heatmap(casePath, re_level):
+    
+    new_plots_folder = os.path.join(casePath, "Surplus heatmap.png")
+    filesPath = os.path.join(casePath, 'Output Files', str(int(re_level * 100)))
+    files = os.listdir(filesPath)
+    
+    data = {'Prices': [],
+            'FiTs': [],
+            'Surpluses': []}
+    for file in files:
+        price = int(file.split('_')[2].split('.')[0]) / 100
+        data['Prices'].append(price)
+        fit = int(file.split('_')[1]) / 100
+        data['FiTs'].append(fit)
+
+        out = pd.read_excel(os.path.join(filesPath, file), sheet_name='Summary')
+        out.set_index("Unnamed: 0", inplace=True)
+        data['Surpluses'].append(out.loc["Household Surplus"][0])
+    
+    
+    df = pd.DataFrame(data)
+    
+    # Pivot the data to make F columns, P rows, and U the values
+    heatmap_data = df.pivot(index='Prices', 
+                            columns='FiTs', 
+                            values='Household Surpluses')
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="YlGnBu", cbar_kws={'label': 'U value'})
+    
+    plt.savefig(new_plots_folder)
     
 # Run the functions for the different cases
 cwd = os.getcwd()
@@ -508,11 +711,12 @@ for re_level in re_levels:
         rep_day(outFile_2_1, multi=1, year=10, day=1)
         inst_cap(outFile_2_1, multi=1)
         get_houses(outFile_2_1, multi=1)
-''' 
+'''
 outFile_2_2 = os.path.join(outFile, '2. No PV')
-fit_v_price(outFile_2_2)
-fi_level(outFile_2_2)
-
+#fit_v_price(outFile_2_2)
+#fi_level(outFile_2_2)
+#unmet_demand(outFile_2_2)
+#wasted_surplus(outFile_2_2)
 
 # With PV
 outFile_3 = os.path.join(outFile, '3. With PV', 'Output Files')
@@ -529,5 +733,28 @@ for re_level in re_levels:
         get_houses(outFile_3_1, multi=1)
 '''
 outFile_3_2 = os.path.join(outFile, '3. With PV')
-fit_v_price(outFile_3_2)
-fi_level(outFile_3_2)
+#fit_v_price(outFile_3_2)
+#fi_level(outFile_3_2)
+#unmet_demand(outFile_3_2)
+#wasted_surplus(outFile_3_2)
+'''
+# Initial Solution with VHR
+outFile_4= os.path.join(outFile, '4. Initial Solution (Variable HR)', 'Output_0_40.xlsx')
+add_ret(outFile_4, multi=0)
+gen_year(outFile_4, multi=0)
+rep_day(outFile_4, multi=0, year=10, day=1)
+inst_cap(outFile_4, multi=0)
+get_houses(outFile_4, multi=0)
+
+# Base Case with VHR
+outFile_5 = os.path.join(outFile, '5. Base Case (Variable HR)', 'Output_0_40.xlsx')
+add_ret(outFile_5, multi=0)
+gen_year(outFile_5, multi=0)
+rep_day(outFile_5, multi=0, year=10, day=1)
+inst_cap(outFile_5, multi=0)
+get_houses(outFile_5, multi=0)
+'''
+
+outFile_8 = os.path.join(outFile, '8. Fixed RE')
+ud_heatmap(outFile_8, re_level=0.2)
+surp_heatmap(outFile_8, re_level=0.2)
