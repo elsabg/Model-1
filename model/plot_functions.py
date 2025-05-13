@@ -358,7 +358,7 @@ def get_npv(casePath):
         summary = pd.read_excel(os.path.join(outFile, file), 
                                 sheet_name='Summary')
         summary.set_index("Unnamed: 0", inplace=True)
-        npv = summary.loc["NPV"]
+        npv = summary.loc["Household Surplus"]
         npvs.append(npv)
         fits.append(fit)
         prices.append(price)
@@ -402,11 +402,11 @@ def fit_v_price(casePath):
         unfeas_fits = [fit for fit in fits if fit == 0]
         prices = out[key].loc['Prices'].to_list()
     
-        ax.plot(prices[len(unfeas_fits) - 2 ::], fits[len(unfeas_fits) - 2 ::], 
+        ax.plot(prices[len(unfeas_fits) - 1 ::], fits[len(unfeas_fits) - 1 ::], 
                 marker='o', linestyle='-', color=colors[i], zorder=1,
                 label=float(key))
-        ax.scatter(prices[len(unfeas_fits) -2 : len(unfeas_fits)], 
-                   unfeas_fits[len(unfeas_fits) - 2 ::], 
+        ax.scatter(prices[len(unfeas_fits) -1 : len(unfeas_fits)], 
+                   unfeas_fits[len(unfeas_fits) - 1 ::], 
                    marker='x', color='red', zorder=2, 
                    label='Infeasible' if show_infeasible_label else "")
         i+=1
@@ -414,10 +414,16 @@ def fit_v_price(casePath):
     
     ax.set_xlabel('Price in USD')
     ax.set_ylabel('Feed-in Tariff in USD')
-    ax.legend(title = 'Renewable Energy Requirement')
+    ax.legend(title = 'Renewable Energy Requirement',
+              loc='upper center',
+              bbox_to_anchor=(0.5, 1.25),
+              ncol=4,
+              frameon=False)
     
-    ax.set_xticks([i / 100 for i in range(len(unfeas_fits) - 2, 
-                                          len(prices)+1, 5)])
+    
+    plt.subplots_adjust(top=0.75)  # push plot down to fit legend
+    plt.tight_layout()
+
     plt.savefig(new_plots_folder)
     plt.close()
     
@@ -616,7 +622,9 @@ def wasted_surplus(casePath):
 
 def ud_heatmap(casePath, re_level):
     
-    new_plots_folder = os.path.join(casePath, "UD heatmap.png")
+    sns.set(font_scale=1.2)
+    
+    new_plots_folder = os.path.join(casePath, f"UD heatmap_{re_level}.png")
     filesPath = os.path.join(casePath, 'Output Files', str(int(re_level * 100)))
     files = os.listdir(filesPath)
     
@@ -643,38 +651,70 @@ def ud_heatmap(casePath, re_level):
     plt.figure(figsize=(8, 6))
     sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="YlGnBu", cbar_kws={'label': 'U value'})
     
+    plt.tight_layout()
     plt.savefig(new_plots_folder)
+    plt.close()
     
-def surp_heatmap(casePath, re_level):
+def surp_heatmap(casePath, re_level, max_fits=None): # summary file
     
-    new_plots_folder = os.path.join(casePath, "Surplus heatmap.png")
+    sns.set(font_scale=1.05)
+    
+    global price_index
+    global fit_index
+    global heatmap_data
+    
+    new_plots_folder = os.path.join(casePath, f"Surplus heatmap {re_level}.png")
     filesPath = os.path.join(casePath, 'Output Files', str(int(re_level * 100)))
     files = os.listdir(filesPath)
     
-    data = {'Prices': [],
-            'FiTs': [],
+    data = {'Prices ($)': [],
+            'FiTs ($)': [],
             'Surpluses': []}
+    
     for file in files:
         price = int(file.split('_')[2].split('.')[0]) / 100
-        data['Prices'].append(price)
+        data['Prices ($)'].append(price)
         fit = int(file.split('_')[1]) / 100
-        data['FiTs'].append(fit)
+        data['FiTs ($)'].append(fit)
 
         out = pd.read_excel(os.path.join(filesPath, file), sheet_name='Summary')
         out.set_index("Unnamed: 0", inplace=True)
         data['Surpluses'].append(out.loc["Household Surplus"][0])
     
+    price_index = list(dict.fromkeys(data['Prices ($)']))
+    price_index.sort()
+    fit_index = list(dict.fromkeys(data['FiTs ($)']))
+    fit_index.sort()
     
     df = pd.DataFrame(data)
     
-    # Pivot the data to make F columns, P rows, and U the values
-    heatmap_data = df.pivot(index='Prices', 
-                            columns='FiTs', 
-                            values='Household Surpluses')
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="YlGnBu", cbar_kws={'label': 'U value'})
+    heatmap_data = df.pivot(index='Prices ($)', 
+                            columns='FiTs ($)', 
+                            values='Surpluses')
     
+    if max_fits != None:
+        max_fits = pd.read_excel(max_fits, sheet_name = str(re_level))
+        max_fits.set_index("Unnamed: 0", inplace=True)
+        mask = np.zeros_like(heatmap_data, dtype=bool)
+        for i, price in enumerate(price_index):
+            row = max_fits.loc['Prices']
+            global price_col
+            price_col = row[row == price].index.tolist()
+            global max_fit
+            max_fit = max_fits[price_col[0]]['Feed-in Tariffs']
+            max_fit = round(max_fit, 2)
+            for j, fit in enumerate(fit_index):
+                if fit > max_fit or max_fit == "Nan" or max_fit == 0:
+                    mask[i, j] = True
+    
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(heatmap_data / 10000, annot=True, fmt=".1f", 
+                cmap="YlGnBu", cbar_kws={'label': 'Surplus value ($100,000)'},
+                mask=mask)
+    
+    plt.tight_layout()
     plt.savefig(new_plots_folder)
+    plt.close()
     
 # Run the functions for the different cases
 cwd = os.getcwd()
@@ -753,8 +793,9 @@ gen_year(outFile_5, multi=0)
 rep_day(outFile_5, multi=0, year=10, day=1)
 inst_cap(outFile_5, multi=0)
 get_houses(outFile_5, multi=0)
-'''
 
+'''
 outFile_8 = os.path.join(outFile, '8. Fixed RE')
-ud_heatmap(outFile_8, re_level=0.2)
-surp_heatmap(outFile_8, re_level=0.2)
+ud_heatmap(outFile_8, re_level=0.3)
+summary_path = os.path.join(outFile, '3. With PV', 'Summary.xlsx')
+surp_heatmap(outFile_8, re_level=0.3, max_fits=summary_path)

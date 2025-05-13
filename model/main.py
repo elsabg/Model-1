@@ -258,8 +258,8 @@ for re_level in re_levels:
 # Fixed RE
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE')
-fits = np.arange(0, 0.33, 0.05)
-elec_prices = np.arange(0.35, 0.39, 0.01)
-re_level = 0.2
+fits = np.arange(0, 0.31, 0.02)
+elec_prices = np.arange(0.36, 0.40, 0.01)
+re_level = 0.3
 multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
           out_path=out_path, re_level=re_level)
