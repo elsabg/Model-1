@@ -14,6 +14,7 @@ from model_1 import Model_1
 
 def single_run(in_path, fit, elec_price, out_path,
                md_level=0, ud_penalty=0, re_level=0, voll=0.7):
+    global model
     model = Model_1(_file_name=in_path)
     model.load_data()
     model.solve(fit=fit, elec_price=elec_price, 
@@ -58,6 +59,7 @@ def fit_search(in_path, out_path, prices,
     global fit_left
     
     output_files = os.listdir(out_path)
+    
     if "Summary.xlsx" in output_files:
         prev_summary = pd.read_excel(os.path.join(out_path, "Summary.xlsx"),
                                      sheet_name=None)
@@ -81,6 +83,8 @@ def fit_search(in_path, out_path, prices,
         fits = []
         objs = []
     
+    fits = []
+    objs = []
     for el_price in prices[len(fits)::]:
         # Check if there is a positive solution
         fit = 0
@@ -227,19 +231,20 @@ def fit_search(in_path, out_path, prices,
                     summary.to_excel(writer, sheet_name=str(re_level))
 
 cwd = os.getcwd()
-'''
-# Initial Solution
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '0. Initial Solution')
-single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path)
 
+# Initial Solution
+in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_NoPV_wBat.xlsx')
+out_path = os.path.join(cwd, 'Outputs', '0. Initial Solution', 'Problem')
+single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path, re_level = 0.6)
+
+'''
 # Base Case
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noFI_noPV.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '1. Base Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path)
-
-re_levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-
+'''
+re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+'''
 # FiT search with no PV
 prices = np.arange(0, 0.5, 0.01)
 for re_level in re_levels:
@@ -253,13 +258,46 @@ for re_level in re_levels:
     in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
     out_path = os.path.join(cwd, 'Outputs', '3. With PV')
     fit_search(in_path, out_path, prices, re_level=re_level)
-'''
+
+# FiT search with no PV but with Batteries
+prices = np.arange(0, 0.5, 0.01)
+for re_level in re_levels:
+    in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_NoPV_wBat.xlsx')
+    out_path = os.path.join(cwd, 'Outputs', '9. No PV w Bat')
+    fit_search(in_path, out_path, prices, re_level=re_level)
+
 
 # Fixed RE
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE')
+in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_NoPV.xlsx')
+out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'No PV')
 fits = np.arange(0, 0.31, 0.02)
-elec_prices = np.arange(0.36, 0.40, 0.01)
-re_level = 0.3
-multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
-          out_path=out_path, re_level=re_level)
+elec_prices = np.arange(0.35, 0.46, 0.01)
+re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+single_run(in_path=in_path, fit=0.04, elec_price=0.35, 
+           out_path = os.path.join(out_path, 'Output Files', '0'))
+for re_level in re_levels:
+    multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
+              out_path=out_path, re_level=re_level)
+   
+    
+in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
+out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'With PV')
+fits = np.arange(0, 0.12, 0.02)
+elec_prices = np.arange(0.27, 0.32, 0.01)
+re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+for re_level in re_levels:
+    multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
+              out_path=out_path, re_level=re_level)
+
+
+in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_NoPV_wBat.xlsx')
+out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'No PV w Bat')
+fits = np.arange(0, 0.31, 0.02)
+elec_prices = np.arange(0.29, 0.46, 0.01)
+re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+for re_level in re_levels:
+    multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
+              out_path=out_path, re_level=re_level)
+
+func.eval_summary(os.path.join(out_path, 'Output Files'))
+'''

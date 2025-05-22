@@ -294,17 +294,16 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
                 unmet_d += model.ud[y, d, h].X
                 met_d += 1 * (model.ud[y, d, h].X + model.b_in[y, d, h].X)
                 total_ud += model.ud[y, d, h].X
+                waste += net_surplus[h][d]
                 for i in model.house:
-            
-                    waste += (model.cap_fact[d][h] 
-                              * model.avg_pv_cap_str[i]
-                              * model.h_weight[i, y].X
-                              - model.feed_in[i, y, d, h].X)
                     
-                    total_waste += (model.cap_fact[d][h]
-                                    * model.avg_pv_cap_str[i]
-                                    * model.max_house_str[i]
-                                    - model.feed_in[i, y, d, h].X)
+                    if model.surplus[i][d][h] >= 0:
+                        total_waste += (model.surplus[i][d][h] 
+                                        * model.max_house_str[i])
+            
+                    total_waste += -1 * model.feed_in[i, y, d, h].X
+                    
+                    waste += -1 * model.feed_in[i, y, d, h].X
                     
                     total_ud += (max(-1 * model.surplus[i][d][h], 0)
                                  * (model.max_house_str[i]
@@ -365,3 +364,50 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
         net_surplus.to_excel(writer, sheet_name='Net surplus')
         ud.to_excel(writer, sheet_name='Unmet Demand')
         house_surplus.to_excel(writer, sheet_name='Household Surplus')
+
+def eval_summary(outPath):
+    
+    metrics = pd.DataFrame(columns = ['RE target', 'FiT', 'Price', 
+                                      'Unmet Demand', 'Wasted Surplus',
+                                      'Household Surplus'])
+    metrics.set_index('RE target', inplace=True)
+    
+    re_levels = os.listdir(outPath)
+    for re_level in re_levels:
+        best_file = ''
+        best_surp = 0
+        best_summary = []
+        outFiles = os.listdir(os.path.join(outPath, re_level))
+        for file in outFiles:
+            print(file)
+            filePath = os.path.join(outPath, re_level, file)
+            summary = pd.read_excel(filePath, sheet_name = None)
+            summary['Summary'].set_index('Unnamed: 0', inplace = True)
+            surp = summary['Summary'].loc["Household Surplus"][0]
+            if surp > best_surp:
+                best_surp = surp
+                best_file = file
+                best_summary = summary.copy()
+                
+                waste = best_summary['Summary'].loc["Total Wasted Prosumer Surplus"][0]
+                net_surplus = best_summary['Net surplus']
+                if 'Unnamed: 0' in net_surplus.columns:
+                    net_surplus.set_index('Unnamed: 0', inplace = True)
+                net_surplus = net_surplus.sum().sum()
+                waste_perc = waste / net_surplus
+                
+                unmet_demand = best_summary['Summary'].loc["Total Unmet Demand"][0]
+                demand = best_summary['Yearly demand']
+                demand.set_index('Unnamed: 0', inplace = True)
+                demand = demand.sum().sum()
+                ud_perc = unmet_demand / - demand
+                
+                fit = int(best_file.split('_')[1]) / 100
+                el_price = int(best_file.split('_')[2].split('.')[0]) / 100
+                
+                metrics.loc[re_level] = [fit, el_price, ud_perc,
+                                         waste_perc, best_surp]
+                
+    
+    outFile = os.path.join(outPath, '..', 'Evaluation Metrics.xlsx')
+    metrics.to_excel(outFile)

@@ -171,6 +171,8 @@ class Model_1:
 
         soc = m.addVars(self.years, self.days, self.hours, 
                         name='SoC', lb = 0)
+        
+        soc_0 = m.addVars(self.years, self.days, name='initSoC', lb = 0)
 
         h_weight = m.addVars(self.house, self.years, 
                              name='houseWeight', lb = 0, vtype=GRB.INTEGER)
@@ -511,7 +513,7 @@ class Model_1:
             (
                 (ret_cap[g, y] == 0)
                 for g in self.techs
-                for y in range(self.life_0[g])   # range(self.life_0) returns values only up to life_0
+                for y in range(self.life_0[g])   
             ),
             "Retirement before initial capacity"
         )
@@ -702,7 +704,7 @@ class Model_1:
         m.addConstrs(
             (
                 (soc[y, d, h] == soc[y, d, h - 1]
-                 + self.bat_eff * b_in[y, d, h]
+                 + b_in[y, d, h] * self.bat_eff
                  - b_out[y, d, h] / self.bat_eff)
                 for y in range(self.years)
                 for d in range(self.days)
@@ -710,16 +712,25 @@ class Model_1:
             ),
             'SoC tracking'
         )
+        
         m.addConstrs(
             (
-                (soc[y, d, 0] == soc[y, d, 23]
-                 + self.bat_eff * b_in[y, d, 0]
-                 - b_out[y, d, 0] / self.bat_eff)
+                (soc_0[y, d] == soc[y, d, 23]
+                 + b_in[y, d, 23] * self.bat_eff 
+                 - b_out[y, d, 23] / self.bat_eff)
                 for y in range(self.years)
                 for d in range(self.days)
             ),
             ' SoC of hour 0'
         )
+        m.addConstrs(((soc[y, d, 0] == soc_0[y, d]
+                       + b_in[y, d, 0] * self.bat_eff
+                       - b_out[y, d, 0] / self.bat_eff)
+                      for y in range(self.years)
+                      for d in range (self.days)
+                      ), 
+                     "Initial SoC"
+                     )
         m.addConstrs(
             (
                 (self.min_soc * 4 * inst_cap['Owned Batteries', y] <=
