@@ -968,12 +968,3 @@ casePaths = [outFile_8_1, outFile_8_2, outFile_8_3]
 ud_comp(casePaths)
 ws_comp(casePaths) 
 '''
-
-prob = pd.excel_read('outFile_0', sheet_name = None)
-b_in = prob["Battery Input"].set_index('Unnamed: 0')
-b_out = prob["Battery Output"].set_index('Unnamed: 0')
-soc = prob["State of Charge"].set_index('Unnamed: 0')
-
-plt.plot(b_in)
-plt.plot(b_out)
-plt.plot(soc)

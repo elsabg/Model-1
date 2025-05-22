@@ -238,7 +238,8 @@ class Model_1:
                                     for g in self.techs_g
                                     for d in range(self.days)
                                     for h in range(self.hours))
-                           + quicksum(b_out[y, d, h] - b_in[y, d, h]
+                           + quicksum((b_out[y, d, h] - b_in[y, d, h])
+                                      * self.d_weights[d]
                                       for d in range(self.days)
                                       for h in range(self.hours))
                            + quicksum(feed_in[i, y, d, h]
@@ -371,17 +372,17 @@ class Model_1:
                      "Supply-demand balance"
                      )
         
-        m.addConstrs(((quicksum(ud[y, d, h]
+        m.addConstrs(((quicksum(ud[y, d, h] * self.d_weights[d]
                                 for d in range(self.days)
                                 for h in range(self.hours)) 
                        <= (1 - self.md_level) 
-                       * ( - quicksum(aux_min[i, y, d, h]
+                       * ( - quicksum(aux_min[i, y, d, h] * self.d_weights[d]
                                       for i in self.house
                                       for d in range(self.days)
                                       for h in range(self.hours))))
                       for y in range(self.years)
                       ),
-                     "maximum unmet demand"
+                     "maximum yearly unmet demand"
                      )
         
         # Auxiliary maximum constraints
@@ -434,18 +435,18 @@ class Model_1:
                       "Feed in cap"
             )
         
-        m.addConstrs(((quicksum(feed_in[i, y, d, h] 
+        m.addConstrs(((quicksum(feed_in[i, y, d, h] * self.d_weights[d]
                                 for i in self.house
                                 for d in range(self.days)
                                 for h in range(self.hours))
-                       + quicksum(disp['Owned PV', y, d, h] 
+                       + quicksum(disp['Owned PV', y, d, h] * self.d_weights[d]
                                   for d in range(self.days)
                                   for h in range(self.hours))
-                       >= (quicksum(disp[g, y, d, h]
+                       >= (quicksum(disp[g, y, d, h] * self.d_weights[d]
                                     for g in self.techs_g
                                     for d in range(self.days)
                                     for h in range(self.hours))
-                           + quicksum(feed_in[i, y, d, h] 
+                           + quicksum(feed_in[i, y, d, h] * self.d_weights[d]
                                 for i in self.house
                                 for d in range(self.days)
                                 for h in range(self.hours)))
@@ -461,6 +462,17 @@ class Model_1:
                        ),
                       "Max house cap"
             )
+        
+        
+        m.addConstrs(((ud[y, d, h] <= 
+                       - quicksum(aux_min[i, y, d, h]
+                                  for i in self.house))
+                      for y in range(self.years)
+                      for d in range(self.days)
+                      for h in range(self.hours)
+                      ),
+                     'Max unmet demand'
+                     )
         
         #----------------------------------------------------------------------#
         # Generation Capacity                                                  #
@@ -712,10 +724,10 @@ class Model_1:
             ),
             'SoC tracking'
         )
-        
+        '''
         m.addConstrs(
             (
-                (soc_0[y, d] == soc[y, d, 23]
+                (soc_0[y, d] == soc[y, d, 22]
                  + b_in[y, d, 23] * self.bat_eff 
                  - b_out[y, d, 23] / self.bat_eff)
                 for y in range(self.years)
@@ -723,14 +735,15 @@ class Model_1:
             ),
             ' SoC of hour 0'
         )
-        m.addConstrs(((soc[y, d, 0] == soc_0[y, d]
+        '''
+        m.addConstrs(((soc[y, d, 0] == soc[y, d, 23]
                        + b_in[y, d, 0] * self.bat_eff
                        - b_out[y, d, 0] / self.bat_eff)
                       for y in range(self.years)
-                      for d in range (self.days)
-                      ), 
+                      for d in range(self.days)), 
                      "Initial SoC"
                      )
+        
         m.addConstrs(
             (
                 (self.min_soc * 4 * inst_cap['Owned Batteries', y] <=
@@ -751,6 +764,25 @@ class Model_1:
             ),
             'SoC capacity 2'
         )
+        m.addConstrs(
+            (
+                (self.min_soc * 4 * inst_cap['Owned Batteries', y] <=
+                 soc_0[y, d])
+                for y in range(self.years)
+                for d in range(self.days)
+            ),
+            'SoC_0 capacity 1'
+        )
+        m.addConstrs(
+            (
+                (4 * inst_cap['Owned Batteries', y] >=
+                 soc_0[y, d])
+                for y in range(self.years)
+                for d in range(self.days)
+            ),
+            'SoC_0 capacity 2'
+        )
+    
         
         #----------------------------------------------------------------------#
         # Optimization                                                         #
@@ -780,7 +812,8 @@ class Model_1:
         self.d_cons = d_cons
         self.bin_heat_rate = bin_heat_rate
         self.ud = ud
-
+        self.soc_0 = soc_0
+        
         #Intermediate variables
         self.tr = tr
         self.tcc = tcc

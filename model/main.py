@@ -233,9 +233,10 @@ def fit_search(in_path, out_path, prices,
 cwd = os.getcwd()
 
 # Initial Solution
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_NoPV_wBat.xlsx')
+in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '0. Initial Solution', 'Problem')
-single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path, re_level = 0.6)
+single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path, 
+           re_level = 0)
 
 '''
 # Base Case
@@ -278,7 +279,7 @@ single_run(in_path=in_path, fit=0.04, elec_price=0.35,
 for re_level in re_levels:
     multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
               out_path=out_path, re_level=re_level)
-   
+func.eval_summary(os.path.join(out_path, 'Output Files'))   
     
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'With PV')
@@ -288,7 +289,7 @@ re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 for re_level in re_levels:
     multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
               out_path=out_path, re_level=re_level)
-
+func.eval_summary(os.path.join(out_path, 'Output Files'))
 
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_NoPV_wBat.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'No PV w Bat')
@@ -298,6 +299,5 @@ re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 for re_level in re_levels:
     multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
               out_path=out_path, re_level=re_level)
-
 func.eval_summary(os.path.join(out_path, 'Output Files'))
 '''
