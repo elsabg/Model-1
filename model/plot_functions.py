@@ -431,6 +431,7 @@ def fit_v_price(casePath):
               ncol=4,
               frameon=False)
     
+    ax.set_xticks(np.arange(0.3, 0.5, 0.02))
     
     sns.set_style("whitegrid")
     
@@ -725,16 +726,16 @@ def surp_heatmap(casePath, re_level, max_fits=None): # summary file
                 print(f're_level={re_level}, price={price}')
                 
     plt.figure(figsize=(8, 6))
-    sns.heatmap(heatmap_data / 10000, annot=True, fmt=".1f", 
-                cmap="YlGnBu", cbar_kws={'label': 'Surplus value ($100,000)'},
-                mask=mask)
+    sns.heatmap(heatmap_data / 10000, fmt=".1f", 
+                cmap="YlGnBu", cbar_kws={'label': 'Surplus value'},
+                mask=mask, annot=True)
     
     plt.gca().invert_yaxis()
     plt.tight_layout()
     plt.savefig(new_plots_folder)
     plt.close()
     
-def ud_comp(casePaths): 
+def ud_comp(casePaths, re_levels): # re_levels in %
     
     assert type(casePaths)== list, "casePaths should be a list"
     
@@ -746,23 +747,37 @@ def ud_comp(casePaths):
     i = 0
     bar_data = {}
     
+    name_mapping = {
+    'No PV': 'Feed-in Only',
+    'No PV w Bat': 'Feed-in and Battery',
+    'With PV': 'Feed-in and PV'
+    }
+    
+    bar_data['RE target'] = re_levels
     for casePath in casePaths:
-        cases.append(os.path.basename(casePath))
+        original_name = os.path.basename(casePath)
+        readable_name = name_mapping.get(original_name, original_name)
+        cases.append(readable_name)
         case_summary = pd.read_excel(os.path.join(casePath, 
                                                    'Evaluation Metrics.xlsx'))
-        if i == 0:
-            bar_data['RE target'] = case_summary['RE target']
             
-        bar_data[cases[-1]] = case_summary['Unmet Demand'] * 100
+        if len(case_summary['Unmet Demand']) < len(re_levels):
+            temp = case_summary['Unmet Demand'] * 100
+            temp = list(temp)
+            temp += [np.nan] * (len(re_levels) 
+                               - len(case_summary['Unmet Demand']))
+            bar_data[cases[-1]] = temp
+        elif len(case_summary['Unmet Demand']) == len(re_levels):
+            bar_data[cases[-1]] = case_summary['Unmet Demand'] * 100
         i += 1
         
     df_data = pd.DataFrame(bar_data)
     df_data_melted = df_data.melt('RE target', var_name='Unmet Demand', 
                                     value_name='Value')
     plt.figure(figsize=(12, 7))
-    
+    hue_order = ['Feed-in Only', 'Feed-in and Battery', 'Feed-in and PV']
     sns.barplot(x='RE target', y='Value', hue='Unmet Demand', 
-                data=df_data_melted, palette=colors)
+                data=df_data_melted, palette=colors, hue_order=hue_order)
     
     plt.xlabel('RE Target (%)')
     plt.ylabel('Unmet Demand (%)')
@@ -772,6 +787,8 @@ def ud_comp(casePaths):
                ncol=3,
                frameon=False)
     plt.tight_layout()
+    
+    plt.yticks(np.arange(0, 80, 20))
     
     plt.savefig(new_plots_folder)
     plt.close()
@@ -785,15 +802,31 @@ def ws_comp(casePaths):
     cases = []
     sns.set(font_scale = 1.8)
     colors = ["#f4d35e", "#85a4c4", "#c2deaf" ]
-    i = 0
+    i = 1
     bar_data = {}
     
+    name_mapping = {
+    'No PV': 'Feed-in Only',
+    'No PV w Bat': 'Feed-in and Battery',
+    'With PV': 'Feed-in and PV'
+    }
+    
+    bar_data['RE target'] = re_levels
+    
     for casePath in casePaths:
-        cases.append(os.path.basename(casePath))
+        original_name = os.path.basename(casePath)
+        readable_name = name_mapping.get(original_name, original_name)
+        cases.append(readable_name)
         case_summary = pd.read_excel(os.path.join(casePath, 
                                                    'Evaluation Metrics.xlsx'))
-        if i == 0:
-            bar_data['RE target'] = case_summary['RE target']
+        if len(case_summary['Wasted Surplus']) <= len(re_levels):
+            temp = case_summary['Wasted Surplus'] * 100
+            temp = list(temp)
+            temp += [np.nan] * (len(re_levels) 
+                               - len(case_summary['Wasted Surplus']))
+            bar_data[cases[-1]] = temp
+        elif len(case_summary['Wasted Surplus']) == len(re_levels):
+            bar_data[cases[-1]] = case_summary['Wasted Surplus'] * 100
             
         bar_data[cases[-1]] = case_summary['Wasted Surplus'] * 100
         i += 1
@@ -803,8 +836,10 @@ def ws_comp(casePaths):
                                     value_name='Value')
     plt.figure(figsize=(12, 7))
     
+    hue_order = ['Feed-in Only', 'Feed-in and Battery', 'Feed-in and PV']
+    
     sns.barplot(x='RE target', y='Value', hue='Wasted Surplus', 
-                data=df_data_melted, palette=colors)
+                data=df_data_melted, palette=colors, hue_order=hue_order)
     
     plt.xlabel('RE Target (%)')
     plt.ylabel('Wasted Surplus (%)')
@@ -815,21 +850,131 @@ def ws_comp(casePaths):
                frameon=False)
     plt.tight_layout()
     
+    plt.yticks(np.arange(0, 81, 20))
+    
     plt.savefig(new_plots_folder)
+    plt.close()
+    
+def re_comp(casePaths):
+    
+    assert type(casePaths)== list, "casePaths should be a list"
+    
+    sns.set(font_scale=1.1)
+    
+    new_plots_folder_p = os.path.join(casePaths[0], '..', 'P+RE comparison.png')
+    new_plots_folder_f = os.path.join(casePaths[0], '..', 'FiT+RE comparison.png')
+    new_plots_folder_hs = os.path.join(casePaths[0], '..', 'HS+RE comparison.png')
+    
+    fig_p, ax_p = plt.subplots()
+    fig_f, ax_f = plt.subplots()
+    fig_hs, ax_hs = plt.subplots()
+    
+    i = 0
+    
+    name_mapping = {
+    'No PV': 'Feed-in Only',
+    'No PV w Bat': 'Feed-in and Battery',
+    'With PV': 'Feed-in and PV'
+    }
+    
+    color_map = {
+    'Feed-in Only': '#f4d35e',
+    'Feed-in and Battery': '#85a4c4',
+    'Feed-in and PV': '#c2deaf'
+    }
+    
+    cases = []
+    
+    for casePath in casePaths:
+        original_name = os.path.basename(casePath)
+        readable_name = name_mapping.get(original_name, original_name)
+        cases.append(readable_name)
+        case_summary = pd.read_excel(os.path.join(casePath, 
+                                                   'Evaluation Metrics.xlsx'))
+        color = color_map[readable_name]
+        ax_p.plot(np.array(case_summary['RE target']),
+                  np.array(case_summary['Price']),
+                  label = readable_name,
+                  color=color,
+                  linewidth=3)
+        ax_f.plot(np.array(case_summary['RE target']),
+                  np.array(case_summary['FiT']),
+                  label = readable_name,
+                  color=color,
+                  linewidth=3)
+        ax_hs.plot(np.array(case_summary['RE target']),
+                   np.array(case_summary['Household Surplus']),
+                   label = readable_name,
+                   color=color,
+                   linewidth=3)
+        
+        i += 1
+    
+    # Get current handles and labels
+    handles_p, labels_p = ax_p.get_legend_handles_labels()
+    handles_f, labels_f = ax_f.get_legend_handles_labels()
+    handles_hs, labels_hs = ax_hs.get_legend_handles_labels()
+    
+    desired_order = ['Feed-in Only', 'Feed-in and Battery', 'Feed-in and PV']
+    
+    new_handles_p = [handles_p[labels_p.index(lbl)] for lbl in desired_order]
+    new_handles_f = [handles_f[labels_f.index(lbl)] for lbl in desired_order]
+    new_handles_hs = [handles_hs[labels_hs.index(lbl)] for lbl in desired_order]    
+    
+    ax_p.set_xlabel('RE Target (%)')
+    ax_p.set_ylabel('Electricity Price ($/kWh)')
+    ax_p.legend(new_handles_p,
+               desired_order,
+               title = 'Case',
+               loc='upper center',
+               bbox_to_anchor=(0.5, 1.3),
+               ncol=3,
+               frameon=False)
+    fig_p.tight_layout()
+    
+    fig_p.savefig(new_plots_folder_p)
+    plt.close()
+    
+    ax_f.set_xlabel('RE Target (%)')
+    ax_f.set_ylabel('Feed-in Tariff ($/kWh)')
+    ax_f.legend(new_handles_f,
+               desired_order,
+               title = 'Case',
+               loc='upper center',
+               bbox_to_anchor=(0.5, 1.3),
+               ncol=3,
+               frameon=False)
+    fig_f.tight_layout()
+    
+    fig_f.savefig(new_plots_folder_f)
+    plt.close()
+    
+    ax_hs.set_xlabel('RE Target (%)')
+    ax_hs.set_ylabel('Household Surplus ($)')
+    ax_hs.legend(new_handles_hs,
+               desired_order,
+               title = 'Case',
+               loc='upper center',
+               bbox_to_anchor=(0.5, 1.3),
+               ncol=3,
+               frameon=False)
+    fig_hs.tight_layout()
+    
+    fig_hs.savefig(new_plots_folder_hs)
     plt.close()
     
 # Run the functions for the different cases
 cwd = os.getcwd()
 outFile = os.path.join(cwd, "Outputs")
-
+'''
 # Initial Solution
-outFile_0 = os.path.join(outFile, '0. Initial Solution', 'Problem', 'Output_0_40.xlsx')
+outFile_0 = os.path.join(outFile, '0. Initial Solution', 'Output_0_40.xlsx')
 add_ret(outFile_0, multi=0)
 gen_year(outFile_0, multi=0)
 rep_day(outFile_0, multi=0, year=10, day=1)
 inst_cap(outFile_0, multi=0)
 get_houses(outFile_0, multi=0)
-'''
+
 # Base Case
 outFile_1 = os.path.join(outFile, '1. Base Case', 'Output_0_40.xlsx')
 add_ret(outFile_1, multi=0)
@@ -837,12 +982,12 @@ gen_year(outFile_1, multi=0)
 rep_day(outFile_1, multi=0, year=10, day=1)
 inst_cap(outFile_1, multi=0)
 get_houses(outFile_1, multi=0)
-
+'''
 
 # No PV
 outFile_2 = os.path.join(outFile, '2. No PV', 'Output Files')
 re_levels = os.listdir(outFile_2)
-
+'''
 for re_level in re_levels:
     files = os.listdir(os.path.join(outFile_2, re_level))
 
@@ -853,13 +998,13 @@ for re_level in re_levels:
         rep_day(outFile_2_1, multi=1, year=10, day=1)
         inst_cap(outFile_2_1, multi=1)
         get_houses(outFile_2_1, multi=1)
-
+'''
 outFile_2_2 = os.path.join(outFile, '2. No PV')
 #fit_v_price(outFile_2_2)
 #fi_level(outFile_2_2)
 #unmet_demand(outFile_2_2)
 #wasted_surplus(outFile_2_2)
-
+'''
 # With PV
 outFile_3 = os.path.join(outFile, '3. With PV', 'Output Files')
 re_levels = os.listdir(outFile_3)
@@ -875,15 +1020,15 @@ for re_level in re_levels:
         get_houses(outFile_3_1, multi=1)
 
 outFile_3_2 = os.path.join(outFile, '3. With PV')
-#fit_v_price(outFile_3_2)
+fit_v_price(outFile_3_2)
 #fi_level(outFile_3_2)
 #unmet_demand(outFile_3_2)
 #wasted_surplus(outFile_3_2)
-
+'''
 # No PV with Batteries
 outFile_9 = os.path.join(outFile, '9. No PV w Bat', 'Output Files')
 re_levels = os.listdir(outFile_9)
-
+'''
 for re_level in re_levels:
     files = os.listdir(os.path.join(outFile_9, re_level))
 
@@ -894,13 +1039,13 @@ for re_level in re_levels:
         rep_day(outFile_9_1, multi=1, year=10, day=1)
         inst_cap(outFile_9_1, multi=1)
         get_houses(outFile_9_1, multi=1)
-
+'''
 outFile_9_2 = os.path.join(outFile, '9. No PV w Bat')
 #fit_v_price(outFile_9_2)
 #fi_level(outFile_2_2)
 #unmet_demand(outFile_2_2)
 #wasted_surplus(outFile_2_2)
-
+'''
 
 # Initial Solution with VHR
 outFile_4= os.path.join(outFile, '4. Initial Solution (Variable HR)', 'Output_0_40.xlsx')
@@ -926,10 +1071,11 @@ outFile_8_3 = os.path.join(outFile_8, 'No PV w Bat')
 summary_path_1 = os.path.join(outFile, '3. With PV', 'Summary.xlsx')
 summary_path_2 = os.path.join(outFile, '2. No PV', 'Summary.xlsx')
 summary_path_3 = os.path.join(outFile, '9. No PV w Bat', 'Summary.xlsx')
-'''
+
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.6]
+
 for re_level in re_levels:
-    surp_heatmap(outFile_8_1, re_level=re_level, max_fits=summary_path_1)
+    #surp_heatmap(outFile_8_1, re_level=re_level, max_fits=summary_path_1)
     #surp_heatmap(outFile_8_2, re_level=re_level, max_fits=summary_path_2)
     #surp_heatmap(outFile_8_3, re_level=re_level, max_fits=summary_path_3)
     re_level = str(int(re_level * 100))
@@ -939,7 +1085,7 @@ for re_level in re_levels:
     files_1 = os.listdir(filePath_1)
     files_2 = os.listdir(filePath_2)
     files_3 = os.listdir(filePath_3)
-    
+'''
     for file in files_1:
         outFile_8_1_1 = os.path.join(filePath_8_1, file)
         add_ret(outFile_8_1_1, multi=1)
@@ -963,8 +1109,9 @@ for re_level in re_levels:
         rep_day(outFile_8_3_1, multi=1, year=10, day=1)
         inst_cap(outFile_8_3_1, multi=1)
         get_houses(outFile_8_3_1, multi=1)
-
+ '''
 casePaths = [outFile_8_1, outFile_8_2, outFile_8_3]
-ud_comp(casePaths)
-ws_comp(casePaths) 
-'''
+re_levels = [0, 10, 20, 30, 40, 50, 60]
+ud_comp(casePaths, re_levels)
+ws_comp(casePaths)
+re_comp(casePaths) 

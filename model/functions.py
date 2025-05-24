@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 import os
 
+from openpyxl import load_workbook
+
 def get_dfs(model, t):
     ''' get DataFrames from solved model'''
     
@@ -285,32 +287,38 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
     met_d = 0
     house_surplus = pd.DataFrame(columns=['surplus'])
     disc_surplus = 0
+    d_weights = list(model.d_weights)
     
     for y in range(model.years):
         feed_in_y = 0
         for d in range(model.days):
-            feed_in_y += sum(feed_in.loc[f'{y}.'+f'{d}'])
+            feed_in_y += sum(feed_in.loc[f'{y}.'+f'{d}']) * d_weights[d]
             for h in range(model.hours):
-                unmet_d += model.ud[y, d, h].X
-                met_d += 1 * (model.ud[y, d, h].X + model.b_in[y, d, h].X)
-                total_ud += model.ud[y, d, h].X
-                waste += net_surplus[h][d]
+                unmet_d += model.ud[y, d, h].X * d_weights[d]
+                met_d += -1 * (model.ud[y, d, h].X) * d_weights[d]
+                total_ud += model.ud[y, d, h].X * d_weights[d]
+                waste += net_surplus[h][d] * d_weights[d]
                 for i in model.house:
                     
                     if model.surplus[i][d][h] >= 0:
                         total_waste += (model.surplus[i][d][h] 
-                                        * model.max_house_str[i])
+                                        * model.max_house_str[i]
+                                        * d_weights[d])
             
-                    total_waste += -1 * model.feed_in[i, y, d, h].X
+                    total_waste += (-1 * model.feed_in[i, y, d, h].X 
+                                    * d_weights[d])
                     
-                    waste += -1 * model.feed_in[i, y, d, h].X
+                    waste += (-1 * model.feed_in[i, y, d, h].X
+                              * d_weights[d])
                     
                     total_ud += (max(-1 * model.surplus[i][d][h], 0)
                                  * (model.max_house_str[i]
-                                    - model.h_weight[i, y].X))
+                                    - model.h_weight[i, y].X)
+                                 * d_weights[d])
                     
                     met_d += (max(-1 * model.surplus[i][d][h], 0)
-                              * model.h_weight[i, y].X)
+                              * model.max_house_str[i]
+                              * d_weights[d])
         
         house_surplus.loc[y] = (met_d * (voll - elec_price / 100) 
                                 + feed_in_y * fit / 100)
@@ -365,49 +373,100 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
         ud.to_excel(writer, sheet_name='Unmet Demand')
         house_surplus.to_excel(writer, sheet_name='Household Surplus')
 
-def eval_summary(outPath):
-    
+def eval_summary(outPath, max_fits=None):
     metrics = pd.DataFrame(columns = ['RE target', 'FiT', 'Price', 
                                       'Unmet Demand', 'Wasted Surplus',
                                       'Household Surplus'])
     metrics.set_index('RE target', inplace=True)
     
+    if max_fits != None:
+        max_fits_df = pd.read_excel(max_fits, sheet_name=None)
+        
     re_levels = os.listdir(outPath)
+    
     for re_level in re_levels:
+        if re_level == '0':
+            max_fits_re = max_fits_df[re_level]
+        else:
+            max_fits_re = max_fits_df[str(round(float(re_level) / 100 , 1))]
+            
+        max_fits_re.set_index('Unnamed: 0', inplace=True)
         best_file = ''
         best_surp = 0
-        best_summary = []
-        outFiles = os.listdir(os.path.join(outPath, re_level))
-        for file in outFiles:
-            print(file)
-            filePath = os.path.join(outPath, re_level, file)
-            summary = pd.read_excel(filePath, sheet_name = None)
-            summary['Summary'].set_index('Unnamed: 0', inplace = True)
-            surp = summary['Summary'].loc["Household Surplus"][0]
-            if surp > best_surp:
-                best_surp = surp
-                best_file = file
-                best_summary = summary.copy()
+        
+        row = max_fits_re.loc['Prices']
+        prices = np.arange(0.27, 0.46, 0.01)
+        
+        files = os.listdir(os.path.join(outPath, re_level))
+            
+        for file in files:
+            fit = int(file.split('_')[1]) / 100
+            price = int(file.split('_')[2].split('.')[0]) / 100
+            
+            price_col = row[row == round(price, 2)].index.tolist()
+            max_fit = max_fits_re[price_col[0]]['Feed-in Tariffs']
+            
+            if fit < max_fit or max_fit == np.nan:
+                outFile = os.path.join(outPath, re_level, file)
+                summary = pd.read_excel(outFile, sheet_name = None)
+                summary['Summary'].set_index('Unnamed: 0', inplace = True)
+                surp = summary['Summary'].loc["Household Surplus"][0]
                 
-                waste = best_summary['Summary'].loc["Total Wasted Prosumer Surplus"][0]
-                net_surplus = best_summary['Net surplus']
-                if 'Unnamed: 0' in net_surplus.columns:
-                    net_surplus.set_index('Unnamed: 0', inplace = True)
-                net_surplus = net_surplus.sum().sum()
-                waste_perc = waste / net_surplus
-                
-                unmet_demand = best_summary['Summary'].loc["Total Unmet Demand"][0]
-                demand = best_summary['Yearly demand']
-                demand.set_index('Unnamed: 0', inplace = True)
-                demand = demand.sum().sum()
-                ud_perc = unmet_demand / - demand
-                
-                fit = int(best_file.split('_')[1]) / 100
-                el_price = int(best_file.split('_')[2].split('.')[0]) / 100
-                
-                metrics.loc[re_level] = [fit, el_price, ud_perc,
-                                         waste_perc, best_surp]
-                
-    
+                if surp >= best_surp:
+                    waste = summary['Summary'].loc["Total Wasted Prosumer Surplus"][0]
+                    net_surplus = summary['Net surplus']
+                    if 'Unnamed: 0' in net_surplus.columns:
+                        net_surplus.set_index('Unnamed: 0', inplace = True)
+                    net_surplus = net_surplus.sum().sum()
+                    waste_perc = waste / net_surplus
+                    
+                    unmet_demand = summary['Summary'].loc["Total Unmet Demand"][0]
+                    demand = summary['Yearly demand']
+                    demand.set_index('Unnamed: 0', inplace = True)
+                    demand = demand.sum().sum()
+                    ud_perc = unmet_demand / - demand
+                    
+                    best_fit = fit
+                    best_el_price = price
+                    best_surp = surp
+                    
+        metrics.loc[re_level] = [best_fit, best_el_price, ud_perc,
+                                 waste_perc, best_surp]
+                    
     outFile = os.path.join(outPath, '..', 'Evaluation Metrics.xlsx')
     metrics.to_excel(outFile)
+    
+def change_excel(outFile):
+    
+    try:
+        wb = load_workbook(outFile)
+        fit = int(outFile.split('_')[1]) / 100
+        el_price = int(outFile.split('_')[2].split('.')[0]) / 100
+        sheet = wb['Summary']
+        df = pd.read_excel(outFile, sheet_name=None)
+        
+        d_weights=[199, 106, 60]
+    
+        unmet_demand = df['Unmet Demand'].set_index('Unnamed: 0')
+        df_fi = df['Fed-in Capacity'].set_index('Unnamed: 0')
+        df_demand = df['Yearly demand'].set_index('Unnamed: 0')
+        household_surplus = 0
+        for i in range(0, 15):
+            fi_y = 0
+            met_d_y = 0
+            hs_y = 0
+            for j in range(0, 3):
+                fi_y += df_fi.loc[float(f'{i}'+'.'+f'{j}')].sum() * d_weights[j]
+                met_d_y += (-1 * df_demand.loc[float(f'{i}'+'.'+f'{j}')].sum() * d_weights[j]
+                          - unmet_demand.loc[float(f'{i}'+'.'+f'{j}')].sum()) * d_weights[j]
+            
+            hs_y = met_d_y * (0.7 - el_price) + (fi_y * fit) 
+            household_surplus += hs_y * (1 / ((1.11) ** i))
+            
+        sheet['B12'] = household_surplus
+    
+        # Save the workbook
+        wb.save(outFile)
+    
+    except:
+        print('No work:', outFile)

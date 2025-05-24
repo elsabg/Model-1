@@ -290,7 +290,9 @@ class Model_1:
                      )
         
         m.addConstrs(((tudc[y] ==
-                       quicksum((ud[y, d, h]) * self.ud_penalty
+                       quicksum((ud[y, d, h] 
+                                 * self.ud_penalty
+                                 * self.d_weights[d])
                                 for d in range(self.days)
                                 for h in range(self.hours)))
                       for y in range(self.years)
@@ -503,7 +505,7 @@ class Model_1:
         M = - (np.min(self.demand[min(self.demand)]) 
                * max(self.max_house))
         
-        m.addConstrs(((inst_cap['Owned PV', y] <= self.PV_max * M * 10)
+        m.addConstrs(((inst_cap['Owned PV', y] <= self.PV_max * M * 100)
                       for y in range(self.years)
                       ),
                      name = 'max PV'
