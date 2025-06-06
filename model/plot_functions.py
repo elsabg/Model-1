@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import griddata
 import seaborn as sns
+from matplotlib.lines import Line2D
 
 import os
 
@@ -671,7 +672,7 @@ def ud_heatmap(casePath, re_level):
     
 def surp_heatmap(casePath, re_level, max_fits=None): # summary file
     
-    sns.set(font_scale=1.1)
+    sns.set(font_scale=1.3)
     
     global price_index
     global fit_index
@@ -703,8 +704,8 @@ def surp_heatmap(casePath, re_level, max_fits=None): # summary file
     
     df = pd.DataFrame(data)
     
-    heatmap_data = df.pivot(index='Prices ($)', 
-                            columns='FiTs ($)', 
+    heatmap_data = df.pivot(index='FiTs ($)', 
+                            columns='Prices ($)', 
                             values='Surpluses')
     
     if max_fits != None:
@@ -721,14 +722,14 @@ def surp_heatmap(casePath, re_level, max_fits=None): # summary file
                 max_fit = round(max_fit, 2)
                 for j, fit in enumerate(fit_index):
                     if fit > max_fit or max_fit == "Nan" or max_fit == 0:
-                        mask[i, j] = True
+                        mask[j, i] = True
             except IndexError:
                 print(f're_level={re_level}, price={price}')
                 
     plt.figure(figsize=(8, 6))
-    sns.heatmap(heatmap_data / 10000, fmt=".1f", 
-                cmap="YlGnBu", cbar_kws={'label': 'Surplus value'},
-                mask=mask, annot=True)
+    sns.heatmap(heatmap_data / 1000000, fmt=".1f", 
+                cmap="YlGnBu", cbar_kws={'label': 'Surplus value (M $)'},
+                mask=mask, annot=False)
     
     plt.gca().invert_yaxis()
     plt.tight_layout()
@@ -742,15 +743,15 @@ def ud_comp(casePaths, re_levels): # re_levels in %
     new_plots_folder = os.path.join(casePaths[0], '..', 'UD comparison.png')
     
     cases = []
-    sns.set(font_scale = 1.8)
+    sns.set(font_scale = 2)
     colors = ["#f4d35e", "#85a4c4", "#c2deaf" ]
     i = 0
     bar_data = {}
     
     name_mapping = {
     'No PV': 'Feed-in Only',
-    'No PV w Bat': 'Feed-in and Battery',
-    'With PV': 'Feed-in and PV'
+    'No PV w Bat': 'Feed-in + Batteries',
+    'With PV': 'Feed-in + PV + Batteries'
     }
     
     bar_data['RE target'] = re_levels
@@ -775,20 +776,44 @@ def ud_comp(casePaths, re_levels): # re_levels in %
     df_data_melted = df_data.melt('RE target', var_name='Unmet Demand', 
                                     value_name='Value')
     plt.figure(figsize=(12, 7))
-    hue_order = ['Feed-in Only', 'Feed-in and Battery', 'Feed-in and PV']
-    sns.barplot(x='RE target', y='Value', hue='Unmet Demand', 
-                data=df_data_melted, palette=colors, hue_order=hue_order)
+    hue_order = ['Feed-in Only', 
+                 'Feed-in + Batteries', 
+                 'Feed-in + PV + Batteries']
+    color_map = dict(zip(hue_order, colors))
     
+    ax = sns.barplot(x='RE target', y='Value', hue='Unmet Demand', 
+                     data=df_data_melted, palette=colors, hue_order=hue_order)
+    
+    re_targets = df_data['RE target'].values
+    x_locs = ax.get_xticks()
+    width_per_bar = 0.8 / len(hue_order) 
+
+
+    for i, re_target in enumerate(re_targets):
+        for j, case in enumerate(hue_order):
+            y_val = df_data[case].iloc[i]
+            if pd.isna(y_val):
+                x_pos = x_locs[i] - 0.4 + width_per_bar * (j + 0.5)
+                ax.scatter(x_pos, -0.1, marker='x', color=color_map[case], 
+                           s=100, linewidths=2)
+    
+    handles, labels = ax.get_legend_handles_labels()
+    black_x = Line2D([], [], color='black', marker='x', linestyle='None',
+                     markersize=10, label='Infeasible', mew=2)
+    handles.append(black_x)
+    labels.append('Infeasible')
+                
     plt.xlabel('RE Target (%)')
     plt.ylabel('Unmet Demand (%)')
-    plt.legend(title = 'Case',
-               loc='upper center',
-               bbox_to_anchor=(0.5, 1.3),
-               ncol=3,
-               frameon=False)
-    plt.tight_layout()
+    ax.legend(handles=handles, labels=labels,
+              title='Case',
+              loc='upper center',
+              bbox_to_anchor=(0.5, 1.35),
+              ncol=3,
+              frameon=False)
+    plt.subplots_adjust(top=0.75) 
     
-    plt.yticks(np.arange(0, 80, 20))
+    plt.yticks(np.arange(0, 81, 20))
     
     plt.savefig(new_plots_folder)
     plt.close()
@@ -800,15 +825,15 @@ def ws_comp(casePaths):
     new_plots_folder = os.path.join(casePaths[0], '..', 'WS comparison.png')
     
     cases = []
-    sns.set(font_scale = 1.8)
+    sns.set(font_scale = 2)
     colors = ["#f4d35e", "#85a4c4", "#c2deaf" ]
     i = 1
     bar_data = {}
     
     name_mapping = {
     'No PV': 'Feed-in Only',
-    'No PV w Bat': 'Feed-in and Battery',
-    'With PV': 'Feed-in and PV'
+    'No PV w Bat': 'Feed-in + Batteries',
+    'With PV': 'Feed-in + PV + Batteries'
     }
     
     bar_data['RE target'] = re_levels
@@ -836,19 +861,41 @@ def ws_comp(casePaths):
                                     value_name='Value')
     plt.figure(figsize=(12, 7))
     
-    hue_order = ['Feed-in Only', 'Feed-in and Battery', 'Feed-in and PV']
+    hue_order = ['Feed-in Only', 
+                 'Feed-in + Batteries', 
+                 'Feed-in + PV + Batteries']
+    color_map = dict(zip(hue_order, colors))
     
-    sns.barplot(x='RE target', y='Value', hue='Wasted Surplus', 
-                data=df_data_melted, palette=colors, hue_order=hue_order)
+    ax = sns.barplot(x='RE target', y='Value', hue='Wasted Surplus', 
+                     data=df_data_melted, palette=colors, hue_order=hue_order)
     
+    re_targets = df_data['RE target'].values
+    x_locs = ax.get_xticks()
+    width_per_bar = 0.8 / len(hue_order) 
+
+    for i, re_target in enumerate(re_targets):
+        for j, case in enumerate(hue_order):
+            y_val = df_data[case].iloc[i]
+            if pd.isna(y_val):
+                x_pos = x_locs[i] - 0.4 + width_per_bar * (j + 0.5)
+                ax.scatter(x_pos, -0.1, marker='x', color=color_map[case], 
+                           s=100, linewidths=2)
+    
+    handles, labels = ax.get_legend_handles_labels()
+    black_x = Line2D([], [], color='black', marker='x', linestyle='None',
+                     markersize=10, label='Infeasible', mew=2)
+    handles.append(black_x)
+    labels.append('Infeasible')
+
     plt.xlabel('RE Target (%)')
     plt.ylabel('Wasted Surplus (%)')
-    plt.legend(title = 'Case',
-               loc='upper center',
-               bbox_to_anchor=(0.5, 1.3),
-               ncol=3,
-               frameon=False)
-    plt.tight_layout()
+    ax.legend(handles=handles, labels=labels,
+              title='Case',
+              loc='upper center',
+              bbox_to_anchor=(0.5, 1.35),
+              ncol=3,
+              frameon=False)
+    plt.subplots_adjust(top=0.75) 
     
     plt.yticks(np.arange(0, 81, 20))
     
@@ -859,7 +906,7 @@ def re_comp(casePaths):
     
     assert type(casePaths)== list, "casePaths should be a list"
     
-    sns.set(font_scale=1.1)
+    sns.set(font_scale=1.15)
     
     new_plots_folder_p = os.path.join(casePaths[0], '..', 'P+RE comparison.png')
     new_plots_folder_f = os.path.join(casePaths[0], '..', 'FiT+RE comparison.png')
@@ -873,14 +920,14 @@ def re_comp(casePaths):
     
     name_mapping = {
     'No PV': 'Feed-in Only',
-    'No PV w Bat': 'Feed-in and Battery',
-    'With PV': 'Feed-in and PV'
+    'No PV w Bat': 'Feed-in + Batteries',
+    'With PV': 'Feed-in + PV + Batteries'
     }
     
     color_map = {
     'Feed-in Only': '#f4d35e',
-    'Feed-in and Battery': '#85a4c4',
-    'Feed-in and PV': '#c2deaf'
+    'Feed-in + Batteries': '#85a4c4',
+    'Feed-in + PV + Batteries': '#c2deaf'
     }
     
     cases = []
@@ -903,7 +950,7 @@ def re_comp(casePaths):
                   color=color,
                   linewidth=3)
         ax_hs.plot(np.array(case_summary['RE target']),
-                   np.array(case_summary['Household Surplus']),
+                   np.array(case_summary['Household Surplus'] / 1e7),
                    label = readable_name,
                    color=color,
                    linewidth=3)
@@ -915,7 +962,9 @@ def re_comp(casePaths):
     handles_f, labels_f = ax_f.get_legend_handles_labels()
     handles_hs, labels_hs = ax_hs.get_legend_handles_labels()
     
-    desired_order = ['Feed-in Only', 'Feed-in and Battery', 'Feed-in and PV']
+    desired_order = ['Feed-in Only', 
+                     'Feed-in + Batteries', 
+                     'Feed-in + PV + Batteries']
     
     new_handles_p = [handles_p[labels_p.index(lbl)] for lbl in desired_order]
     new_handles_f = [handles_f[labels_f.index(lbl)] for lbl in desired_order]
@@ -927,10 +976,10 @@ def re_comp(casePaths):
                desired_order,
                title = 'Case',
                loc='upper center',
-               bbox_to_anchor=(0.5, 1.3),
-               ncol=3,
+               bbox_to_anchor=(0.5, 1.27),
+               ncol=2,
                frameon=False)
-    fig_p.tight_layout()
+    fig_p.subplots_adjust(top=0.8, left=0.15) 
     
     fig_p.savefig(new_plots_folder_p)
     plt.close()
@@ -941,24 +990,24 @@ def re_comp(casePaths):
                desired_order,
                title = 'Case',
                loc='upper center',
-               bbox_to_anchor=(0.5, 1.3),
-               ncol=3,
+               bbox_to_anchor=(0.5, 1.27),
+               ncol=2,
                frameon=False)
-    fig_f.tight_layout()
+    fig_f.subplots_adjust(top=0.8, left=0.15) 
     
     fig_f.savefig(new_plots_folder_f)
     plt.close()
     
     ax_hs.set_xlabel('RE Target (%)')
-    ax_hs.set_ylabel('Household Surplus ($)')
+    ax_hs.set_ylabel('Household Surplus (1e7$)')
     ax_hs.legend(new_handles_hs,
                desired_order,
                title = 'Case',
                loc='upper center',
-               bbox_to_anchor=(0.5, 1.3),
+               bbox_to_anchor=(0.5, 1.27),
                ncol=3,
                frameon=False)
-    fig_hs.tight_layout()
+    fig_hs.subplots_adjust(top=0.8, left=0.15) 
     
     fig_hs.savefig(new_plots_folder_hs)
     plt.close()
@@ -1072,7 +1121,7 @@ summary_path_1 = os.path.join(outFile, '3. With PV', 'Summary.xlsx')
 summary_path_2 = os.path.join(outFile, '2. No PV', 'Summary.xlsx')
 summary_path_3 = os.path.join(outFile, '9. No PV w Bat', 'Summary.xlsx')
 
-re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.6]
+re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
 for re_level in re_levels:
     #surp_heatmap(outFile_8_1, re_level=re_level, max_fits=summary_path_1)

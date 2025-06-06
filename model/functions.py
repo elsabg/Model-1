@@ -373,12 +373,13 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
         ud.to_excel(writer, sheet_name='Unmet Demand')
         house_surplus.to_excel(writer, sheet_name='Household Surplus')
 
-def eval_summary(outPath, max_fits=None):
+def eval_summary(outPath, day_weights, years = 15, days = 3, max_fits=None):
     metrics = pd.DataFrame(columns = ['RE target', 'FiT', 'Price', 
                                       'Unmet Demand', 'Wasted Surplus',
                                       'Household Surplus'])
     metrics.set_index('RE target', inplace=True)
     
+    assert len(day_weights) == days, 'Weights do not match days'
     if max_fits != None:
         max_fits_df = pd.read_excel(max_fits, sheet_name=None)
         
@@ -391,21 +392,28 @@ def eval_summary(outPath, max_fits=None):
             max_fits_re = max_fits_df[str(round(float(re_level) / 100 , 1))]
             
         max_fits_re.set_index('Unnamed: 0', inplace=True)
-        best_file = ''
-        best_surp = 0
         
         row = max_fits_re.loc['Prices']
-        prices = np.arange(0.27, 0.46, 0.01)
         
         files = os.listdir(os.path.join(outPath, re_level))
+        
+        waste_perc = np.nan
+        ud_perc = np.nan
+        best_fit = np.nan
+        best_el_price = np.nan
+        best_surp = 0
             
         for file in files:
             fit = int(file.split('_')[1]) / 100
             price = int(file.split('_')[2].split('.')[0]) / 100
-            
+            #print(f'FiT: {fit}, Price: {price}')
             price_col = row[row == round(price, 2)].index.tolist()
-            max_fit = max_fits_re[price_col[0]]['Feed-in Tariffs']
-            
+            try:
+                max_fit = max_fits_re[price_col[0]]['Feed-in Tariffs']
+            except IndexError:
+                max_fit = 10
+                print(f'{price} not in summary')
+                
             if fit < max_fit or max_fit == np.nan:
                 outFile = os.path.join(outPath, re_level, file)
                 summary = pd.read_excel(outFile, sheet_name = None)
@@ -414,22 +422,34 @@ def eval_summary(outPath, max_fits=None):
                 
                 if surp >= best_surp:
                     waste = summary['Summary'].loc["Total Wasted Prosumer Surplus"][0]
-                    net_surplus = summary['Net surplus']
-                    if 'Unnamed: 0' in net_surplus.columns:
-                        net_surplus.set_index('Unnamed: 0', inplace = True)
-                    net_surplus = net_surplus.sum().sum()
+                    net_surplus_df = summary['Net surplus']
+                    if 'Unnamed: 0' in net_surplus_df.columns:
+                        net_surplus_df.set_index('Unnamed: 0', inplace = True)
+                    net_surplus = 0
+                    for y in range(years):
+                        for d in range(days):
+                            net_surplus += (net_surplus_df.loc[float(f'{y}.{d}')].sum()
+                                            * day_weights[d])
+                    
                     waste_perc = waste / net_surplus
                     
                     unmet_demand = summary['Summary'].loc["Total Unmet Demand"][0]
-                    demand = summary['Yearly demand']
-                    demand.set_index('Unnamed: 0', inplace = True)
-                    demand = demand.sum().sum()
+                    demand_df = summary['Yearly demand']
+                    demand_df.set_index('Unnamed: 0', inplace = True)
+                    demand= 0
+                    for y in range(years):
+                        for d in range(days):
+                            demand += (demand_df.loc[float(f'{y}.{d}')].sum()
+                                       * day_weights[d])
+                            
                     ud_perc = unmet_demand / - demand
                     
                     best_fit = fit
                     best_el_price = price
                     best_surp = surp
-                    
+        
+        if best_surp == 0:
+            best_surp = np.nan
         metrics.loc[re_level] = [best_fit, best_el_price, ud_perc,
                                  waste_perc, best_surp]
                     

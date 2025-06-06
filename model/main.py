@@ -231,14 +231,12 @@ def fit_search(in_path, out_path, prices,
                     summary.to_excel(writer, sheet_name=str(re_level))
 
 cwd = os.getcwd()
-'''
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_NoPV.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'With PV', 'Output Files', '10')
+day_weights = [199, 106, 60]
+#### OR (after running the model at least once) ####
+#list(model.d_weights)
+####################################################
 
-single_run(in_path=in_path, fit=0, elec_price=0.27, out_path=out_path, 
-           re_level = 0)
-func.change_excel(os.path.join(out_path, 'Output_0_27.xlsx'))
-'''
+
 outFile_sum = os.path.join(cwd, 'Outputs')
 summary_path_1 = os.path.join(outFile_sum, '3. With PV', 'Summary.xlsx')
 summary_path_2 = os.path.join(outFile_sum, '2. No PV', 'Summary.xlsx')
@@ -254,12 +252,12 @@ single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
 
 outFile = os.path.join(out_path, 'Output_0_40.xlsx')
 func.change_excel(outFile)
-
+'''
 # Base Case
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noFI_noPV.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '1. Base Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path)
-
+'''
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
 # FiT search with no PV
@@ -288,57 +286,58 @@ for re_level in re_levels:
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_NoPV.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'No PV')
 fits = np.arange(0, 0.3, 0.02)
-elec_prices = np.arange(0.35, 0.50, 0.01)
+elec_prices = np.arange(0.35, 0.49, 0.01)
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-
+'''
 for re_level in re_levels:
     multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
               out_path=out_path, re_level=re_level)
-'''
+
 for re_level in re_levels:
     re_path = os.path.join(out_path, 'Output Files', str(int(re_level * 100)))
     files = os.listdir(re_path)
     for file in files:
         func.change_excel(os.path.join(re_path, file))
-'''
-func.eval_summary(os.path.join(out_path, 'Output Files'), 
-                  max_fits = summary_path_2)   
 
+func.eval_summary(os.path.join(out_path, 'Output Files'), 
+                  day_weights, max_fits = summary_path_2)   
+'''
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'With PV')
 fits = np.arange(0, 0.07, 0.01)
 elec_prices = np.arange(0.27, 0.32, 0.01)
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-
+'''
 for re_level in re_levels:
     multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
               out_path=out_path, re_level=re_level)
-'''
+
 for re_level in re_levels:
     re_path = os.path.join(out_path, 'Output Files', str(int(re_level * 100)))
     files = os.listdir(re_path)
     for file in files:
         func.change_excel(os.path.join(re_path, file))
-'''
-func.eval_summary(os.path.join(out_path, 'Output Files'), 
-                  max_fits = summary_path_1)   
 
+func.eval_summary(os.path.join(out_path, 'Output Files'), 
+                  day_weights, max_fits = summary_path_1)   
+'''
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_NoPV_wBat.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'No PV w Bat')
 
 fits = np.arange(0, 0.31, 0.02)
 elec_prices = np.arange(0.29, 0.46, 0.02)
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-
+'''
 for re_level in re_levels:
     multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
               out_path=out_path, re_level=re_level)
-'''
+
 for re_level in re_levels:
     re_path = os.path.join(out_path, 'Output Files', str(int(re_level * 100)))
     files = os.listdir(re_path)
     for file in files:
         func.change_excel(os.path.join(re_path, file))
-'''
+
 func.eval_summary(os.path.join(out_path, 'Output Files'),
-                  max_fits = summary_path_3)   
+                  day_weights, max_fits = summary_path_3)   
+'''
