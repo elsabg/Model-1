@@ -735,18 +735,7 @@ class Model_1:
             ),
             'SoC tracking'
         )
-        '''
-        m.addConstrs(
-            (
-                (soc_0[y, d] == soc[y, d, 22]
-                 + b_in[y, d, 23] * self.bat_eff 
-                 - b_out[y, d, 23] / self.bat_eff)
-                for y in range(self.years)
-                for d in range(self.days)
-            ),
-            ' SoC of hour 0'
-        )
-        '''
+        
         m.addConstrs(((soc[y, d, 0] == soc[y, d, 23]
                        + b_in[y, d, 0] * self.bat_eff
                        - b_out[y, d, 0] / self.bat_eff)
@@ -765,6 +754,7 @@ class Model_1:
             ),
             'SoC capacity 1'
         )
+        
         m.addConstrs(
             (
                 (4 * inst_cap['Owned Batteries', y] >=
