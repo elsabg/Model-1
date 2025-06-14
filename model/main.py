@@ -327,6 +327,7 @@ out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'No PV w Bat')
 fits = np.arange(0, 0.31, 0.02)
 elec_prices = np.arange(0.29, 0.46, 0.02)
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+
 '''
 for re_level in re_levels:
     multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 

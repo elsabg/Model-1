@@ -775,7 +775,7 @@ def ud_comp(casePaths, re_levels): # re_levels in %
     df_data = pd.DataFrame(bar_data)
     df_data_melted = df_data.melt('RE target', var_name='Unmet Demand', 
                                     value_name='Value')
-    plt.figure(figsize=(12, 7))
+    plt.figure(figsize=(15, 7))
     hue_order = ['Feed-in Only', 
                  'Feed-in + Batteries', 
                  'Feed-in + PV + Batteries']
@@ -808,11 +808,11 @@ def ud_comp(casePaths, re_levels): # re_levels in %
     ax.legend(handles=handles, labels=labels,
               title='Case',
               loc='upper center',
-              bbox_to_anchor=(0.5, 1.35),
-              ncol=3,
+              bbox_to_anchor=(0.5, 1.23),
+              ncol=4,
               frameon=False)
-    plt.subplots_adjust(top=0.75) 
-    
+    plt.subplots_adjust(top=.85) 
+    plt.subplots_adjust(bottom = .13)
     plt.yticks(np.arange(0, 81, 20))
     
     plt.savefig(new_plots_folder)
@@ -859,7 +859,7 @@ def ws_comp(casePaths):
     df_data = pd.DataFrame(bar_data)
     df_data_melted = df_data.melt('RE target', var_name='Wasted Surplus', 
                                     value_name='Value')
-    plt.figure(figsize=(12, 7))
+    plt.figure(figsize=(15, 7))
     
     hue_order = ['Feed-in Only', 
                  'Feed-in + Batteries', 
@@ -892,10 +892,11 @@ def ws_comp(casePaths):
     ax.legend(handles=handles, labels=labels,
               title='Case',
               loc='upper center',
-              bbox_to_anchor=(0.5, 1.35),
-              ncol=3,
+              bbox_to_anchor=(0.5, 1.23),
+              ncol=4,
               frameon=False)
-    plt.subplots_adjust(top=0.75) 
+    plt.subplots_adjust(top=.85) 
+    plt.subplots_adjust(bottom = .13)
     
     plt.yticks(np.arange(0, 81, 20))
     
@@ -1163,4 +1164,4 @@ casePaths = [outFile_8_1, outFile_8_2, outFile_8_3]
 re_levels = [0, 10, 20, 30, 40, 50, 60]
 ud_comp(casePaths, re_levels)
 ws_comp(casePaths)
-re_comp(casePaths) 
+#re_comp(casePaths) 
