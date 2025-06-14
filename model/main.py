@@ -265,7 +265,7 @@ func.change_excel(outFile)
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noFI_noPV.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '1. Base Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
-           yearly_budget=0)
+           yearly_budget=np.inf)
 '''
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
