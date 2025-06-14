@@ -13,32 +13,36 @@ import functions as func
 from model_1 import Model_1
 
 def single_run(in_path, fit, elec_price, out_path,
-               md_level=0, ud_penalty=0, re_level=0, voll=0.7):
+               md_level=0, ud_penalty=0, re_level=0, 
+               voll=0.7, yearly_budget=np.inf):
     global model
     model = Model_1(_file_name=in_path)
     model.load_data()
     model.solve(fit=fit, elec_price=elec_price, 
                 md_level = md_level, ud_penalty=ud_penalty, 
-                re_level=re_level, voll=voll)
+                re_level=re_level, voll=voll, yearly_budget=yearly_budget)
     func.output_data(model, 2)
     func.to_xlsx(model, int(fit * 100), int(elec_price * 100), 
                  out_path, multi=0)
 
 def multi_run(in_path, fits, elec_prices, out_path,
-              md_level=0, ud_penalty=0, re_level=0, voll=0.7):
+              md_level=0, ud_penalty=0, re_level=0, 
+              voll=0.7, yearly_budget=np.inf):
     for elec_price in elec_prices:
         for fit in fits:
             model = Model_1(_file_name=in_path)
             model.load_data()
             model.solve(fit=fit, elec_price=elec_price, 
                         md_level = md_level, ud_penalty=ud_penalty, 
-                        re_level=re_level, voll=voll)
+                        re_level=re_level, voll=voll, 
+                        yearly_budget=yearly_budget)
             func.output_data(model, 2)
             func.to_xlsx(model, int(fit * 100), int(elec_price * 100), 
                          out_path)    
 
 def fit_search(in_path, out_path, prices,
-               md_level=0, ud_penalty=0, re_level=0, voll=0.7):
+               md_level=0, ud_penalty=0, re_level=0, voll=0.7,
+               yearly_budget=np.inf):
     
     # Initialize model
     model = Model_1(_file_name=in_path)
@@ -90,7 +94,7 @@ def fit_search(in_path, out_path, prices,
         fit = 0
         model.solve(fit=fit, elec_price=el_price,
                     ud_penalty=ud_penalty, md_level=md_level,
-                    re_level=re_level, voll=voll)
+                    re_level=re_level, voll=voll, yearly_budget=yearly_budget)
         if model.m.getObjective().getValue() < base_npv:
             print(f'No positive solution for {el_price}')
             fits.append(0)
@@ -120,7 +124,8 @@ def fit_search(in_path, out_path, prices,
             print(f'-----FiT: {fit_mid}, price: {el_price}-----')
             model.solve(fit=fit_mid, elec_price=el_price,
                         ud_penalty=ud_penalty, md_level=md_level, 
-                        re_level=re_level, voll=voll)
+                        re_level=re_level, voll=voll, 
+                        yearly_budget=yearly_budget)
     
             while worse:
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
@@ -144,7 +149,8 @@ def fit_search(in_path, out_path, prices,
                 print(f'-----FiT: {fit_mid}, price: {el_price}-----')
                 model.solve(fit=fit_mid, elec_price=el_price,
                             ud_penalty=ud_penalty, md_level=md_level, 
-                            re_level=re_level, voll=voll)
+                            re_level=re_level, voll=voll,
+                            yearly_budget=yearly_budget)
                 if (abs(model.m.getObjective().getValue() - base_npv) >= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
@@ -181,7 +187,8 @@ def fit_search(in_path, out_path, prices,
             print(f'-----FiT: {fit_mid}, price: {el_price}-----')
             model.solve(fit=fit_mid, elec_price=el_price,
                         ud_penalty=ud_penalty, md_level=md_level,
-                        re_level = re_level, voll=voll)
+                        re_level = re_level, voll=voll,
+                        yearly_budget=yearly_budget)
             
             while worse:
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
@@ -204,7 +211,8 @@ def fit_search(in_path, out_path, prices,
                 print(f'-----FiT: {fit_mid}, price: {el_price}-----')
                 model.solve(fit=fit_mid, elec_price=el_price,
                             ud_penalty=ud_penalty, md_level=md_level, 
-                            re_level=re_level, voll=voll)
+                            re_level=re_level, voll=voll,
+                            yearly_budget=yearly_budget)
                 if (abs(model.m.getObjective().getValue() - base_npv) >= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
@@ -256,7 +264,8 @@ func.change_excel(outFile)
 # Base Case
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noFI_noPV.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '1. Base Case')
-single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path)
+single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
+           yearly_budget=0)
 '''
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 

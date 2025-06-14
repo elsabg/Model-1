@@ -132,7 +132,7 @@ class Model_1:
 
 
     def solve(self, fit, elec_price, md_level, ud_penalty, re_level=0, 
-              voll=0.7):
+              voll=0.7, yearly_budget=np.inf):
         'Create and solve the model'
 
         self.fit = fit
@@ -141,6 +141,7 @@ class Model_1:
         self.ud_penalty = ud_penalty
         self.re_level = re_level
         self.voll = voll
+        self.yearly_budget = yearly_budget
 
         m = Model('Model_1')
 
@@ -258,6 +259,14 @@ class Model_1:
                        for y in range(self.years)
                        ),
                      name='yearly total capital costs'
+                     )
+        
+        m.addConstrs(((quicksum(added_cap[g, y] * self.ucc[g]
+                                for g in ['Owned PV', 'Owned Batteries']) 
+                      <= self.yearly_budget)
+                      for y in range(self.years)
+                      ),
+                     name='yearly budget CAPEX constraint'
                      )
         
         m.addConstrs(((tovc[y] ==
