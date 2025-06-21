@@ -14,20 +14,20 @@ from model_1 import Model_1
 
 def single_run(in_path, fit, elec_price, out_path,
                md_level=0, ud_penalty=0, re_level=0, 
-               voll=0.7, yearly_budget=np.inf):
+               voll=0.7, total_budget=np.inf):
     global model
     model = Model_1(_file_name=in_path)
     model.load_data()
     model.solve(fit=fit, elec_price=elec_price, 
                 md_level = md_level, ud_penalty=ud_penalty, 
-                re_level=re_level, voll=voll, yearly_budget=yearly_budget)
+                re_level=re_level, voll=voll, total_budget=total_budget)
     func.output_data(model, 2)
     func.to_xlsx(model, round(fit * 100), round(elec_price * 100), 
                  out_path, multi=0)
 
 def multi_run(in_path, fits, elec_prices, out_path,
               md_level=0, ud_penalty=0, re_level=0, 
-              voll=0.7, yearly_budget=np.inf, index='re', interest=None):
+              voll=0.7, total_budget=np.inf, index='re', interest=None):
     
     for elec_price in elec_prices:
         for fit in fits:
@@ -36,14 +36,14 @@ def multi_run(in_path, fits, elec_prices, out_path,
             model.solve(fit=fit, elec_price=elec_price, 
                         md_level = md_level, ud_penalty=ud_penalty, 
                         re_level=re_level, voll=voll, 
-                        yearly_budget=yearly_budget)
+                        total_budget=total_budget)
             func.output_data(model, 2)
             func.to_xlsx(model, round(fit * 100), round(elec_price * 100), 
                          out_path, 1, index)    
 
 def fit_search(in_path, out_path, prices,
                md_level=0, ud_penalty=0, re_level=0, voll=0.7,
-               yearly_budget=np.inf, search='re'):
+               total_budget=np.inf, search='re'):
     
     index = search
     
@@ -99,7 +99,7 @@ def fit_search(in_path, out_path, prices,
         fit = 0
         model.solve(fit=fit, elec_price=el_price,
                     ud_penalty=ud_penalty, md_level=md_level,
-                    re_level=re_level, voll=voll, yearly_budget=yearly_budget)
+                    re_level=re_level, voll=voll, total_budget=total_budget)
         
         if model.m.getObjective().getValue() < base_npv:
             print(f'No positive solution for {el_price}')
@@ -117,7 +117,7 @@ def fit_search(in_path, out_path, prices,
                         summary.to_excel(writer, sheet_name=str(re_level))
                     elif index == 'budget':
                         summary.to_excel(writer, 
-                                         sheet_name=str(yearly_budget))
+                                         sheet_name=str(total_budget))
                 
             except FileNotFoundError:
                 with pd.ExcelWriter(os.path.join(out_path, 'Summary.xlsx'), 
@@ -126,7 +126,7 @@ def fit_search(in_path, out_path, prices,
                         summary.to_excel(writer, sheet_name=str(re_level))
                     elif index == 'budget':
                         summary.to_excel(writer, 
-                                         sheet_name=str(yearly_budget))
+                                         sheet_name=str(total_budget))
         # If yes, run a binary grid search to find it
         elif len(fits) != 0:
             fit_left = fits[-1]
@@ -138,7 +138,7 @@ def fit_search(in_path, out_path, prices,
             model.solve(fit=fit_mid, elec_price=el_price,
                         ud_penalty=ud_penalty, md_level=md_level, 
                         re_level=re_level, voll=voll, 
-                        yearly_budget=yearly_budget)
+                        total_budget=total_budget)
     
             while worse:
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
@@ -163,7 +163,7 @@ def fit_search(in_path, out_path, prices,
                 model.solve(fit=fit_mid, elec_price=el_price,
                             ud_penalty=ud_penalty, md_level=md_level, 
                             re_level=re_level, voll=voll,
-                            yearly_budget=yearly_budget)
+                            total_budget=total_budget)
                 if (abs(model.m.getObjective().getValue() - base_npv) >= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
@@ -188,7 +188,7 @@ def fit_search(in_path, out_path, prices,
                         summary.to_excel(writer, sheet_name=str(re_level))
                     elif index == 'budget':
                         summary.to_excel(writer, 
-                                         sheet_name=str(yearly_budget))
+                                         sheet_name=str(total_budget))
                 
             except FileNotFoundError:
                 with pd.ExcelWriter(os.path.join(out_path, 'Summary.xlsx'), 
@@ -197,7 +197,7 @@ def fit_search(in_path, out_path, prices,
                         summary.to_excel(writer, sheet_name=str(re_level))
                     elif index == 'budget':
                         summary.to_excel(writer, 
-                                         sheet_name=str(yearly_budget))
+                                         sheet_name=str(total_budget))
             
         else:
             fit_left = 0
@@ -209,7 +209,7 @@ def fit_search(in_path, out_path, prices,
             model.solve(fit=fit_mid, elec_price=el_price,
                         ud_penalty=ud_penalty, md_level=md_level,
                         re_level = re_level, voll=voll,
-                        yearly_budget=yearly_budget)
+                        total_budget=total_budget)
             
             while worse:
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
@@ -233,7 +233,7 @@ def fit_search(in_path, out_path, prices,
                 model.solve(fit=fit_mid, elec_price=el_price,
                             ud_penalty=ud_penalty, md_level=md_level, 
                             re_level=re_level, voll=voll,
-                            yearly_budget=yearly_budget)
+                            total_budget=total_budget)
                 if (abs(model.m.getObjective().getValue() - base_npv) >= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
@@ -261,7 +261,7 @@ def fit_search(in_path, out_path, prices,
                         summary.to_excel(writer, sheet_name=str(re_level))
                     elif index == 'budget':
                         summary.to_excel(writer, 
-                                         sheet_name=str(yearly_budget))
+                                         sheet_name=str(total_budget))
 
 cwd = os.getcwd()
 day_weights = [199, 106, 60]
@@ -285,13 +285,13 @@ single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
 
 outFile = os.path.join(out_path, 'Output_0_40.xlsx')
 func.change_excel(outFile)
-
+'''
 # Base Case
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noFI_noPV.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '1. Base Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
-           yearly_budget=np.inf)
-
+           total_budget=np.inf)
+'''
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
 # FiT search with no PV
@@ -387,11 +387,11 @@ budgets = np.arange(0, 1000001, 200000)
 for budget in budgets:
     b_path =  os.path.join(out_path, 'Output Files', str(int(budget)))
     fit_search(in_path, out_path, prices, re_level=re_level,
-               yearly_budget=budget, search='budget') 
+               total_budget=budget, search='budget') 
     single_run(in_path=in_path, fit=0.03, elec_price=0.3, 
-               re_level = re_level, yearly_budget = budget,
+               re_level = re_level, total_budget = budget,
                out_path=b_path)
-'''
+
 
 # Interest rate
 interests = [0, 0.01, 0.05, 0.1, 0.15]
@@ -434,3 +434,5 @@ for interest in interests:
 
 func.eval_summary(os.path.join(out_path, 'Output Files'),
                   day_weights)   
+
+'''
