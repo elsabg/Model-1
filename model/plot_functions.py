@@ -138,7 +138,7 @@ def inst_cap(outFile, multi=1):
               bbox_transform=fig.transFigure)
     
     if multi == 1:
-        ax.set_yticks([i for i in range (0, 751, 250)])
+        ax.set_yticks([i for i in range (0, 3001, 250)])
       
     plt.subplots_adjust(top=.85)
     plot_path = os.path.join(new_plots_folder, f"Installed_Capacities_{fit}_{el_price}.png")
@@ -208,9 +208,9 @@ def gen_year(outFile, multi):
     feed_in = out['Fed-in Capacity'].set_index('Unnamed: 0')
     unmet = out['Unmet Demand'].set_index('Unnamed: 0')
     
-    weights = {0: 91,
-               1: 153,
-               2: 121}
+    weights = {0: 199,
+               1: 106,
+               2: 60}
     
     year_dg = []
     for y in range(15):
@@ -282,7 +282,7 @@ def gen_year(outFile, multi):
               bbox_transform=fig.transFigure)
     
     if multi == 1:
-       ax.set_yticks([i for i in range (0, 3500001, 500000)]) 
+       ax.set_yticks([i for i in range (0, 5500001, 500000)]) 
     
     plt.subplots_adjust(top=.85)
     plot_path = os.path.join(new_plots_folder, 
@@ -1012,7 +1012,8 @@ def re_comp(casePaths):
     
     fig_hs.savefig(new_plots_folder_hs)
     plt.close()
-    
+
+
 # Run the functions for the different cases
 cwd = os.getcwd()
 outFile = os.path.join(cwd, "Outputs")
@@ -1160,8 +1161,23 @@ for re_level in re_levels:
         inst_cap(outFile_8_3_1, multi=1)
         get_houses(outFile_8_3_1, multi=1)
  '''
+'''
 casePaths = [outFile_8_1, outFile_8_2, outFile_8_3]
 re_levels = [0, 10, 20, 30, 40, 50, 60]
 ud_comp(casePaths, re_levels)
 ws_comp(casePaths)
-#re_comp(casePaths) 
+re_comp(casePaths)
+'''
+outFile_10 =  os.path.join(outFile, '10. Budget', 'Output Files')
+budgets = os.listdir(outFile_10)
+
+for budget in budgets:
+    files = os.listdir(os.path.join(outFile_10, budget))
+
+    for file in files:
+        outFile_10_1 = os.path.join(outFile_10, budget, file)
+        #add_ret(outFile_10_1, multi=1)
+        #gen_year(outFile_10_1, multi=1)
+        #rep_day(outFile_10_1, multi=1, year=10, day=1)
+        inst_cap(outFile_10_1, multi=1)
+        #get_houses(outFile_10_1, multi=1)

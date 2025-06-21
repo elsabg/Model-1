@@ -20,8 +20,12 @@ class Model_1:
         self._file_name = _file_name
 
     #loading model parameters
-    def load_data(self):
+    def load_data(self, interest=None):
         'read the excel file'
+        
+        assert (type(interest) == float 
+                or type(interest) == int
+                or interest == None), 'Unsupported type for interest rate'
 
         self.data = pd.read_excel(self._file_name, decimal=',', sheet_name=None)
         self.tech_df = self.data['tech'].set_index('Unnamed: 0')
@@ -117,9 +121,11 @@ class Model_1:
 
         self.min_soc = self.data['parameters']['min SoC'][0]
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
-
-        self.i = self.data['parameters']['Interest rate'][0]
-
+        
+        if interest == None:
+            self.i = self.data['parameters']['Interest rate'][0]
+        else:
+            self.i = interest
         #----------------------------------------------------------------------#
         # Sets                                                                 #
         #----------------------------------------------------------------------#
