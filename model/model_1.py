@@ -579,6 +579,22 @@ class Model_1:
         
         m.addConstrs(
             (
+                (quicksum(disp['Diesel Generator', y, d, h]
+                          * self.d_weights[d]
+                          for h in range(self.hours)
+                          for d in range(self.days)) <=
+                 inst_cap[('Diesel Generator', y)]
+                 * self.y_DG_cap
+                 * sum(self.d_weights)
+                 * self.hours
+                 )
+                for y in range(self.years)
+            ),
+            "Maximum annual DG dispatch"
+        )
+        
+        m.addConstrs(
+            (
                 (disp['Owned PV', y, d, h] <=
                  self.cap_fact[d, h] * inst_cap['Owned PV', y])
                 for h in range(self.hours)
