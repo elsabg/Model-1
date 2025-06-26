@@ -20,8 +20,12 @@ class Model_1:
         self._file_name = _file_name
 
     #loading model parameters
-    def load_data(self):
+    def load_data(self, interest=None):
         'read the excel file'
+        
+        assert (type(interest) == float 
+                or type(interest) == int
+                or interest == None), 'Unsupported type for interest rate'
 
         self.data = pd.read_excel(self._file_name, decimal=',', sheet_name=None)
         self.tech_df = self.data['tech'].set_index('Unnamed: 0')
@@ -117,9 +121,11 @@ class Model_1:
 
         self.min_soc = self.data['parameters']['min SoC'][0]
         self.bat_eff = self.data['parameters']['Battery Eff'][0]
-
-        self.i = self.data['parameters']['Interest rate'][0]
-
+        
+        if interest == None:
+            self.i = self.data['parameters']['Interest rate'][0]
+        else:
+            self.i = interest
         #----------------------------------------------------------------------#
         # Sets                                                                 #
         #----------------------------------------------------------------------#
@@ -132,7 +138,7 @@ class Model_1:
 
 
     def solve(self, fit, elec_price, md_level, ud_penalty, re_level=0, 
-              voll=0.7, yearly_budget=np.inf):
+              voll=0.7, total_budget=np.inf):
         'Create and solve the model'
 
         self.fit = fit
@@ -141,7 +147,7 @@ class Model_1:
         self.ud_penalty = ud_penalty
         self.re_level = re_level
         self.voll = voll
-        self.yearly_budget = yearly_budget
+        self.total_budget = total_budget
 
         m = Model('Model_1')
 
@@ -261,13 +267,14 @@ class Model_1:
                      name='yearly total capital costs'
                      )
         
-        m.addConstrs(((quicksum(added_cap[g, y] * self.ucc[g]
-                                for g in ['Owned PV', 'Owned Batteries']) 
-                      <= self.yearly_budget)
-                      for y in range(self.years)
-                      ),
-                     name='yearly budget CAPEX constraint'
-                     )
+        m.addConstr(((quicksum(quicksum(added_cap[g, y] * self.ucc[g]
+                            for g in self.techs)
+                               * (1 / ((1 + self.i) ** y))
+                               for y in range(self.years))
+                  <= self.total_budget)
+                     ),
+                    name='yearly budget CAPEX constraint'
+                    )
         
         m.addConstrs(((tovc[y] ==
                        quicksum((self.uovc[g] * disp[g, y, d, h] 

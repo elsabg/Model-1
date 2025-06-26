@@ -194,7 +194,8 @@ def output_data(model, t=0):
     print(num_households)
 
 
-def to_xlsx(model, fit, elec_price, out_path, multi=1):
+def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
+    assert index == 're' or index == 'budget' or index =='i', 'Wrong search input'
     ############################################################################
     # Import model ranges                                                      #
     ############################################################################
@@ -343,12 +344,20 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1):
     # Create new folder within current directory for output files
     if multi == 1:
         folder_name = 'Output Files'
-        folder_path = os.path.join(out_path, folder_name,
-                                   str(int(model.re_level * 100)))
+        if index == 're':
+            index_folder = str(int(model.re_level * 100))
+        elif index == 'budget':
+            index_folder = str(model.yearly_budget)
+        elif index == 'i':
+            index_folder = str(model.i)
+            
+        folder_path = os.path.join(out_path, folder_name, index_folder)
         os.makedirs(folder_path, exist_ok=True)
     
     else:
         folder_path = out_path
+        os.makedirs(folder_path, exist_ok=True)
+    
     
     # Write dataframes to excel
     with pd.ExcelWriter(os.path.join(folder_path, 
