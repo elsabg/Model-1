@@ -14,36 +14,37 @@ from model_1 import Model_1
 
 def single_run(in_path, fit, elec_price, out_path,
                md_level=0, ud_penalty=0, re_level=0, 
-               voll=0.7, total_budget=np.inf):
+               voll=0.7, total_budget=np.inf, interest=0.11):
     global model
     model = Model_1(_file_name=in_path)
     model.load_data()
     model.solve(fit=fit, elec_price=elec_price, 
                 md_level = md_level, ud_penalty=ud_penalty, 
-                re_level=re_level, voll=voll, total_budget=total_budget)
+                re_level=re_level, voll=voll, total_budget=total_budget,
+                interest=interest)
     func.output_data(model, 2)
     func.to_xlsx(model, round(fit * 100), round(elec_price * 100), 
                  out_path, multi=0)
 
 def multi_run(in_path, fits, elec_prices, out_path,
               md_level=0, ud_penalty=0, re_level=0, 
-              voll=0.7, total_budget=np.inf, index='re', interest=None):
+              voll=0.7, total_budget=np.inf, index='re', interest=0.11):
     
     for elec_price in elec_prices:
         for fit in fits:
             model = Model_1(_file_name=in_path)
-            model.load_data(interest=interest)
+            model.load_data()
             model.solve(fit=fit, elec_price=elec_price, 
                         md_level = md_level, ud_penalty=ud_penalty, 
                         re_level=re_level, voll=voll, 
-                        total_budget=total_budget)
+                        total_budget=total_budget, interest=interest)
             func.output_data(model, 2)
             func.to_xlsx(model, round(fit * 100), round(elec_price * 100), 
                          out_path, 1, index)    
 
 def fit_search(in_path, out_path, prices,
                md_level=0, ud_penalty=0, re_level=0, voll=0.7,
-               total_budget=np.inf, search='re'):
+               total_budget=np.inf, search='re', interest=0.11):
     
     index = search
     
@@ -91,15 +92,17 @@ def fit_search(in_path, out_path, prices,
         fits = []
         objs = []
     
+    '''
     fits = []
     objs = []
-    
+    '''
     for el_price in prices[len(fits)::]:
         # Check if there is a positive solution
         fit = 0
         model.solve(fit=fit, elec_price=el_price,
                     ud_penalty=ud_penalty, md_level=md_level,
-                    re_level=re_level, voll=voll, total_budget=total_budget)
+                    re_level=re_level, voll=voll, 
+                    total_budget=total_budget, interest=interest)
         
         if model.m.getObjective().getValue() < base_npv:
             print(f'No positive solution for {el_price}')
@@ -138,7 +141,7 @@ def fit_search(in_path, out_path, prices,
             model.solve(fit=fit_mid, elec_price=el_price,
                         ud_penalty=ud_penalty, md_level=md_level, 
                         re_level=re_level, voll=voll, 
-                        total_budget=total_budget)
+                        total_budget=total_budget, interest=interest)
     
             while worse:
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
@@ -163,7 +166,7 @@ def fit_search(in_path, out_path, prices,
                 model.solve(fit=fit_mid, elec_price=el_price,
                             ud_penalty=ud_penalty, md_level=md_level, 
                             re_level=re_level, voll=voll,
-                            total_budget=total_budget)
+                            total_budget=total_budget, interest=interest)
                 if (abs(model.m.getObjective().getValue() - base_npv) >= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
@@ -209,7 +212,7 @@ def fit_search(in_path, out_path, prices,
             model.solve(fit=fit_mid, elec_price=el_price,
                         ud_penalty=ud_penalty, md_level=md_level,
                         re_level = re_level, voll=voll,
-                        total_budget=total_budget)
+                        total_budget=total_budget, interest=interest)
             
             while worse:
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
@@ -233,7 +236,7 @@ def fit_search(in_path, out_path, prices,
                 model.solve(fit=fit_mid, elec_price=el_price,
                             ud_penalty=ud_penalty, md_level=md_level, 
                             re_level=re_level, voll=voll,
-                            total_budget=total_budget)
+                            total_budget=total_budget, interest=interest)
                 if (abs(model.m.getObjective().getValue() - base_npv) >= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
