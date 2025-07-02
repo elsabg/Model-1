@@ -490,7 +490,7 @@ def change_excel(outFile):
                           - unmet_demand.loc[float(f'{i}'+'.'+f'{j}')].sum()) * d_weights[j]
             
             hs_y = met_d_y * (0.7 - el_price) + (fi_y * fit) 
-            household_surplus += hs_y * (1 / ((1.11) ** i))
+            household_surplus += hs_y * (1 / ((1.1) ** i))
             
         sheet['B12'] = household_surplus
     

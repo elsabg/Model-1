@@ -14,7 +14,7 @@ from model_1 import Model_1
 
 def single_run(in_path, fit, elec_price, out_path,
                md_level=0, ud_penalty=0, re_level=0, 
-               voll=0.7, total_budget=np.inf, interest=0.11):
+               voll=0.7, total_budget=np.inf, interest=0.1):
     global model
     model = Model_1(_file_name=in_path)
     model.load_data()
@@ -28,7 +28,7 @@ def single_run(in_path, fit, elec_price, out_path,
 
 def multi_run(in_path, fits, elec_prices, out_path,
               md_level=0, ud_penalty=0, re_level=0, 
-              voll=0.7, total_budget=np.inf, index='re', interest=0.11):
+              voll=0.7, total_budget=np.inf, index='re', interest=0.1):
     
     for elec_price in elec_prices:
         for fit in fits:
@@ -44,7 +44,7 @@ def multi_run(in_path, fits, elec_prices, out_path,
 
 def fit_search(in_path, out_path, prices,
                md_level=0, ud_penalty=0, re_level=0, voll=0.7,
-               total_budget=np.inf, search='re', interest=0.11):
+               total_budget=np.inf, search='re', interest=0.1):
     
     index = search
     

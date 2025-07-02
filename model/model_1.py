@@ -131,7 +131,7 @@ class Model_1:
 
 
     def solve(self, fit, elec_price, md_level, ud_penalty, re_level=0, 
-              voll=0.7, total_budget=np.inf, interest=0.11):
+              voll=0.7, total_budget=np.inf, interest=0.1):
         'Create and solve the model'
 
         self.fit = fit
