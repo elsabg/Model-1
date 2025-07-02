@@ -143,6 +143,12 @@ def fit_search(in_path, out_path, prices,
                     elif index == 'i':
                         summary.to_excel(writer, 
                                          sheet_name=str(interest))
+<<<<<<< HEAD
+=======
+                    elif index == 'i':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(interest))
+>>>>>>> origin/main
                         
         # If yes, run a binary grid search to find it
         elif len(fits) != 0:
