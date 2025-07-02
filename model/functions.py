@@ -347,9 +347,9 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
         if index == 're':
             index_folder = str(int(model.re_level * 100))
         elif index == 'budget':
-            index_folder = str(model.yearly_budget)
+            index_folder = str(model.total_budget)
         elif index == 'i':
-            index_folder = str(model.i)
+            index_folder = str(model.i * 100)
             
         folder_path = os.path.join(out_path, folder_name, index_folder)
         os.makedirs(folder_path, exist_ok=True)

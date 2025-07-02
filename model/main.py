@@ -66,29 +66,34 @@ def fit_search(in_path, out_path, prices,
     global fit_right
     global fit_left
     
-    output_files = os.listdir(out_path)
-    
-    if "Summary.xlsx" in output_files:
-        prev_summary = pd.read_excel(os.path.join(out_path, "Summary.xlsx"),
-                                     sheet_name=None)
-        last_re = float(list(prev_summary.keys())[-1])
+    try:
+        output_files = os.listdir(out_path)
         
-        if index == 're':
-            if last_re == re_level:
-                last_re_summary = prev_summary[str(last_re)].set_index('Unnamed: 0')
-                fits = last_re_summary.loc['Feed-in Tariffs'].dropna()
-                fits = list(fits)
-                objs = last_re_summary.loc['NPV'].dropna()
-                objs = list(objs)
+        if "Summary.xlsx" in output_files:
+            prev_summary = pd.read_excel(os.path.join(out_path, "Summary.xlsx"),
+                                         sheet_name=None)
+            last_re = float(list(prev_summary.keys())[-1])
+            
+            if index == 're':
+                if last_re == re_level:
+                    last_re_summary = prev_summary[str(last_re)].set_index('Unnamed: 0')
+                    fits = last_re_summary.loc['Feed-in Tariffs'].dropna()
+                    fits = list(fits)
+                    objs = last_re_summary.loc['NPV'].dropna()
+                    objs = list(objs)
+                    
+                elif last_re < re_level:
+                    fits = []
+                    objs = []
+                    
+                else:
+                    return
                 
-            elif last_re < re_level:
-                fits = []
-                objs = []
+        else:
+            fits = []
+            objs = []
                 
-            else:
-                return
-        
-    else:
+    except FileNotFoundError:
         fits = []
         objs = []
     
@@ -118,18 +123,27 @@ def fit_search(in_path, out_path, prices,
                                     if_sheet_exists='replace') as writer:
                     if index == 're':
                         summary.to_excel(writer, sheet_name=str(re_level))
+                        
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
+                    elif index == 'i':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(interest))
                 
             except FileNotFoundError:
                 with pd.ExcelWriter(os.path.join(out_path, 'Summary.xlsx'), 
                                     mode='w', engine='openpyxl') as writer:
                     if index == 're':
                         summary.to_excel(writer, sheet_name=str(re_level))
+                        
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
+                    elif index == 'i':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(interest))
+                        
         # If yes, run a binary grid search to find it
         elif len(fits) != 0:
             fit_left = fits[-1]
@@ -189,18 +203,27 @@ def fit_search(in_path, out_path, prices,
                                     if_sheet_exists='replace') as writer:
                     if index == 're':
                         summary.to_excel(writer, sheet_name=str(re_level))
+                        
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
+                    elif index == 'i':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(interest))
+                        
                 
             except FileNotFoundError:
                 with pd.ExcelWriter(os.path.join(out_path, 'Summary.xlsx'), 
                                     mode='w', engine='openpyxl') as writer:
                     if index == 're':
                         summary.to_excel(writer, sheet_name=str(re_level))
+                        
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
+                    elif index == 'i':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(interest))
             
         else:
             fit_left = 0
@@ -265,6 +288,9 @@ def fit_search(in_path, out_path, prices,
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
+                    elif index == 'i':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(interest))
 
 cwd = os.getcwd()
 day_weights = [199, 106, 60]
@@ -288,13 +314,13 @@ single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
 
 outFile = os.path.join(out_path, 'Output_0_40.xlsx')
 func.change_excel(outFile)
-'''
+
 # Base Case
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noFI_noPV.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '1. Base Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
            total_budget=np.inf)
-'''
+
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
 # FiT search with no PV
@@ -383,9 +409,9 @@ func.eval_summary(os.path.join(out_path, 'Output Files'),
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '10. Budget')
 
-prices = np.arange(0.29, 0.33, 0.01)
+prices = np.arange(0.29, 0.4, 0.01)
 re_level = 0.2
-budgets = np.arange(0, 1000001, 200000)
+budgets = np.arange(700000, 10000001, 50000)
 
 for budget in budgets:
     b_path =  os.path.join(out_path, 'Output Files', str(int(budget)))
@@ -394,24 +420,28 @@ for budget in budgets:
     single_run(in_path=in_path, fit=0.03, elec_price=0.3, 
                re_level = re_level, total_budget = budget,
                out_path=b_path)
-
-
+'''
 # Interest rate
-interests = [0, 0.01, 0.05, 0.1, 0.15]
+interests = [0, 0.1, 0.2, 0.3, 0.4]
+re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noPV.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '11. Interest rate', 'No PV')
+in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
+out_path = os.path.join(cwd, 'Outputs', '11. Interest rate')
 fits = np.arange(0, 0.3, 0.02)
 elec_prices = np.arange(0.35, 0.49, 0.01)
 
-for interest in interests:
-    multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
-              out_path=out_path, re_level=0.2, interest=interest, 
-              index='i')
+for re_level in re_levels:
+    for interest in interests:
+        out_path_re = os.path.join(out_path, str(int(re_level * 100)))
+        fit_search(in_path, out_path_re, elec_prices, re_level=re_level, 
+                   search='i', total_budget=700000) 
+        multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
+                  out_path=out_path_re, re_level=re_level, interest=interest, 
+                  index='i', total_budget=700000)
 
-func.eval_summary(os.path.join(out_path, 'Output Files'), 
+func.eval_summary(os.path.join(out_path_re, 'Output Files'), 
                   day_weights)   
-
+'''
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '11. Interest rate', 'With PV')
 fits = np.arange(0, 0.07, 0.01)
@@ -437,5 +467,4 @@ for interest in interests:
 
 func.eval_summary(os.path.join(out_path, 'Output Files'),
                   day_weights)   
-
 '''
