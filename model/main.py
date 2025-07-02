@@ -143,12 +143,6 @@ def fit_search(in_path, out_path, prices,
                     elif index == 'i':
                         summary.to_excel(writer, 
                                          sheet_name=str(interest))
-<<<<<<< HEAD
-=======
-                    elif index == 'i':
-                        summary.to_excel(writer, 
-                                         sheet_name=str(interest))
->>>>>>> origin/main
                         
         # If yes, run a binary grid search to find it
         elif len(fits) != 0:
@@ -187,7 +181,7 @@ def fit_search(in_path, out_path, prices,
                             ud_penalty=ud_penalty, md_level=md_level, 
                             re_level=re_level, voll=voll,
                             total_budget=total_budget, interest=interest)
-                if (abs(model.m.getObjective().getValue() - base_npv) >= 10000
+                if (abs(model.m.getObjective().getValue() - base_npv) <= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
                 
@@ -266,7 +260,7 @@ def fit_search(in_path, out_path, prices,
                             ud_penalty=ud_penalty, md_level=md_level, 
                             re_level=re_level, voll=voll,
                             total_budget=total_budget, interest=interest)
-                if (abs(model.m.getObjective().getValue() - base_npv) >= 10000
+                if (abs(model.m.getObjective().getValue() - base_npv) <= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
                     
