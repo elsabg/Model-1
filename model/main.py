@@ -447,6 +447,7 @@ for re_level in re_levels:
         multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
                   out_path=out_path_re, re_level=re_level, interest=interest, 
                   index='i', total_budget=700000)
-'''
+        
     func.eval_summary(os.path.join(out_path_re, 'Output Files'), 
-                      day_weights)   
+                      day_weights)
+'''

@@ -109,7 +109,7 @@ def inst_cap(outFile, multi=1):
     if multi == 1:
         re_folder = os.path.basename(os.path.dirname(outFile))
         new_plots_folder = os.path.join(new_plots_folder, "..", "..",
-                                        "Installed capaities", re_folder)
+                                        "Installed capacities", re_folder)
         os.makedirs(new_plots_folder, exist_ok=True)
 
     inst = pd.read_excel(outFile, sheet_name='Installed Capacities')
