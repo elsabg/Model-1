@@ -389,8 +389,9 @@ def get_npv(casePath):
     plt.savefig(new_plots_folder, dpi=300, bbox_inches='tight')
     
     
-def fit_v_price(casePath):
-    sns.set(font_scale=1.15)
+def fit_v_price(casePath, search='re'):
+    sns.set(font_scale=1)
+    global keys
     
     new_plots_folder = os.path.join(casePath, "FiTs v Prices.png")
     outFile = os.path.join(casePath, "Summary.xlsx")
@@ -402,19 +403,31 @@ def fit_v_price(casePath):
     i = 0
     show_infeasible_label = True
     keys = list(out.keys())
-    if len(keys) >= 7:
-        keys = keys[:7]
-        
+    if search == 're':
+        if len(keys) >= 7:
+            keys = keys[:7]
+            
+    elif search == 'budget':
+        if len(keys) > 7:
+            keys = [str(i) for i in range(500000, 2000001, 250000)]
+        elif len(keys) == 7:
+            keys = keys[:7]
+            
     for key in keys:
         out[key].set_index('Unnamed: 0', inplace=True)
         fits = out[key].loc['Feed-in Tariffs'].to_list()
         unfeas_fits = [fit for fit in fits if fit == 0]
         prices = out[key].loc['Prices'].to_list()
-    
+        
+        if search == 're':
+            label = f'{int(float(key) * 100)}%'
+        elif search == 'budget':
+            label = f'USD {float(key)/ 10e6} M'
+            
         ax.plot(prices[len(unfeas_fits) - 1 ::], fits[len(unfeas_fits) - 1 ::], 
                 marker='o', linestyle='-', color=colors[i], 
                 zorder=2 if show_infeasible_label else 1,
-                label=f'{int(float(key) * 100)}%')
+                label=label)
         ax.scatter(prices[len(unfeas_fits) -1 : len(unfeas_fits)], 
                    unfeas_fits[len(unfeas_fits) - 1 ::], 
                    marker='x', color='red', zorder=3, 
@@ -426,11 +439,18 @@ def fit_v_price(casePath):
     
     ax.set_xlabel('Price in USD')
     ax.set_ylabel('Maximum Feed-in Tariff in USD')
-    ax.legend(title = 'Minimum Renewable Energy Generation Target',
-              loc='upper center',
-              bbox_to_anchor=(0.5, 1.25),
-              ncol=4,
-              frameon=False)
+    if search == 're':
+        ax.legend(title = 'Minimum Renewable Energy Generation Target',
+                  loc='upper center',
+                  bbox_to_anchor=(0.5, 1.25),
+                  ncol=4,
+                  frameon=False)
+    elif search == 'budget':
+        ax.legend(title = 'Maximum Disocunted Budget',
+                  loc='upper center',
+                  bbox_to_anchor=(0.5, 1.25),
+                  ncol=4,
+                  frameon=False)
     
     ax.set_xticks(np.arange(0.3, 0.5, 0.02))
     
@@ -442,233 +462,6 @@ def fit_v_price(casePath):
     plt.savefig(new_plots_folder)
     plt.close()
     
-'''
-def fi_level(casePath): #takes the case folder as input
-    
-    new_plots_folder = os.path.join(casePath, "Feed in Levels.png")
-    summaryPath = os.path.join(casePath, "Summary.xlsx")
-    summary = pd.read_excel(summaryPath, sheet_name=None)
-
-    re_levels = list(summary.keys())
-    if len(re_levels) >= 5:
-        re_levels = re_levels[-5::]
-    
-    fig, ax = plt.subplots()
-    colors = ["#f9e395", "#595755", "#c2deaf", "#85a4c4", "#f2b382" ]
-    i=0
-    
-    
-    for re_level in re_levels:
-        outPath = os.path.join(casePath, 'Output Files', 
-                               str(int(float(re_level)*100)))
-        outFiles = os.listdir(outPath)
-        fi_levels = []
-        prices = []
-        fits = summary[re_level].set_index('Unnamed: 0').loc['Feed-in Tariffs']
-        fits = fits.to_list()
-        fits = [fit for fit in fits if fit > 0]
-        
-        for outFile in outFiles:
-            price = int(outFile.split('_')[2].split('.')[0]) / 100
-            out = pd.read_excel(os.path.join(outPath, outFile), sheet_name=None)
-            feed_in = out['Fed-in Capacity'].set_index('Unnamed: 0')
-            dg = out['DG Dispatch'].set_index('Unnamed: 0')
-            pv = out['PV Dispatch'].set_index('Unnamed: 0')
-            b_out = out['Battery Output'].set_index('Unnamed: 0')
-        
-            total_feed_in = feed_in.values.sum()
-            total_dg = dg.values.sum()
-            total_pv = pv.values.sum()
-            total_b_out = b_out.values.sum()
-        
-            feed_in_level = total_feed_in / (total_feed_in + total_dg
-                                             + total_pv + total_b_out)
-            fi_levels.append(feed_in_level * 100)
-            prices.append(price)
-            
-        levels_df = pd.DataFrame(fi_levels, index=prices)
-        levels_df.sort_index(inplace=True)
-        fi_levels = levels_df[0].to_list()
-        prices = levels_df.index.to_list()
-        sizes = [((fi - min(fi_levels)) / (max(fi_levels) - min(fi_levels)) 
-                 * 500 + 50) 
-                 for fi in fi_levels]
-        ax.scatter(prices, fits, s=sizes, color=colors[i])
-        ax.plot(prices, fits, color=colors[i], marker='o', label=re_level)
-        i+=1
-
-    ax.set_xlabel('Price in USD')
-    ax.set_ylabel('Feed-in tariff')
-    #ax.set_ylabel('Fed-in capacity as % of total dispatch')
-    ax.legend()
-    
-    plt.savefig(new_plots_folder)
-    plt.close()
-'''
-    
-def unmet_demand(casePath):
-    new_plots_folder = os.path.join(casePath, "Unmet Demand.png")
-    summaryPath = os.path.join(casePath, "Summary.xlsx")
-    summary = pd.read_excel(summaryPath, sheet_name=None)
-
-    re_levels = list(summary.keys())
-    if len(re_levels) >= 5:
-        re_levels = re_levels[-5::]
-    
-    fig, ax = plt.subplots()
-    colors = ["#f9e395", "#595755", "#c2deaf", "#85a4c4", "#f2b382" ]
-    i=0
-    
-    for re_level in re_levels:
-        outPath = os.path.join(casePath, 'Output Files', 
-                               str(int(float(re_level)*100)))
-        outFiles = os.listdir(outPath)
-        uds = []
-        t_uds = []
-        prices = []
-        fits = summary[re_level].set_index('Unnamed: 0').loc['Feed-in Tariffs']
-        fits = fits.to_list()
-        fits = [fit for fit in fits if fit > 0]
-        
-        for outFile in outFiles:
-            price = int(outFile.split('_')[2].split('.')[0]) / 100
-            out = pd.read_excel(os.path.join(outPath, outFile), 
-                                sheet_name="Summary").set_index('Unnamed: 0')
-            ud = out.loc['Unmet Demand']
-            tot_ud = out.loc['Total Unmet Demand']
-            
-            uds.append(ud[0])
-            t_uds.append(tot_ud)
-            prices.append(price)
-            
-        ud_df = pd.DataFrame({0: uds, 1: t_uds}, index=prices)
-        ud_df.sort_index(inplace=True)
-        uds = ud_df[0].to_list()
-        t_uds = ud_df[1].to_list()
-        prices = ud_df.index.to_list()
-        
-        ax.plot(prices, t_uds, linestyle='--', color=colors[i], 
-                marker='o', label=f'Total UD, {re_level}')
-        ax.plot(prices, uds, color=colors[i], 
-                marker='o', label=f'Connected UD, {re_level}')
-        fit_labels = [f'FiT={fit:.2f}' for fit in fits]
-        for x, y, label in zip(prices, uds, fit_labels):
-            ax.text(x, y-0.5, label, fontsize=9, ha='right')
-        '''
-        sizes = [((ud - min(uds)) / (max(uds) - min(uds)) 
-                 * 500 + 50) 
-                 for ud in uds]
-        ax.scatter(prices, fits, s=sizes, color=colors[i])
-        ax.plot(prices, fits, color=colors[i], marker='o', label=re_level)
-        '''
-        i+=1
-        
-    ax.set_xlabel('Price in USD')
-    ax.set_ylabel('Unmet Demand in kWh')
-    ax.legend()
-    
-    plt.savefig(new_plots_folder)
-    plt.close()
-    
-def wasted_surplus(casePath):
-    global ws
-    global wss
-    
-    new_plots_folder = os.path.join(casePath, "Wasted Surplus.png")
-    summaryPath = os.path.join(casePath, "Summary.xlsx")
-    summary = pd.read_excel(summaryPath, sheet_name=None)
-
-    re_levels = list(summary.keys())
-    if len(re_levels) >= 5:
-        re_levels = re_levels[-5::]
-    
-    fig, ax = plt.subplots()
-    colors = ["#595755", "#6d597a",  "#85a4c4", "#f2b382", "#c2deaf" ]
-    i=0
-    
-    for re_level in re_levels:
-        outPath = os.path.join(casePath, 'Output Files', 
-                               str(int(float(re_level)*100)))
-        outFiles = os.listdir(outPath)
-        wss = []
-        t_wss = []
-        prices = []
-        fits = summary[re_level].set_index('Unnamed: 0').loc['Feed-in Tariffs']
-        fits = fits.to_list()
-        fits = [fit for fit in fits if fit > 0]
-        
-        for outFile in outFiles:
-            price = int(outFile.split('_')[2].split('.')[0]) / 100
-            out = pd.read_excel(os.path.join(outPath, outFile), 
-                                sheet_name="Summary").set_index('Unnamed: 0')
-            ws = out.loc['Wasted Prosumer Surplus']
-            tot_ws = out.loc['Total Wasted Prosumer Surplus']
-            
-            wss.append(ws[0])
-            t_wss.append(tot_ws)
-            prices.append(price)
-            
-        ws_df = pd.DataFrame({0: wss, 1: t_wss}, index=prices)
-        ws_df.sort_index(inplace=True)
-        wss = ws_df[0].to_list()
-        t_wss = ws_df[1].to_list()
-        prices = ws_df.index.to_list()
-        
-        
-        ax.plot(prices, t_wss, linestyle='--', color=colors[i], 
-                marker='o', label=f'Total WS, {re_level}')
-        ax.plot(prices, wss, color=colors[i], 
-                marker='o', label=f'Connected WS, {re_level}')
-        '''
-        sizes = [((ws - min(wss)) / (max(wss) - min(wss)) 
-                 * 500 + 50) 
-                 for ws in wss]
-        ax.scatter(prices, fits, s=sizes, color=colors[i])
-        ax.plot(prices, fits, color=colors[i], marker='o', label=re_level)
-        '''
-        i+=1
-        
-    ax.set_xlabel('Price in USD')
-    ax.set_ylabel('Wasted Prosumer Surplus in kWh')
-    ax.legend()
-    
-    plt.savefig(new_plots_folder)
-    plt.close()
-
-def ud_heatmap(casePath, re_level):
-    
-    sns.set(font_scale=1.1)
-    
-    new_plots_folder = os.path.join(casePath, f"UD heatmap_{re_level}.png")
-    filesPath = os.path.join(casePath, 'Output Files', str(int(re_level * 100)))
-    files = os.listdir(filesPath)
-    
-    data = {'Prices': [],
-            'FiTs': [],
-            'Unmet Demand': []}
-    for file in files:
-        price = int(file.split('_')[2].split('.')[0]) / 100
-        data['Prices'].append(price)
-        fit = int(file.split('_')[1]) / 100
-        data['FiTs'].append(fit)
-
-        out = pd.read_excel(os.path.join(filesPath, file), sheet_name='Summary')
-        out.set_index("Unnamed: 0", inplace=True)
-        data['Unmet Demand'].append(out.loc["Unmet Demand"][0])
-    
-    
-    df = pd.DataFrame(data)
-    
-    # Pivot the data to make F columns, P rows, and U the values
-    heatmap_data = df.pivot(index='Prices', 
-                            columns='FiTs', 
-                            values='Unmet Demand')
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(heatmap_data, annot=True, fmt=".2f", cmap="YlGnBu", cbar_kws={'label': 'U value'})
-    
-    plt.tight_layout()
-    plt.savefig(new_plots_folder)
-    plt.close()
     
 def surp_heatmap(casePath, re_level, max_fits=None): # summary file
     
@@ -1013,7 +806,225 @@ def re_comp(casePaths):
     fig_hs.savefig(new_plots_folder_hs)
     plt.close()
 
+def budget_v_cap(casePath):
+    
+    global out
+    
+    sns.set(font_scale=1.15)
+    
+    new_plots_folder = os.path.join(casePath, 'B+Cap comparison.png')
+    
+    # find summary
+    summary_df = pd.read_excel(os.path.join(casePath, 'Summary.xlsx'),
+                               sheet_name=None)
+    
+    keys = [str(i) for i in range(500000, 2000001, 250000)]
+    
+    
+    fig, ax = plt.subplots()
+    
+    weights = {0: 199,
+               1: 106,
+               2: 60}
+    
+    tot_dg = []
+    tot_pv = []
+    tot_fi = []
+    tot_ud = []
+    tot_bat = []
+    
+    for key in keys:
+        b_sum = summary_df[key]
+        b_sum.set_index('Unnamed: 0', inplace=True)
+        
+        fit = 'Feed-in Tariffs'
+        min_p_ind = b_sum.loc[fit][b_sum.loc[fit] != 0].index[0]
+        max_fit = b_sum.loc[fit][b_sum.loc[fit] != 0].iloc[0]
+        min_p = b_sum.loc['Prices', min_p_ind]
+        
+        max_fit = round(max_fit * 100)
+        min_p = round(min_p * 100)
+        
+        outPath = os.path.join(casePath, 'Output Files', str(key),
+                               f'Output_{max_fit}_{min_p}.xlsx')
+        out = pd.read_excel(outPath, sheet_name=None)
+        
+        disp_dg = out['DG Dispatch'].set_index('Unnamed: 0')
+        disp_pv = out['PV Dispatch'].set_index('Unnamed: 0')
+        feed_in = out['Fed-in Capacity'].set_index('Unnamed: 0')
+        unmet = out['Unmet Demand'].set_index('Unnamed: 0')
+        bat = out['Battery Output'].set_index('Unnamed: 0')
+        
+        weights = {0: 199,
+                   1: 106,
+                   2: 60}
+        
+        year_dg = []
+        for y in range(15):
+            tot_dg_y = 0
+            for d in range(3):
+                tot_dg_y += sum(disp_dg.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_dg.append(tot_dg_y)
+        tot_dg.append(sum(year_dg) / 10e6)
+        
+        year_pv = []
+        for y in range(15):
+            tot_pv_y = 0
+            for d in range(3):
+                tot_pv_y += sum(disp_pv.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_pv.append(tot_pv_y)
+        tot_pv.append(sum(year_pv) / 10e6)
+        
+        year_fed_in = []
+        for y in range(15):
+            tot_fed_in_y = 0
+            for d in range(3):
+                tot_fed_in_y += sum(feed_in.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_fed_in.append(tot_fed_in_y)
+        tot_fi.append(sum(year_fed_in) / 10e6)
+    
+        year_ud = []
+        for y in range(15):
+            tot_ud_y = 0
+            for d in range(3):
+                tot_ud_y += sum(unmet.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_ud.append(tot_ud_y)
+        tot_ud.append(sum(year_ud) / 10e6) 
+        
+        year_bat_out = []
+        for y in range(15):
+            tot_bat_out_y = 0
+            for d in range(3):
+                tot_bat_out_y += sum(bat.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_bat_out.append(tot_bat_out_y)
+        tot_bat.append(sum(year_bat_out) / 10e6)
+        
+    
+    new_keys = [float(key) / 10e6 for key in keys]
+    keys = new_keys
+    
+    ax.plot(keys,
+            tot_dg,
+            label = 'Dispatch from DG',
+            color = "#d14b4b",
+            linewidth = 3)
+    
+    ax.plot(keys,
+            tot_pv,
+            label = 'Dispatch from PV',
+            color = "#f9e395",
+            linewidth = 3)
+    
+    ax.plot(keys,
+            tot_fi,
+            label = 'Fed-in Capacity',
+            color = "#c2deaf",
+            linewidth = 3)
+    
+    ax.plot(keys,
+            tot_ud,
+            label = 'Unmet Demand',
+            color = "#f2b382",
+            linewidth = 3)
+    
+    ax.plot(keys,
+            tot_bat,
+            label = 'Batteries',
+            color = "#b1b1b1",
+            linewidth = 3)
+    
+    ax.set_xlabel('Budget (USD M)')
+    ax.set_ylabel('Energy (MWh)')
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
+              bbox_transform=fig.transFigure,
+              frameon=False)
 
+    
+    plt.subplots_adjust(top=.85)
+    
+    plt.savefig(new_plots_folder)
+    plt.close()
+    
+def int_v_surp(casePath):
+    
+    global out
+    global keys
+    global surps
+    
+    sns.set(font_scale=1.15)
+    
+    new_plots_folder = os.path.join(casePath, 'Int+Cap comparison.png')
+    
+    re_levels = os.listdir(casePath)
+    
+    
+    colors = ["#595755", "#6d597a", "#DA4167" ,
+              "#f2b382", "#f4d35e", "#85a4c4", "#c2deaf" ]
+    i = 0
+    
+    fig, ax = plt.subplots()
+    
+    for re_level in re_levels:
+        re_Path = os.path.join(casePath, re_level)
+        re_sum_path = os.path.join(re_Path, 'Summary.xlsx')
+        
+        # find summary
+        summary_df = pd.read_excel(re_sum_path, sheet_name=None)
+        keys = list(summary_df.keys())
+        
+        surps = []
+        
+        for key in keys:
+            int_sum = summary_df[key]
+            int_sum.set_index('Unnamed: 0', inplace=True)
+            
+            fit = 'Feed-in Tariffs'
+            non_z_fit = int_sum.loc[fit][int_sum.loc[fit] != 0]
+            
+            if len(non_z_fit) != 0:
+                min_p_ind = int_sum.loc[fit][int_sum.loc[fit] != 0].index[0]
+                max_fit = int_sum.loc[fit][int_sum.loc[fit] != 0].iloc[0]
+                min_p = int_sum.loc['Prices', min_p_ind]
+                
+            
+                max_fit = round(max_fit * 100)
+                min_p = round(min_p * 100)
+                
+                outPath = os.path.join(re_Path, 'Output Files', str(key),
+                                       f'Output_{max_fit}_{min_p}.xlsx')
+                out = pd.read_excel(outPath, sheet_name='Summary')
+                out.set_index('Unnamed: 0', inplace=True)
+                surp = out.loc['Household Surplus'][0]
+            
+            else:
+                surp = 0
+            
+            surps.append(surp)
+           
+    
+        ax.plot(keys,
+                surps,
+                label = f'{re_level}',
+                color = colors[i],
+                linewidth = 2)
+        
+        i += 1
+    
+    ax.set_xlabel('Interest Rate')
+    ax.set_ylabel('Household Surplus (USD)')
+    ax.legend(title = 'Minimum Renewable Energy Generation Target',
+              loc='upper center', 
+              bbox_to_anchor=(0.5, .97), 
+              ncol=3,
+              bbox_transform=fig.transFigure,
+              frameon=False)
+
+    
+    plt.subplots_adjust(top=.85)
+    
+    plt.savefig(new_plots_folder)
+    plt.close()
+    
 # Run the functions for the different cases
 cwd = os.getcwd()
 outFile = os.path.join(cwd, "Outputs")
@@ -1167,17 +1178,23 @@ re_levels = [0, 10, 20, 30, 40, 50, 60]
 ud_comp(casePaths, re_levels)
 ws_comp(casePaths)
 re_comp(casePaths)
-'''
-outFile_10 =  os.path.join(outFile, '10. Budget', 'Output Files')
-budgets = os.listdir(outFile_10)
+
+outFile_10 =  os.path.join(outFile, '10. Budget')
+budgets = os.listdir(os.path.join(outFile_10, 'Output Files'))
 
 for budget in budgets:
-    files = os.listdir(os.path.join(outFile_10, budget))
+    files = os.listdir(os.path.join(outFile_10, 'Output Files', budget))
 
     for file in files:
-        outFile_10_1 = os.path.join(outFile_10, budget, file)
+        outFile_10_1 = os.path.join(outFile_10, 'Output Files', budget, file)
         #add_ret(outFile_10_1, multi=1)
         #gen_year(outFile_10_1, multi=1)
         #rep_day(outFile_10_1, multi=1, year=10, day=1)
-        inst_cap(outFile_10_1, multi=1)
+        #inst_cap(outFile_10_1, multi=1)
         #get_houses(outFile_10_1, multi=1)
+
+#fit_v_price(outFile_10, search='budget')
+budget_v_cap(outFile_10)
+'''
+outFile_11 =  os.path.join(outFile, '11. Interest rate')
+int_v_surp(outFile_11)

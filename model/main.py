@@ -76,7 +76,9 @@ def fit_search(in_path, out_path, prices,
             
             if index == 're':
                 if last_re == re_level:
-                    last_re_summary = prev_summary[str(last_re)].set_index('Unnamed: 0')
+                    last_re_summary = prev_summary[
+                        str(last_re)
+                        ].set_index('Unnamed: 0')
                     fits = last_re_summary.loc['Feed-in Tariffs'].dropna()
                     fits = list(fits)
                     objs = last_re_summary.loc['NPV'].dropna()
@@ -88,6 +90,10 @@ def fit_search(in_path, out_path, prices,
                     
                 else:
                     return
+                
+            else:
+                fits = []
+                objs = []
                 
         else:
             fits = []
@@ -263,6 +269,9 @@ def fit_search(in_path, out_path, prices,
                 if (abs(model.m.getObjective().getValue() - base_npv) <= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
+                
+            if fit_mid == 'inf':
+                break
                     
             fits.append(fit_mid)
             objs.append(model.m.getObjective().getValue())
@@ -409,7 +418,7 @@ func.eval_summary(os.path.join(out_path, 'Output Files'),
 in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '10. Budget')
 
-prices = np.arange(0.29, 0.4, 0.01)
+prices = np.arange(0.29, 0.4, 0.05)
 re_level = 0.2
 budgets = np.arange(700000, 10000001, 50000)
 
@@ -429,42 +438,15 @@ in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '11. Interest rate')
 fits = np.arange(0, 0.3, 0.02)
 elec_prices = np.arange(0.35, 0.49, 0.01)
-
+'''
 for re_level in re_levels:
     for interest in interests:
         out_path_re = os.path.join(out_path, str(int(re_level * 100)))
         fit_search(in_path, out_path_re, elec_prices, re_level=re_level, 
-                   search='i', total_budget=700000) 
+                   search='i', total_budget=700000, interest=interest) 
         multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
                   out_path=out_path_re, re_level=re_level, interest=interest, 
                   index='i', total_budget=700000)
-
-func.eval_summary(os.path.join(out_path_re, 'Output Files'), 
-                  day_weights)   
 '''
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '11. Interest rate', 'With PV')
-fits = np.arange(0, 0.07, 0.01)
-elec_prices = np.arange(0.27, 0.32, 0.01)
-
-for interest in interests:
-    multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
-              out_path=out_path, re_level=0.2, interest=interest, 
-              index='i')
-
-func.eval_summary(os.path.join(out_path, 'Output Files'), 
-                  day_weights)   
-
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noPV_wBat.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '11. Interest rate', 'No PV w Bat')
-fits = np.arange(0, 0.31, 0.02)
-elec_prices = np.arange(0.29, 0.46, 0.02)
-
-for interest in interests:
-    multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
-              out_path=out_path, re_level=0.2, interest=interest, 
-              index='i')
-
-func.eval_summary(os.path.join(out_path, 'Output Files'),
-                  day_weights)   
-'''
+    func.eval_summary(os.path.join(out_path_re, 'Output Files'), 
+                      day_weights)   
