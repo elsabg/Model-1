@@ -313,23 +313,12 @@ summary_path_1 = os.path.join(outFile_sum, '3. With PV', 'Summary.xlsx')
 summary_path_2 = os.path.join(outFile_sum, '2. No PV', 'Summary.xlsx')
 summary_path_3 = os.path.join(outFile_sum, '9. No PV w Bat', 'Summary.xlsx')
 
-'''
-# Initial Solution
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '0. Initial Solution')
-
-single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path, 
-           re_level = 0)
-
-outFile = os.path.join(out_path, 'Output_0_40.xlsx')
-func.change_excel(outFile)
-
 # Base Case
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noFI_noPV.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '1. Base Case')
+in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
+out_path = os.path.join(cwd, 'Outputs', '0. Current Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
            total_budget=np.inf)
-
+'''
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
 # FiT search with no PV

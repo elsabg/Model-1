@@ -31,7 +31,7 @@ def get_dfs(model, t):
     bat_in = np.zeros((model.days, model.hours))
     bat_out = np.zeros((model.days, model.hours))
     soc = np.zeros((model.days, model.hours))
-    num_households = np.zeros((len(model.house), model.years))
+    num_households = np.zeros((len(model.house), 1))
     feed_in_energy = np.zeros((model.days, model.hours))
     costs = np.zeros((len(cost_names), model.years))
     net_demand = np.zeros((model.days, model.hours))
@@ -66,20 +66,19 @@ def get_dfs(model, t):
             feed_in_energy[d][h] = sum(model.feed_in[i, t, d, h].X 
                                        for i in model.house)
             net_demand[d][h] = sum(model.surplus[i][d][h]
-                                     * model.h_weight[i, t].X
+                                     * model.max_house_str[i]
                                      for i in model.house)
             for i in model.house:
                 if model.surplus[i][d][h] >= 0:
                     net_surplus[d][h] += (model.surplus[i][d][h] 
-                                          * model.h_weight[i, t].X)
+                                          * model.max_house_str[i])
                 else:
                     total_demand[d][h] += (model.surplus[i][d][h]
-                                         * model.h_weight[i, t].X)
+                                         * model.max_house_str[i])
             ud[d][h] = model.ud[t, d, h].X
             
     for h in model.house:
-        for y in range(model.years):
-            num_households[model.house.tolist().index(h)][y] = model.h_weight[h, y].X
+        num_households[model.house.tolist().index(h)] = model.max_house_str[h]
     
     ############################################################################
     # Convert arrays to dataframes                                             #
@@ -121,7 +120,7 @@ def get_dfs(model, t):
         ud, columns = [i for i in range(model.hours)])
     
     num_households = pd.DataFrame(
-        num_households, columns=[i for i in range(model.years)],
+        num_households, columns=['Number Connected'],
         index = ['Consumers', 'Prosumers']
     )
 
@@ -236,6 +235,7 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
     ud = pd.DataFrame(index=y_d_index,
                       columns = [h for h in range(hours)])
     
+    
     ############################################################################
     # Import One-time DataFrames                                               #
     ############################################################################
@@ -282,9 +282,7 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
     
     # Summary Information
     waste = 0
-    total_waste = 0
     unmet_d = 0
-    total_ud = 0
     met_d = 0
     house_surplus = pd.DataFrame(columns=['surplus'])
     disc_surplus = 0
@@ -297,25 +295,11 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
             for h in range(model.hours):
                 unmet_d += model.ud[y, d, h].X * d_weights[d]
                 met_d += -1 * (model.ud[y, d, h].X) * d_weights[d]
-                total_ud += model.ud[y, d, h].X * d_weights[d]
                 waste += net_surplus[h][d] * d_weights[d]
+                
                 for i in model.house:
-                    
-                    if model.surplus[i][d][h] >= 0:
-                        total_waste += (model.surplus[i][d][h] 
-                                        * model.max_house_str[i]
-                                        * d_weights[d])
-            
-                    total_waste += (-1 * model.feed_in[i, y, d, h].X 
-                                    * d_weights[d])
-                    
                     waste += (-1 * model.feed_in[i, y, d, h].X
                               * d_weights[d])
-                    
-                    total_ud += (max(-1 * model.surplus[i][d][h], 0)
-                                 * (model.max_house_str[i]
-                                    - model.h_weight[i, y].X)
-                                 * d_weights[d])
                     
                     met_d += (max(-1 * model.surplus[i][d][h], 0)
                               * model.max_house_str[i]
@@ -324,17 +308,21 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
         house_surplus.loc[y] = (met_d * (voll - elec_price / 100) 
                                 + feed_in_y * fit / 100)
         disc_surplus += house_surplus.loc[y][0] * (1 / (1 + interest) ** y)
+        
+    d_weights_str = ''
+    for d in range(len(model.d_weights)):
+        d_weights_str += f'{model.d_weights[d]}, '
+    d_weights_str = d_weights_str[:-2]
     
     # Summary DataFrame
     summary_info = [model.i, model.ud_penalty, model.md_level, 
-                    model.re_level, model.obj, waste, total_waste,
-                    unmet_d, total_ud, model.voll, disc_surplus]
+                    model.re_level, model.obj, waste,
+                    unmet_d, model.voll, disc_surplus, d_weights_str]
     summary_index = ['Interest Rate', 'Unmet Demand Penalty',
                      'Required Level of Met Demand', 'Minimum Feed-in %',
                      'NPV', 'Wasted Prosumer Surplus', 
-                     'Total Wasted Prosumer Surplus',
-                     'Unmet Demand', 'Total Unmet Demand', 'VoLL',
-                     'Household Surplus']
+                     'Unmet Demand', 'VoLL',
+                     'Household Surplus', 'Day Weights']
     summary = pd.DataFrame(summary_info, index = summary_index)
             
     ############################################################################

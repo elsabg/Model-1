@@ -25,14 +25,13 @@ class Model_1:
 
         self.data = pd.read_excel(self._file_name, decimal=',', sheet_name=None)
         self.tech_df = self.data['tech'].set_index('Unnamed: 0')
+        self.capex_df = self.data['capex'].set_index('Unnamed: 0')
         
         #----------------------------------------------------------------------#
         # General Parameters                                                   #
         #----------------------------------------------------------------------#
         
-        self.elas = int(self.data['parameters']['Elasticity'][0])
-        self.PV_max = int(self.data['parameters']['Allow PV'][0])
-        self.feedIn_max = int(self.data['parameters']['Allow feed-in'][0])
+        self.RE_max = int(self.data['parameters']['Allow RE'][0])
 
         #----------------------------------------------------------------------#
         # Time Parameters                                                      #
@@ -48,7 +47,7 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         #Initial Generation Capacities
-        self.init_cap = self.tech_df['Initial capacity'].to_dict()
+        self.init_cap = self.tech_df['Initial capacity'][:-1].to_dict()
 
         #Household capacitiesm
         self.max_house = self.data['rent_cap'].loc[0].iloc[1::].to_numpy()
@@ -69,10 +68,12 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         #Remaining lifetime
-        self.life_0 = self.tech_df['Remaining lifetime'].to_dict()
+        self.life_0 = self.tech_df['Remaining lifetime'][:-1].to_dict()
+        self.life_0 = {k: int(v) for k, v in self.life_0.items()}
 
         #Technology lifetime
-        self.life = self.tech_df['Lifetime'].to_dict()
+        self.life = self.tech_df['Lifetime'][:-1].to_dict()
+        self.life = {k: int(v) for k, v in self.life.items()}
 
 
         #----------------------------------------------------------------------#
@@ -80,15 +81,15 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         #Technology costs
-        self.ucc = self.tech_df['UCC'].to_dict()
-        #self.ucc['Diesel Generator'] = 1561
-        self.uofc = self.tech_df['UOFC'].to_dict()
-        self.uovc = self.tech_df['UOVC'].to_dict()
+        self.ucc = {col: self.capex_df[col].to_numpy() 
+                    for col in self.capex_df.columns}
+        self.uofc = self.tech_df['UOFC'][:-1].to_dict()
+        self.uovc = self.tech_df['UOVC'][:-1].to_dict()
 
         #heat rate curve
         self.heat_r_k = self.data['heat_rate']['HR'].to_numpy()
         
-        self.diesel_p = self.data['tariffs']['Diesel Price'].to_numpy()
+        self.diesel_p = self.tech_df.loc['Diesel'][-1]
 
         #----------------------------------------------------------------------#
         # Electricity Demand                                                   #
@@ -124,7 +125,7 @@ class Model_1:
         #----------------------------------------------------------------------#
 
         # All technologies (['Disel Generator', 'Owned PV', 'Owned Batteries'])
-        self.techs = self.data['tech'].iloc[:, 0].to_numpy() 
+        self.techs = self.data['tech'].iloc[:, 0].to_numpy()[:3] 
         # Generation technologies (['Diesel Generator', 'Owned PV'])
         self.techs_g = self.techs[:2] 
 
@@ -174,9 +175,6 @@ class Model_1:
                         name='SoC', lb = 0)
         
         soc_0 = m.addVars(self.years, self.days, name='initSoC', lb = 0)
-
-        h_weight = m.addVars(self.house, self.years, 
-                             name='houseWeight', lb = 0, vtype=GRB.INTEGER)
         
         ud = m.addVars(self.years, self.days, self.hours,
                        name="UnmetDemand", lb=0)
@@ -254,14 +252,14 @@ class Model_1:
                      name='yearly total revenues')
 
         m.addConstrs(((tcc[y] ==
-                       quicksum(added_cap[g, y] * self.ucc[g]
+                       quicksum(added_cap[g, y] * self.ucc[g][y]
                                 for g in self.techs)) 
                        for y in range(self.years)
                        ),
                      name='yearly total capital costs'
                      )
         
-        m.addConstr(((quicksum(quicksum(added_cap[g, y] * self.ucc[g]
+        m.addConstr(((quicksum(quicksum(added_cap[g, y] * self.ucc[g][y]
                             for g in self.techs)
                                * (1 / ((1 + self.i) ** y))
                                for y in range(self.years))
@@ -281,7 +279,7 @@ class Model_1:
                                   for i in self.house
                                   for d in range(self.days)
                                   for h in range(self.hours))
-                       + quicksum((self.diesel_p[y] * d_cons[y, d, h]
+                       + quicksum((self.diesel_p * d_cons[y, d, h]
                                    + self.uovc['Owned Batteries'] 
                                    * b_in[y, d, h])
                                   * self.d_weights[d]
@@ -318,7 +316,7 @@ class Model_1:
 
         m.addConstrs(((salvage[g] ==
                        quicksum(added_cap[g, y] 
-                       * self.ucc[g]
+                       * self.ucc[g][self.years - 1]
                        *(1 - (self.years - y) / self.years)
                        for y in range(self.years - self.life[g]))
                        for g in self.techs)
@@ -350,7 +348,7 @@ class Model_1:
                      name='min aux 1.2')
 
         m.addConstrs(((aux_min[i, y, d, h] <=
-                       h_weight[i, y] * self.surplus[i][d][h])
+                       self.max_house_str[i] * self.surplus[i][d][h])
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -359,7 +357,7 @@ class Model_1:
                      name='min aux 2.1')
                      
         m.addConstrs(((aux_min[i, y, d, h] >=
-                       h_weight[i, y] * self.surplus[i][d][h] 
+                       self.max_house_str[i] * self.surplus[i][d][h] 
                        - (1 - b[i, y, d, h]) * M)
                       for i in self.house
                       for y in range(self.years)
@@ -399,7 +397,7 @@ class Model_1:
         
         # Auxiliary maximum constraints
         m.addConstrs(((aux_max[i, y, d, h] >=
-                       h_weight[i, y] * self.surplus[i][d][h])
+                       self.max_house_str[i] * self.surplus[i][d][h])
                       for i in self.house
                       for y in range(self.years)
                       for d in range(self.days)
@@ -417,7 +415,7 @@ class Model_1:
                      )
         
         m.addConstrs(((aux_max[i, y, d, h] <=
-                       h_weight[i, y] * self.surplus[i][d][h]
+                       self.max_house_str[i] * self.surplus[i][d][h]
                        + b[i, y, d, h] * M)
                       for i in self.house
                       for y in range(self.years)
@@ -438,7 +436,7 @@ class Model_1:
         
         # Feed-in capacity constraints
         m.addConstrs(((feed_in[i, y, d, h] <=
-                       self.feedIn_max * aux_max[i, y, d, h])
+                       self.RE_max * aux_max[i, y, d, h])
                        for i in self.house
                        for h in range(self.hours)
                        for d in range(self.days)
@@ -462,19 +460,12 @@ class Model_1:
                                 for i in self.house
                                 for d in range(self.days)
                                 for h in range(self.hours)))
-                       * self.re_level * self.feedIn_max)
+                       * self.re_level * self.RE_max)
                       for y in range(self.years)
                       ),
                      name='Min Renewable Energy'
                      )
-        
-        m.addConstrs(((h_weight[i, y] <= self.max_house_str[i])
-                       for i in self.house 
-                       for y in range(self.years)
-                       ),
-                      "Max house cap"
-            )
-        
+    
         
         m.addConstrs(((ud[y, d, h] <= 
                        - quicksum(aux_min[i, y, d, h]
@@ -515,12 +506,17 @@ class Model_1:
         M = - (np.min(self.demand[min(self.demand)]) 
                * max(self.max_house))
         
-        m.addConstrs(((inst_cap['Owned PV', y] <= self.PV_max * M * 100)
+        m.addConstrs(((inst_cap['Owned PV', y] <= self.RE_max * M * 100)
                       for y in range(self.years)
                       ),
                      name = 'max PV'
                      )
         
+        m.addConstrs(((inst_cap['Owned Batteries', y] <= self.RE_max * M * 100)
+                      for y in range(self.years)
+                      ),
+                     name = 'max Bat'
+                     )
         #----------------------------------------------------------------------#
         # Generation Retirement                                                #
         #----------------------------------------------------------------------#
@@ -826,7 +822,6 @@ class Model_1:
         self.b_out = b_out
         self.ret_cap = ret_cap
         self.soc = soc
-        self.h_weight = h_weight
         self.d_cons = d_cons
         self.bin_heat_rate = bin_heat_rate
         self.ud = ud

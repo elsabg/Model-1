@@ -146,45 +146,6 @@ def inst_cap(outFile, multi=1):
     plt.close()
     
 
-def get_houses(outFile, multi=1):
-    
-    new_plots_folder = os.path.join(outFile, "..")
-
-    if multi == 1:
-        re_folder = os.path.basename(os.path.dirname(outFile))
-        new_plots_folder = os.path.join(new_plots_folder, "..", "..",
-                                        "Connected households", re_folder)
-        os.makedirs(new_plots_folder, exist_ok=True)
-
-    out = pd.read_excel(outFile, sheet_name="Connected Households")
-    out.set_index('Unnamed: 0', inplace=True)
-
-    file = os.path.basename(outFile)
-    fit = int(file.split('_')[1])
-    el_price = int(file.split('_')[2].split('.')[0])
-    
-    fig, ax = plt.subplots()
-
-    max_house = {"Consumers": [635] * 15,"Prosumers": [440] * 15}
-    colors = {"Consumers": '#f2b382', "Prosumers": '#85a4c4'}
-    for house in out.index:
-        ax.plot(out.loc[house], label=house, color=colors[house])
-        ax.plot(max_house[house], linestyle='dashed', 
-                label=f'Maximum {house}', color=colors[house])
-    
-    ax.set_xlabel('Year')
-    ax.set_ylabel('Connected households')
-    ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=2,
-              bbox_transform=fig.transFigure)
-    
-    ax.set_yticks([i for i in range (0, 701, 100)])  
-    
-    plt.subplots_adjust(top=.85)
-    plot_path = os.path.join(new_plots_folder, 
-                             f"Connected_households_{fit}_{el_price}.png")
-    plt.savefig(plot_path)
-    plt.close()
-
 def gen_year(outFile, multi):
     
     new_plots_folder = os.path.join(outFile, "..")
