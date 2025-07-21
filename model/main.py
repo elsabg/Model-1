@@ -315,7 +315,7 @@ day_weights = [199, 106, 60]
 
 
 outFile_sum = os.path.join(cwd, 'Outputs')
-
+'''
 # Current Case
 in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '0. Current Case')
@@ -339,8 +339,8 @@ current_budget = 0
 for y in range(len(current_cfs.columns)):
     capex_y = current_cfs.loc['Total Capital Costs'][y]
     current_budget += capex_y * (1 / (1 + interest) ** y)
-'''
-'''
+    
+#'''
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 prices = np.arange(0, 40, 0.01)
 prices_gs = np.arange(0, 0.39, 0.01)
@@ -359,45 +359,51 @@ summary_path_1 = os.path.join(outFile_sum, '1. Baseline', 'Summary.xlsx')
 func.eval_summary(os.path.join(cwd, 'Outputs', '1. Baseline', 
                                'Grid Search', 'Output Files'),
                   max_fits = summary_path_1)
-'''
-
+#'''
+#'''
 # Budget Sensitivity
 in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '2. Budget')
 
 budgets = np.arange(250000, 2000001, 250000)
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-prices = np.arange(0, 40, 0.01)
-prices_gs = np.arange(0, 0.39, 0.01)
-fits = np.arange(0, 0.26, 0.01)
-'''
+prices = np.arange(0, 0.40, 0.01)
+prices_gs = np.arange(0, 0.3, 0.01)
+fits = np.arange(0, 0.3, 0.01)
+
 for budget in budgets:
     out_path_gs = os.path.join(out_path, 'Sensitivity', str(budget))
     out_path_fr = os.path.join(out_path, 'Feasible Region', str(budget))
 
     for re_level in re_levels:
+        #'''
         fit_search(in_path, out_path_fr, prices, re_level=re_level,
                    total_budget=budget)
+        #'''
+        #'''
         multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
                   out_path=out_path_gs, re_level=re_level, 
                   total_budget=budget)
+        #'''
 
     summary_path_2_b = os.path.join(outFile_sum, '2. Budget', 'Feasible Region',
                                     str(budget), 'Summary.xlsx')
+    '''
     func.eval_summary(os.path.join(cwd, 'Outputs', '2. Budget',
                                    'Sensitivity', str(budget), 'Output Files'),
                       max_fits = summary_path_2_b)
-'''        
-'''
+    '''
+#'''        
+#'''
 # Interest Sensitivity
 in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '3. Interest')
 
 interests = [0.05, 0.1, 0.15, 0.2]
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-prices = np.arange(0, 40, 0.01)
-prices_gs = np.arange(0, 0.39, 0.01)
-fits = np.arange(0, 0.26, 0.01)
+prices = np.arange(0, 0.40, 0.01)
+prices_gs = np.arange(0, 0.3, 0.01)
+fits = np.arange(0, 0.3, 0.01)
 
 for interest in interests:
     out_path_gs = os.path.join(out_path, 'Sensitivity', 
@@ -405,13 +411,17 @@ for interest in interests:
     out_path_fr = os.path.join(out_path, 'Feasible Region', 
                                str(int(interest * 100)))
     for re_level in re_levels:
+        #'''
         fit_search(in_path, out_path_fr, prices, re_level=re_level,
                    total_budget=current_budget, interest=interest)
+        #'''
+        #'''
         multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
                   out_path=out_path_gs, re_level=re_level, 
                   total_budget=current_budget, interest=interest)
+        #'''
         
-'''
+#'''
 '''
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
