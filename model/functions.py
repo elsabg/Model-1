@@ -206,6 +206,7 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
     techs = model.techs
     voll = model.voll
     interest = model.i
+    interest_re = model.i_re
     
     ############################################################################
     # Create empty DataFrames for hourly decisions                             #
@@ -283,31 +284,31 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
     # Summary Information
     waste = 0
     unmet_d = 0
-    met_d = 0
     house_surplus = pd.DataFrame(columns=['surplus'])
     disc_surplus = 0
     d_weights = list(model.d_weights)
     
     for y in range(model.years):
         feed_in_y = 0
+        met_d_y = 0
         for d in range(model.days):
             feed_in_y += sum(feed_in.loc[f'{y}.'+f'{d}']) * d_weights[d]
             for h in range(model.hours):
                 unmet_d += model.ud[y, d, h].X * d_weights[d]
-                met_d += -1 * (model.ud[y, d, h].X) * d_weights[d]
+                met_d_y += -1 * (model.ud[y, d, h].X) * d_weights[d]
                 waste += net_surplus[h][d] * d_weights[d]
                 
                 for i in model.house:
                     waste += (-1 * model.feed_in[i, y, d, h].X
                               * d_weights[d])
                     
-                    met_d += (max(-1 * model.surplus[i][d][h], 0)
+                    met_d_y += (max(-1 * model.surplus[i][d][h], 0)
                               * model.max_house_str[i]
                               * d_weights[d])
         
-        house_surplus.loc[y] = (met_d * (voll - elec_price / 100) 
+        house_surplus.loc[y] = (met_d_y * (voll - elec_price / 100) 
                                 + feed_in_y * fit / 100)
-        disc_surplus += house_surplus.loc[y][0] * (1 / (1 + interest) ** y)
+        disc_surplus += house_surplus.loc[y][0] * (1 / (1 + interest_re) ** y)
         
     d_weights_str = ''
     for d in range(len(model.d_weights)):
@@ -370,27 +371,28 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
         ud.to_excel(writer, sheet_name='Unmet Demand')
         house_surplus.to_excel(writer, sheet_name='Household Surplus')
 
-def eval_summary(outPath, day_weights, years = 15, days = 3, max_fits=None):
+def eval_summary(outPath, years = 15, days = 3, max_fits=None):
     metrics = pd.DataFrame(columns = ['RE target', 'FiT', 'Price', 
                                       'Unmet Demand', 'Wasted Surplus',
                                       'Household Surplus'])
     metrics.set_index('RE target', inplace=True)
     
-    assert len(day_weights) == days, 'Weights do not match days'
     if max_fits != None:
         max_fits_df = pd.read_excel(max_fits, sheet_name=None)
         
     re_levels = os.listdir(outPath)
     
     for re_level in re_levels:
-        if re_level == '0':
-            max_fits_re = max_fits_df[re_level]
-        else:
-            max_fits_re = max_fits_df[str(round(float(re_level) / 100 , 1))]
-            
-        max_fits_re.set_index('Unnamed: 0', inplace=True)
         
-        row = max_fits_re.loc['Prices']
+        if re_level == '0' and max_fits != None:
+            max_fits_re = max_fits_df[re_level]
+            max_fits_re.set_index('Unnamed: 0', inplace=True)
+            row = max_fits_re.loc['Prices']
+            
+        elif max_fits != None:
+            max_fits_re = max_fits_df[str(round(float(re_level) / 100 , 1))]
+            max_fits_re.set_index('Unnamed: 0', inplace=True)
+            row = max_fits_re.loc['Prices']
         
         files = os.listdir(os.path.join(outPath, re_level))
         
@@ -403,10 +405,15 @@ def eval_summary(outPath, day_weights, years = 15, days = 3, max_fits=None):
         for file in files:
             fit = int(file.split('_')[1]) / 100
             price = int(file.split('_')[2].split('.')[0]) / 100
-            #print(f'FiT: {fit}, Price: {price}')
-            price_col = row[row == round(price, 2)].index.tolist()
+            
             try:
-                max_fit = max_fits_re[price_col[0]]['Feed-in Tariffs']
+                if max_fits != None:
+                    price_col = row[row == round(price, 2)].index.tolist()
+                    max_fit = max_fits_re[price_col[0]]['Feed-in Tariffs']
+                    
+                else:
+                    max_fit = np.inf
+                                    
             except IndexError:
                 max_fit = 10
                 print(f'{price} not in summary')
@@ -416,9 +423,11 @@ def eval_summary(outPath, day_weights, years = 15, days = 3, max_fits=None):
                 summary = pd.read_excel(outFile, sheet_name = None)
                 summary['Summary'].set_index('Unnamed: 0', inplace = True)
                 surp = summary['Summary'].loc["Household Surplus"][0]
+                day_weights = summary['Summary'].loc['Day Weights'][0]
+                day_weights = [int(d) for d in day_weights.split(',')]
                 
                 if surp >= best_surp:
-                    waste = summary['Summary'].loc["Total Wasted Prosumer Surplus"][0]
+                    waste = summary['Summary'].loc["Wasted Prosumer Surplus"][0]
                     net_surplus_df = summary['Net surplus']
                     if 'Unnamed: 0' in net_surplus_df.columns:
                         net_surplus_df.set_index('Unnamed: 0', inplace = True)
@@ -430,7 +439,7 @@ def eval_summary(outPath, day_weights, years = 15, days = 3, max_fits=None):
                     
                     waste_perc = waste / net_surplus
                     
-                    unmet_demand = summary['Summary'].loc["Total Unmet Demand"][0]
+                    unmet_demand = summary['Summary'].loc["Unmet Demand"][0]
                     demand_df = summary['Yearly demand']
                     demand_df.set_index('Unnamed: 0', inplace = True)
                     demand= 0

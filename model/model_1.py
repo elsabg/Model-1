@@ -97,12 +97,20 @@ class Model_1:
 
         # Demand
         self.demand = {f'Type {i+1}': 
-                       self.data[f'elec_demand ({i+1})'].iloc[:, 1:]. to_numpy()
+                       self.data[f'elec_demand ({i+1})'].iloc[:, 1:].to_numpy()
                        for i in range(len(self.house))}
         
         
         # Surplus
         self.surplus = self.demand.copy()
+        
+        self.aux_min = {f'Type {i+1}': 
+                       np.zeros((self.days, self.hours))
+                       for i in range(len(self.house))}
+        
+        self.aux_max = {f'Type {i+1}': 
+                       np.zeros((self.days, self.hours))
+                       for i in range(len(self.house))}
         
         # Positive surplus can be fed-in, negative surplus is additional demand     
         for h in self.surplus: # house type
@@ -111,6 +119,12 @@ class Model_1:
                     self.surplus[h][i][j] = (self.cap_fact[i][j] 
                                              * self.avg_pv_cap_str[h]
                                              - self.surplus[h][i][j])
+                    
+                    if self.surplus[h][i][j] > 0:
+                        self.aux_max[h][i][j] = self.surplus[h][i][j]
+                        
+                    elif self.surplus[h][i][j] < 0:
+                        self.aux_min[h][i][j] = self.surplus[h][i][j]
 
         #----------------------------------------------------------------------#
         # Battery and other Parameters                                         #
@@ -132,7 +146,7 @@ class Model_1:
 
 
     def solve(self, fit, elec_price, md_level, ud_penalty, re_level=0, 
-              voll=0.7, total_budget=np.inf, interest=0.1):
+              voll=0.7, total_budget=np.inf, interest=0.1, interest_re=0.04):
         'Create and solve the model'
 
         self.fit = fit
@@ -143,6 +157,7 @@ class Model_1:
         self.voll = voll
         self.total_budget = total_budget
         self.i = interest
+        self.i_re = interest_re
 
         m = Model('Model_1')
 
@@ -187,16 +202,6 @@ class Model_1:
         d_cons = m.addVars(self.years, self.days, self.hours,
                            name='dieselCons')
         
-        
-        #Auxiliary variables for min and max
-        aux_min = m.addVars(self.house, self.years, self.days, self.hours,
-                             name='minAuxiliary', lb=-GRB.INFINITY)
-        
-        aux_max = m.addVars(self.house, self.years, self.days, self.hours,
-                             name='maxAuxiliary', lb=0)
-        
-        b = m.addVars(self.house, self.years, self.days, self.hours,
-                      vtype=GRB.BINARY, name='Binary')
     
         #Intermediate variables
         tr = m.addVars(self.years, name='total revenue')
@@ -327,54 +332,13 @@ class Model_1:
         # Demand-Supply Balance                                                #
         #----------------------------------------------------------------------#
         
-        # Auxiliary minimum constraints
-        M = np.max(self.surplus[max(self.surplus)]) * max(self.max_house)
-        
-        m.addConstrs(((aux_min[i, y, d, h] <= 0)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='min aux 1.1')
-        
-        m.addConstrs(((aux_min[i, y, d, h] >=
-                        - b[i, y, d, h] * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='min aux 1.2')
-
-        m.addConstrs(((aux_min[i, y, d, h] <=
-                       self.max_house_str[i] * self.surplus[i][d][h])
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='min aux 2.1')
-                     
-        m.addConstrs(((aux_min[i, y, d, h] >=
-                       self.max_house_str[i] * self.surplus[i][d][h] 
-                       - (1 - b[i, y, d, h]) * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='min aux 2.2')
-        
-       
-        
-        # Supply-demand balance constraint
         m.addConstrs(((b_out[y, d, h] 
                         + quicksum(disp[g, y, d, h] for g in self.techs_g) 
                         + quicksum(feed_in[i, y, d, h] for i in self.house) 
                         + ud[y, d, h] == 
                         b_in[y, d, h]
-                        - quicksum(aux_min[i, y, d, h] for i in self.house))
+                        - sum(self.aux_min[i][d][h] * self.max_house_str[i]
+                              for i in self.house))
                       for h in range(self.hours)
                       for d in range(self.days)
                       for y in range(self.years)
@@ -386,7 +350,9 @@ class Model_1:
                                 for d in range(self.days)
                                 for h in range(self.hours)) 
                        <= (1 - self.md_level) 
-                       * ( - quicksum(aux_min[i, y, d, h] * self.d_weights[d]
+                       * ( - sum(self.aux_min[i][d][h] 
+                                 * self.max_house_str[i] 
+                                 * self.d_weights[d]
                                       for i in self.house
                                       for d in range(self.days)
                                       for h in range(self.hours))))
@@ -395,54 +361,17 @@ class Model_1:
                      "maximum yearly unmet demand"
                      )
         
-        # Auxiliary maximum constraints
-        m.addConstrs(((aux_max[i, y, d, h] >=
-                       self.max_house_str[i] * self.surplus[i][d][h])
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='max aux 1.1')
-        
-        m.addConstrs(((aux_max[i, y, d, h] >= 0)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='max aux 1.2'
-                     )
-        
-        m.addConstrs(((aux_max[i, y, d, h] <=
-                       self.max_house_str[i] * self.surplus[i][d][h]
-                       + b[i, y, d, h] * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='max aux 2.1')
-        
-        m.addConstrs(((aux_max[i, y, d, h] <=
-                       (1 - b[i, y, d, h]) * M)
-                      for i in self.house
-                      for y in range(self.years)
-                      for d in range(self.days)
-                      for h in range(self.hours)
-                      ),
-                     name='max aux 2.2'
-                     )
-        
         # Feed-in capacity constraints
         m.addConstrs(((feed_in[i, y, d, h] <=
-                       self.RE_max * aux_max[i, y, d, h])
-                       for i in self.house
-                       for h in range(self.hours)
-                       for d in range(self.days)
-                       for y in range(self.years)
-                       ),
-                      "Feed in cap"
+                       self.RE_max 
+                       * self.aux_max[i][d][h] 
+                       * self.max_house_str[i])
+                      for i in self.house
+                      for h in range(self.hours)
+                      for d in range(self.days)
+                      for y in range(self.years)
+                      ),
+                     "Feed in cap"
             )
         
         m.addConstrs(((quicksum(feed_in[i, y, d, h] * self.d_weights[d]
@@ -468,8 +397,8 @@ class Model_1:
     
         
         m.addConstrs(((ud[y, d, h] <= 
-                       - quicksum(aux_min[i, y, d, h]
-                                  for i in self.house))
+                       - sum(self.aux_min[i][d][h] * self.max_house_str[i]
+                             for i in self.house))
                       for y in range(self.years)
                       for d in range(self.days)
                       for h in range(self.hours)
@@ -814,7 +743,6 @@ class Model_1:
         self.m = m
         self.feed_in = feed_in
         self.soc = soc
-        self.aux_min = aux_min
         self.added_cap = added_cap
         self.inst_cap = inst_cap
         self.disp = disp
