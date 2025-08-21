@@ -555,11 +555,11 @@ class Model_1:
         # Heat Rate                                                            #
         #----------------------------------------------------------------------#
         M = - (np.min(self.demand[min(self.demand)]) 
-               * max(self.max_house) 
-               * max(self.heat_r_k))
+               * sum(self.max_house) 
+               * max(self.heat_r_k) * 10)
         e = 0.01
         
-        
+        '''
         m.addConstrs(((d_cons[y, d, h] ==
                        disp['Diesel Generator', y, d, h]
                        * self.heat_r_k[1])
@@ -661,7 +661,7 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name="case 3.2")
-        '''
+        
         #----------------------------------------------------------------------#
         # Battery Operation                                                    #
         #----------------------------------------------------------------------#

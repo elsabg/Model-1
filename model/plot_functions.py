@@ -9,6 +9,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+import matplotlib.patches as mpatches
 from scipy.interpolate import griddata
 import seaborn as sns
 from matplotlib.lines import Line2D
@@ -104,6 +106,8 @@ def rep_day(outFile, year, day, multi=1):
 def inst_cap(outFile, multi=1):
     '''Plot installed capacities and save to folder'''
     
+    sns.set(font_scale=1.15)
+    sns.set_style("whitegrid")
     new_plots_folder = os.path.join(outFile, "..")
 
     if multi == 1:
@@ -135,10 +139,10 @@ def inst_cap(outFile, multi=1):
     ax.set_xlabel('Year')
     ax.set_ylabel('Capacity installed in kW')
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, .94), ncol=3,
-              bbox_transform=fig.transFigure)
+              bbox_transform=fig.transFigure, frameon=False)
     
     if multi == 1:
-        ax.set_yticks([i for i in range (0, 3001, 250)])
+        ax.set_yticks([i for i in range (0, 1001, 250)])
       
     plt.subplots_adjust(top=.85)
     plot_path = os.path.join(new_plots_folder, f"Installed_Capacities_{fit}_{el_price}.png")
@@ -148,6 +152,8 @@ def inst_cap(outFile, multi=1):
 
 def gen_year(outFile, multi):
     
+    sns.set(font_scale=1.15)
+    sns.set_style("whitegrid")
     new_plots_folder = os.path.join(outFile, "..")
 
     if multi == 1:
@@ -240,10 +246,10 @@ def gen_year(outFile, multi):
     ax.set_xlabel('Year')
     ax.set_ylabel('Energy')
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
-              bbox_transform=fig.transFigure)
+              bbox_transform=fig.transFigure, frameon=False)
     
     if multi == 1:
-       ax.set_yticks([i for i in range (0, 5500001, 500000)]) 
+       ax.set_yticks([i for i in range (-1500000, 3000001, 500000)]) 
     
     plt.subplots_adjust(top=.85)
     plot_path = os.path.join(new_plots_folder, 
@@ -253,6 +259,8 @@ def gen_year(outFile, multi):
         
 def add_ret(outFile, multi):
     
+    sns.set(font_scale=1.15)
+    sns.set_style("whitegrid")
     new_plots_folder = os.path.join(outFile, "..")
 
     if multi == 1:
@@ -299,10 +307,11 @@ def add_ret(outFile, multi):
     ax.set_xlabel('Year')
     ax.set_ylabel('Capacity added and retired in kW')
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
-              bbox_transform=fig.transFigure)
+              bbox_transform=fig.transFigure,
+              frameon=False)
 
     if multi == 1:
-        ax.set_yticks([i for i in range (-500, 751, 250)]) 
+        ax.set_yticks([i for i in range (-500, 551, 250)]) 
      
     plt.subplots_adjust(top=.85)
     plot_path = os.path.join(new_plots_folder, f"Add_Ret_Capacities_{fit}_{el_price}.png")
@@ -428,11 +437,6 @@ def surp_heatmap(casePath, re_level, max_fits=None): # summary file
     
     sns.set(font_scale=1.3)
     
-    global price_index
-    global fit_index
-    global heatmap_data
-    global data
-    
     new_plots_folder = os.path.join(casePath, f"Surplus heatmap {re_level}.png")
     filesPath = os.path.join(casePath, 'Output Files', str(int(re_level * 100)))
     files = os.listdir(filesPath)
@@ -481,6 +485,7 @@ def surp_heatmap(casePath, re_level, max_fits=None): # summary file
                 print(f're_level={re_level}, price={price}')
                 
     plt.figure(figsize=(8, 6))
+    
     sns.heatmap(heatmap_data / 1000000, fmt=".1f", 
                 cmap="YlGnBu", cbar_kws={'label': 'Surplus value (M $)'},
                 mask=mask, annot=False)
@@ -657,127 +662,209 @@ def ws_comp(casePaths, re_levels):
     plt.savefig(new_plots_folder)
     plt.close()
     
-def re_comp(casePaths):
+def re_comp(casePath, comp=None):
     
-    assert type(casePaths)== list, "casePaths should be a list"
+    sns.set(font_scale=1.5)
     
-    sns.set(font_scale=1.15)
+    new_plots_folder_ud = os.path.join(casePath, 'UD+WS+RE comparison.png')
+    new_plots_folder_hs = os.path.join(casePath, 'HS+RE comparison.png')
+    new_plots_folder_pf = os.path.join(casePath, 'P+FiT+RE comparison.png')
     
-    new_plots_folder_p = os.path.join(casePaths[0], '..', 'P+RE comparison.png')
-    new_plots_folder_f = os.path.join(casePaths[0], '..', 'FiT+RE comparison.png')
-    new_plots_folder_hs = os.path.join(casePaths[0], '..', 'HS+RE comparison.png')
-    
-    fig_p, ax_p = plt.subplots()
-    fig_f, ax_f = plt.subplots()
+    fig_ud, ax_ud = plt.subplots(figsize=(16, 6))
     fig_hs, ax_hs = plt.subplots()
+    fig_pf, ax_pf = plt.subplots()
+
+    tot_dg = []
+    tot_pv = []
+    tot_fi = []
+    tot_ud = []
+    tot_bat = []
+    pie_handles= []
+    i=0
     
-    i = 0
+    # Get summary from evaluation metrics files
+    eval_sum = pd.read_excel(os.path.join(casePath, 
+                                          'Grid Search',
+                                          'Evaluation Metrics.xlsx'))
     
-    name_mapping = {
-    'No PV': 'Feed-in Only',
-    'No PV w Bat': 'Feed-in + Batteries',
-    'With PV': 'Feed-in + PV + Batteries'
-    }
+    eval_sum = eval_sum.sort_values(by='RE target')
     
-    color_map = {
-    'Feed-in Only': '#f4d35e',
-    'Feed-in + Batteries': '#85a4c4',
-    'Feed-in + PV + Batteries': '#c2deaf'
-    }
+    # Plot
+    x = np.array(eval_sum['RE target'])
+    width = 3
+
+    ax_ud.bar(x - width/2, eval_sum['Unmet Demand'] * 100,
+              width=width,
+              color='#f4d35e',
+              label='Unmet Demand')
+
+    ax_ud.bar(x + width/2, eval_sum['Wasted Surplus'] * 100,
+              width=width,
+              color='#85a4c4',
+              label='Wasted Surplus')
     
-    cases = []
+    y_min, y_max = ax_ud.get_ylim()
+    ax_ud.set_ylim(y_min, y_max * 1.5)
     
-    for casePath in casePaths:
-        original_name = os.path.basename(casePath)
-        readable_name = name_mapping.get(original_name, original_name)
-        cases.append(readable_name)
-        case_summary = pd.read_excel(os.path.join(casePath, 
-                                                   'Evaluation Metrics.xlsx'))
-        color = color_map[readable_name]
-        ax_p.plot(np.array(case_summary['RE target']),
-                  np.array(case_summary['Price']),
-                  label = readable_name,
-                  color=color,
-                  linewidth=3)
-        ax_f.plot(np.array(case_summary['RE target']),
-                  np.array(case_summary['FiT']),
-                  label = readable_name,
-                  color=color,
-                  linewidth=3)
-        ax_hs.plot(np.array(case_summary['RE target']),
-                   np.array(case_summary['Household Surplus'] / 1e7),
-                   label = readable_name,
-                   color=color,
-                   linewidth=3)
+    if comp != None:
+        pie_labels = ["DG", "PV", "Fed-in", "Unmet", "Battery"]
         
-        i += 1
+        for index, row in eval_sum.iterrows():
+            re_level = row['RE target']
+            fit_b = eval_sum['FiT'].loc[index]
+            fit_b = round(fit_b, 2)
+            p_b = round(eval_sum['Price'].loc[index], 2)
+            
+            
+            out = pd.read_excel(os.path.join(casePath,
+                                             'Grid Search',
+                                             'Output Files',
+                                             str(int(re_level)),
+                                             f'Output_{int(fit_b*100)}_{int(p_b*100)}.xlsx'),
+                                sheet_name=None)
+            
+            disp_dg = out['DG Dispatch'].set_index('Unnamed: 0')
+            disp_pv = out['PV Dispatch'].set_index('Unnamed: 0')
+            feed_in = out['Fed-in Capacity'].set_index('Unnamed: 0')
+            unmet = out['Unmet Demand'].set_index('Unnamed: 0')
+            bat = out['Battery Output'].set_index('Unnamed: 0')
+            
+            weights_df = out['Summary'].set_index('Unnamed: 0')
+            weights = weights_df[0].loc['Day Weights'].split(',')
+            weights = [int(w) for w in weights]
+            
+            year_dg = []
+            for y in range(15):
+                tot_dg_y = 0
+                for d in range(3):
+                    tot_dg_y += sum(disp_dg.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+                year_dg.append(tot_dg_y)
+            tot_dg.append(sum(year_dg) / 1e6)
+            
+            year_pv = []
+            for y in range(15):
+                tot_pv_y = 0
+                for d in range(3):
+                    tot_pv_y += sum(disp_pv.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+                year_pv.append(tot_pv_y)
+            tot_pv.append(sum(year_pv) / 1e6)
+            
+            year_fed_in = []
+            for y in range(15):
+                tot_fed_in_y = 0
+                for d in range(3):
+                    tot_fed_in_y += sum(feed_in.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+                year_fed_in.append(tot_fed_in_y)
+            tot_fi.append(sum(year_fed_in) / 1e6)
+        
+            year_ud = []
+            for y in range(15):
+                tot_ud_y = 0
+                for d in range(3):
+                    tot_ud_y += sum(unmet.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+                year_ud.append(tot_ud_y)
+            tot_ud.append(sum(year_ud) / 1e6) 
+            
+            year_bat_out = []
+            for y in range(15):
+                tot_bat_out_y = 0
+                for d in range(3):
+                    tot_bat_out_y += sum(bat.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+                year_bat_out.append(tot_bat_out_y)
+            tot_bat.append(sum(year_bat_out) / 1e6)
+            
+            pie_data = [tot_dg[i], tot_pv[i], tot_fi[i],
+                        tot_ud[i], tot_bat[i]]
+            pie_colors = ["#d14b4b", "#f9e395", "#dbe4ed",
+                          "#f2b382", "#b1b1b1"]
+            
+            # Create an inset axis at data coordinates (x, y_position)
+            y_max = max(eval_sum['Unmet Demand'].loc[index] * 100, 
+                        eval_sum['Wasted Surplus'].loc[index] * 100)
+            inset_ax = ax_ud.inset_axes([re_level - 6, y_max + 3, 9, 9], 
+                                        transform=ax_ud.transData) 
+
+            i+=1
     
-    # Get current handles and labels
-    handles_p, labels_p = ax_p.get_legend_handles_labels()
-    handles_f, labels_f = ax_f.get_legend_handles_labels()
-    handles_hs, labels_hs = ax_hs.get_legend_handles_labels()
+            inset_ax.pie(pie_data, colors=pie_colors, startangle=90)
+            inset_ax.set_aspect('equal')
+            inset_ax.axis('off')
+            
+        pie_handles = [mpatches.Patch(color=c, label=l) for c, l in zip(pie_colors, pie_labels)]
+        
+        ax_ud.legend(handles=pie_handles,
+                     title="Energy (%)",
+                     loc="upper right",
+                     bbox_to_anchor=(0.5, 1.2))
+        
+        
+    ax_ud.set_xlabel('RE Target (%)')
+    ax_ud.set_ylabel('(%)')
+    bar_legend = ax_ud.get_legend_handles_labels()
+    bar_handles, bar_labels = bar_legend
     
-    desired_order = ['Feed-in Only', 
-                     'Feed-in + Batteries', 
-                     'Feed-in + PV + Batteries']
+    combined_handles = pie_handles + bar_handles
+    combined_labels = pie_labels + bar_labels
+    blank_handle = mpatches.Patch(color='none', label='')
     
-    new_handles_p = [handles_p[labels_p.index(lbl)] for lbl in desired_order]
-    new_handles_f = [handles_f[labels_f.index(lbl)] for lbl in desired_order]
-    new_handles_hs = [handles_hs[labels_hs.index(lbl)] for lbl in desired_order]    
+    ax_ud.legend(combined_handles, combined_labels,
+                 title="Pie Legend  |  Bar Legend",
+                 loc='upper center',
+                 bbox_to_anchor=(0.5, 1.3),
+                 ncol=5,
+                 frameon=False)
     
-    ax_p.set_xlabel('RE Target (%)')
-    ax_p.set_ylabel('Electricity Price ($/kWh)')
-    ax_p.legend(new_handles_p,
-               desired_order,
-               title = 'Case',
-               loc='upper center',
-               bbox_to_anchor=(0.5, 1.27),
-               ncol=2,
-               frameon=False)
-    fig_p.subplots_adjust(top=0.8, left=0.15) 
+    fig_ud.subplots_adjust(top=0.8, left=0.15) 
     
-    fig_p.savefig(new_plots_folder_p)
-    plt.close()
+    fig_ud.savefig(new_plots_folder_ud)
+    plt.close(fig_ud)
     
-    ax_f.set_xlabel('RE Target (%)')
-    ax_f.set_ylabel('Feed-in Tariff ($/kWh)')
-    ax_f.legend(new_handles_f,
-               desired_order,
-               title = 'Case',
-               loc='upper center',
-               bbox_to_anchor=(0.5, 1.27),
-               ncol=2,
-               frameon=False)
-    fig_f.subplots_adjust(top=0.8, left=0.15) 
-    
-    fig_f.savefig(new_plots_folder_f)
-    plt.close()
-    
+    ax_hs.plot(np.array(eval_sum['RE target']),
+               np.array(eval_sum['Household Surplus'] / 1e6),
+               linewidth = 3,
+               color = '#f4d35e',
+               label = 'Household Surplus')
     ax_hs.set_xlabel('RE Target (%)')
-    ax_hs.set_ylabel('Household Surplus (1e7$)')
-    ax_hs.legend(new_handles_hs,
-               desired_order,
-               title = 'Case',
-               loc='upper center',
-               bbox_to_anchor=(0.5, 1.27),
-               ncol=3,
-               frameon=False)
+    ax_hs.set_ylabel('Househol Surplus (M $)')
+    ax_hs.legend(loc='upper center',
+                 bbox_to_anchor=(0.5, 1.27),
+                 ncol=1,
+                 frameon=False)
     fig_hs.subplots_adjust(top=0.8, left=0.15) 
     
     fig_hs.savefig(new_plots_folder_hs)
-    plt.close()
+    plt.close(fig_hs)
+    
+    ax_pf.plot(np.array(eval_sum['RE target']),
+               np.array(eval_sum['Price']),
+               linewidth = 3,
+               color = '#f4d35e',
+               label = 'Price')
+    ax_pf.plot(np.array(eval_sum['RE target']),
+               np.array(eval_sum['FiT']),
+               linewidth = 3,
+               color = '#85a4c4',
+               label = 'FiT')
+    ax_pf.set_xlabel('RE Target (%)')
+    ax_pf.set_ylabel('Amount ($)')
+    ax_pf.legend(loc='upper center',
+                 bbox_to_anchor=(0.5, 1.27),
+                 ncol=1,
+                 frameon=False)
+    fig_pf.subplots_adjust(top=0.8, left=0.15) 
+    
+    fig_pf.savefig(new_plots_folder_pf)
+    plt.close(fig_pf)
+    
+    
 
-def energy_v_budget(casePath, re_level, 
-                    budgets = np.arange(250000, 2000000, 250000)):
-    
-    global out
-    global tot_dg
-    global tot_pv
-    global tot_fi
-    global weights
-    global feed_in
-    
-    budgets = budgets.tolist()
+def energy_sensitivity(casePath, sensitivity, s_range, re_level):
+
+    assert sensitivity == 'budget' or sensitivity == 'interest', 'Wrong sensitivity parameter'
+    try:
+        s_range = s_range.tolist()
+    except AttributeError:
+        pass
     
     sns.set(font_scale=1.15)
     
@@ -792,24 +879,24 @@ def energy_v_budget(casePath, re_level,
     tot_ud = []
     tot_bat = []
     
-    for budget in budgets:        
+    for s in s_range:        
         # find summary of evaluation metrics
         summary_df = pd.read_excel(os.path.join(casePath, 
                                                 'Sensitivity',
-                                                str(budget),
+                                                str(s),
                                                 'Evaluation Metrics.xlsx'))
         
         summary_df.set_index('RE target', inplace=True)
         fit_b = summary_df['FiT'].loc[int(re_level * 100)]
-        print(f'fit: {fit_b}, b: {budget}, re: {re_level}')
         fit_b = round(fit_b, 2)
-        p_b = round(summary_df['FiT'].loc[int(re_level * 100)], 2)
+        p_b = round(summary_df['Price'].loc[int(re_level * 100)], 2)
         
+        print(f'fit:{fit_b}, price:{p_b}')
         out = pd.read_excel(os.path.join(casePath,
                                          'Sensitivity',
-                                         str(budget),
+                                         str(s),
                                          'Output Files',
-                                         str(re_level),
+                                         str(int(re_level * 100)),
                                          f'Output_{int(fit_b*100)}_{int(p_b*100)}.xlsx'),
                             sheet_name=None)
         
@@ -845,7 +932,6 @@ def energy_v_budget(casePath, re_level,
             for d in range(3):
                 tot_fed_in_y += sum(feed_in.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
             year_fed_in.append(tot_fed_in_y)
-            print(year_fed_in)
         tot_fi.append(sum(year_fed_in) / 1e6)
     
         year_ud = []
@@ -863,49 +949,49 @@ def energy_v_budget(casePath, re_level,
                 tot_bat_out_y += sum(bat.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
             year_bat_out.append(tot_bat_out_y)
         tot_bat.append(sum(year_bat_out) / 1e6)
-        
-    budgets = [b / 1e6 for b in budgets]
+     
+    if sensitivity == 'budget':
+        s_range = [i / 1e6 for i in s_range]
     tot_dg = np.array(tot_dg)
     tot_pv = np.array(tot_pv)
     tot_fi = np.array(tot_fi)
     tot_ud = np.array(tot_ud)
     tot_bat = np.array(tot_bat)
     
-    ax.bar(budgets,
+    ax.bar(s_range,
            tot_dg,
            label = 'Dispatch from DG',
-           color = "#d14b4b",
-           width = 0.1)
+           color = "#d14b4b", width = 0.1
+           )
     
-    ax.bar(budgets,
+    ax.bar(s_range,
            tot_pv,
            label = 'Dispatch from PV',
-           color = "#f9e395",
-           width = 0.1,
+           color = "#f9e395", width = 0.1,
            bottom = tot_dg)
     
-    ax.bar(budgets,
+    ax.bar(s_range,
            tot_fi,
            label = 'Fed-in Capacity',
-           color = "#c2deaf",
-           width = 0.1,
-           bottom = np.add(tot_dg, tot_pv))
+           color = "#c2deaf",  width = 0.1,
+           bottom = tot_dg + tot_pv)
     
-    ax.bar(budgets,
+    ax.bar(s_range,
            tot_ud,
            label = 'Unmet Demand',
-           color = "#f2b382",
-           width = 0.1,
-           bottom = np.add(tot_dg, tot_pv, tot_fi))
+           color = "#f2b382", width = 0.1,
+           bottom = tot_dg + tot_pv + tot_fi)
     
-    ax.bar(budgets,
+    ax.bar(s_range,
            tot_bat,
            label = 'Batteries',
-           color = "#b1b1b1",
-           width = 0.1,
-           bottom = np.add(np.add(tot_dg, tot_pv, tot_fi), tot_ud))
+           color = "#b1b1b1", width = 0.1,
+           bottom = tot_dg + tot_pv + tot_fi + tot_ud)
     
-    ax.set_xlabel('Budget (USD M)')
+    if sensitivity == 'budget':
+        ax.set_xlabel('Budget (USD M)')
+    elif sensitivity == 'interest':
+        ax.set_xlabel('Interest Rate')
     ax.set_ylabel('Energy (GWh)')
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
               bbox_transform=fig.transFigure,
@@ -916,78 +1002,89 @@ def energy_v_budget(casePath, re_level,
     
     plt.savefig(new_plots_folder)
     plt.close()
+
+
+def capacity_sensitivity(casePath, sensitivity, s_range, re_level):
+
+    assert sensitivity == 'budget' or sensitivity == 'interest' or sensitivity == 're_level', 'Wrong sensitivity parameter'
     
-def int_v_surp(casePath):
-    
-    global out
-    global keys
-    global surps
+    try:
+        s_range = s_range.tolist()
+    except AttributeError:
+        pass
     
     sns.set(font_scale=1.15)
     
-    new_plots_folder = os.path.join(casePath, 'Int+Cap comparison.png')
-    
-    re_levels = os.listdir(casePath)
-    
-    
-    colors = ["#595755", "#6d597a", "#DA4167" ,
-              "#f2b382", "#f4d35e", "#85a4c4", "#c2deaf" ]
-    i = 0
-    
+    # Create new figure
+    new_plots_folder = os.path.join(casePath, 
+                                    f'Capacity {str(int(re_level * 100))}.png')
     fig, ax = plt.subplots()
     
-    for re_level in re_levels:
-        re_Path = os.path.join(casePath, re_level)
-        re_sum_path = os.path.join(re_Path, 'Summary.xlsx')
-        
-        # find summary
-        summary_df = pd.read_excel(re_sum_path, sheet_name=None)
-        keys = list(summary_df.keys())
-        
-        surps = []
-        
-        for key in keys:
-            int_sum = summary_df[key]
-            int_sum.set_index('Unnamed: 0', inplace=True)
-            
-            fit = 'Feed-in Tariffs'
-            non_z_fit = int_sum.loc[fit][int_sum.loc[fit] != 0]
-            
-            if len(non_z_fit) != 0:
-                min_p_ind = int_sum.loc[fit][int_sum.loc[fit] != 0].index[0]
-                max_fit = int_sum.loc[fit][int_sum.loc[fit] != 0].iloc[0]
-                min_p = int_sum.loc['Prices', min_p_ind]
-                
-            
-                max_fit = round(max_fit * 100)
-                min_p = round(min_p * 100)
-                
-                outPath = os.path.join(re_Path, 'Output Files', str(key),
-                                       f'Output_{max_fit}_{min_p}.xlsx')
-                out = pd.read_excel(outPath, sheet_name='Summary')
-                out.set_index('Unnamed: 0', inplace=True)
-                surp = out.loc['Household Surplus'][0]
-            
-            else:
-                surp = 0
-            
-            surps.append(surp)
-           
+    tot_dg = []
+    tot_pv = []
+    tot_bat = []
     
-        ax.plot(keys,
-                surps,
-                label = f'{re_level}',
-                color = colors[i],
-                linewidth = 2)
+    for s in s_range:        
+        # find summary of evaluation metrics
+        summary_df = pd.read_excel(os.path.join(casePath, 
+                                                'Sensitivity',
+                                                str(s),
+                                                'Evaluation Metrics.xlsx'))
         
-        i += 1
+        summary_df.set_index('RE target', inplace=True)
+        fit_b = summary_df['FiT'].loc[int(re_level * 100)]
+        fit_b = round(fit_b, 2)
+        p_b = round(summary_df['Price'].loc[int(re_level * 100)], 2)
+        print(f'fit: {fit_b}, price: {p_b}, s: {s}, re: {re_level}')
+        
+        out = pd.read_excel(os.path.join(casePath,
+                                         'Sensitivity',
+                                         str(s),
+                                         'Output Files',
+                                         str(int(re_level * 100)),
+                                         f'Output_{int(fit_b*100)}_{int(p_b*100)}.xlsx'),
+                            sheet_name='Installed Capacities')
+        out.set_index('Unnamed: 0', inplace=True)
+        
+        cap_dg = out.loc['Diesel Generator'].mean()
+        cap_pv = out.loc['Owned PV'].mean()
+        cap_bat = out.loc['Owned Batteries'].mean()
+        
+        tot_dg.append(cap_dg)
+        tot_pv.append(cap_pv)
+        tot_bat.append(cap_bat)
+     
+    if sensitivity == 'budget':
+        s_range = [i / 1e6 for i in s_range]
+    tot_dg = np.array(tot_dg)
+    tot_pv = np.array(tot_pv)
+    tot_bat = np.array(tot_bat)
     
-    ax.set_xlabel('Interest Rate')
-    ax.set_ylabel('Household Surplus (USD)')
-    ax.legend(title = 'Minimum Renewable Energy Generation Target',
-              loc='upper center', 
-              bbox_to_anchor=(0.5, .97), 
-              ncol=3,
+    ax.bar(s_range,
+           tot_dg,
+           label = 'Disel Generator',
+           color = "#d14b4b", width = 0.1
+           )
+    
+    ax.bar(s_range,
+           tot_pv,
+           label = 'PV',
+           color = "#f9e395", width = 0.1,
+           bottom = tot_dg)
+    
+
+    ax.bar(s_range,
+           tot_bat,
+           label = 'Batteries',
+           color = "#b1b1b1", width = 0.1,
+           bottom = tot_dg + tot_pv)
+    
+    if sensitivity == 'budget':
+        ax.set_xlabel('Budget (USD M)')
+    elif sensitivity == 'interest' or sensitivity == 're_level':
+        ax.set_xlabel('Interest Rate')
+    ax.set_ylabel('Average Installed Capacity (kW)')
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
               bbox_transform=fig.transFigure,
               frameon=False)
 
@@ -996,7 +1093,472 @@ def int_v_surp(casePath):
     
     plt.savefig(new_plots_folder)
     plt.close()
+    
+def p_FiT_sensitivity(casePath, s_range, re_level):
+    sns.set(font_scale=1.15)
+    
+    re_level = int(re_level * 100)
+    # Create new figure
+    new_plots_folder = os.path.join(casePath, 
+                                    f'Price and FiT {str(re_level)}.png')
+    fig, ax = plt.subplots()
+    fig, ax = plt.subplots()
+    
+    prices = []
+    fits = []
+    
+    if type(s_range) == list:
+        s_range = np.array(s_range)
+    
+    for s in s_range:
+        re_levels = os.listdir(os.path.join(casePath, 
+                                            'Sensitivity',
+                                            str(s),
+                                            'Output Files'))
+        
+        # find summary of evaluation metrics
+        summary_df = pd.read_excel(os.path.join(casePath, 
+                                                'Sensitivity',
+                                                str(s),
+                                                'Evaluation Metrics.xlsx'))
+        summary_df.sort_values(by='RE target')
+        summary_df.set_index('RE target', inplace=True)
+        
+        fit_b = summary_df['FiT'].loc[int(re_level)]
+        fit_b = round(fit_b, 2)
+        p_b = round(summary_df['Price'].loc[int(re_level)], 2)
+        
+        prices.append(p_b)
+        fits.append(fit_b)
+        
+    ax.plot(s_range / 1e6, prices, color='#d14b4b', label='Prices')
+    ax.plot(s_range / 1e6, fits, color='#f9e395', label='FiTs')        
+    ax.set_xlabel('Budget in $M')
+    ax.set_ylabel('$')
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
+              bbox_transform=fig.transFigure,
+              frameon=False)
 
+    
+    plt.subplots_adjust(top=.85)
+    
+    plt.savefig(new_plots_folder)
+    plt.close()
+    
+def sensitivity_v_RE(casePath, sensitivity):
+    
+    assert sensitivity == 'budget' or sensitivity == 'interest' or sensitivity == 're_level', 'Wrong sensitivity parameter'
+
+    sns.set(font_scale=1.15)
+    s_range = os.listdir(os.path.join(casePath, 'Sensitivity'))
+    
+    # Create new figure
+    new_plots_folder = os.path.join(casePath, f'{sensitivity} v RE.png')
+    fig, ax = plt.subplots()
+    
+    if sensitivity == 'budget':
+        nameHandle = 'Budget (M$)'
+    else:
+        nameHandle = 'Interest (%)'
+    data = {f'{nameHandle}': [],
+        'RE level': [],
+        'Surpluses': []}
+    
+    for s in s_range:
+        re_levels = os.listdir(os.path.join(casePath, 
+                                            'Sensitivity',
+                                            str(s),
+                                            'Output Files'))
+        re_levels = [float(re) / 100 for re in re_levels]
+        
+        # find summary of evaluation metrics
+        summary_df = pd.read_excel(os.path.join(casePath, 
+                                                'Sensitivity',
+                                                str(s),
+                                                'Evaluation Metrics.xlsx'))
+        summary_df.set_index('RE target', inplace=True)
+        
+        for re_level in re_levels:
+            fit_b = summary_df['FiT'].loc[int(re_level * 100)]
+            fit_b = round(fit_b, 2)
+            p_b = round(summary_df['Price'].loc[int(re_level * 100)], 2)
+            
+            data['RE level'].append(re_level)
+            if sensitivity == 'budget':
+                data[f'{nameHandle}'].append(float(s) / 1e6)
+            else:
+                data[f'{nameHandle}'].append(float(s))
+            
+            try:
+                out = pd.read_excel(os.path.join(casePath,
+                                             'Sensitivity',
+                                             str(s),
+                                             'Output Files',
+                                             str(int(re_level * 100)),
+                                             f'Output_{int(fit_b*100)}_{int(p_b*100)}.xlsx'),
+                                sheet_name='Summary')
+                out.set_index('Unnamed: 0', inplace=True)
+                
+                surplus = out.loc["Household Surplus"][0]
+                data['Surpluses'].append(surplus)
+                
+            except ValueError:
+                data['Surpluses'].append(0)
+                
+    df = pd.DataFrame(data)
+    heatmap_data = df.pivot(index=f'{nameHandle}', 
+                            columns='RE level', 
+                            values='Surpluses')
+    
+    
+    mask = np.zeros_like(heatmap_data, dtype=bool)
+    null = df[df['Surpluses'] == 0]
+    if len(null) != 0:
+        for _, row in null.iterrows():
+            null_s = row[f'{nameHandle}']
+            null_re = row['RE level']
+            
+            if null_s in heatmap_data.index and null_re in heatmap_data.columns:
+                row_idx = heatmap_data.index.get_loc(null_s)
+                col_idx = heatmap_data.columns.get_loc(null_re)
+                mask[row_idx, col_idx] = True
+
+    
+    sns.heatmap(heatmap_data / 1e6, fmt=".1f", 
+                cmap="YlGnBu", cbar_kws={'label': 'Surplus value (M $)'},
+                annot=False, mask=mask)
+    
+    plt.tight_layout()
+    plt.savefig(new_plots_folder)
+    plt.close()
+
+def re_sensitivity(casePath, re_levels):
+    
+    sns.set(font_scale=1.15)
+    
+    new_plots_folder_cap = os.path.join(casePath, 
+                                        'Capacity.png')
+    new_plots_folder_ene = os.path.join(casePath, 
+                                        'Energy.png')
+    fig_c, ax_c = plt.subplots()
+    fig_e, ax_e = plt.subplots()
+    
+    tot_dg = []
+    tot_d = []
+    tot_pv = []
+    tot_bat = []
+    tot_fi = []
+    tot_ud = []
+    
+    tot_dg_cap = []
+    tot_pv_cap = []
+    tot_bat_cap = []
+    
+    summary_df = pd.read_excel(os.path.join(casePath, 
+                                            'Grid Search',
+                                            'Evaluation Metrics.xlsx'))
+    
+    summary_df = summary_df.sort_values(by='RE target')
+    for index, row in summary_df.iterrows():
+        re_level = row['RE target']
+        re_level_s = str(int(re_level))
+        fit = row['FiT']
+        fit_s = str(int(fit * 100))
+        p = row['Price']
+        p_s = str(int(p * 100))
+        
+        out = pd.read_excel(os.path.join(casePath, 
+                                         'Grid Search',
+                                         'Output Files',
+                                         re_level_s,
+                                         f'Output_{fit_s}_{p_s}.xlsx'),
+                            sheet_name=None)
+        
+        demand = out['Yearly demand'].set_index('Unnamed: 0')
+        disp_dg = out['DG Dispatch'].set_index('Unnamed: 0')
+        disp_pv = out['PV Dispatch'].set_index('Unnamed: 0')
+        feed_in = out['Fed-in Capacity'].set_index('Unnamed: 0')
+        unmet = out['Unmet Demand'].set_index('Unnamed: 0')
+        bat = out['Battery Output'].set_index('Unnamed: 0')
+        
+        weights_df = out['Summary'].set_index('Unnamed: 0')
+        weights = weights_df[0].loc['Day Weights'].split(',')
+        weights = [int(w) for w in weights]
+        
+        cap = out['Installed Capacities']
+        cap.set_index('Unnamed: 0', inplace=True)
+        
+        cap_dg = cap.loc['Diesel Generator'].mean()
+        cap_pv = cap.loc['Owned PV'].mean()
+        cap_bat = cap.loc['Owned Batteries'].mean()
+        
+        tot_dg_cap.append(cap_dg)
+        tot_pv_cap.append(cap_pv)
+        tot_bat_cap.append(cap_bat)
+        
+        year_d = []
+        for y in range(15):
+            tot_d_y = 0
+            for d in range(3):
+                tot_d_y += sum(demand.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_d.append(tot_d_y)
+        tot_d.append(sum(year_d) / 1e6)
+        
+        year_dg = []
+        for y in range(15):
+            tot_dg_y = 0
+            for d in range(3):
+                tot_dg_y += sum(disp_dg.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_dg.append(tot_dg_y)
+        tot_dg.append(sum(year_dg) / 1e6)
+        
+        year_pv = []
+        for y in range(15):
+            tot_pv_y = 0
+            for d in range(3):
+                tot_pv_y += sum(disp_pv.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_pv.append(tot_pv_y)
+        tot_pv.append(sum(year_pv) / 1e6)
+        
+        year_fed_in = []
+        for y in range(15):
+            tot_fed_in_y = 0
+            for d in range(3):
+                tot_fed_in_y += sum(feed_in.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_fed_in.append(tot_fed_in_y)
+        tot_fi.append(sum(year_fed_in) / 1e6)
+    
+        year_ud = []
+        for y in range(15):
+            tot_ud_y = 0
+            for d in range(3):
+                tot_ud_y += sum(unmet.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_ud.append(tot_ud_y)
+        tot_ud.append(sum(year_ud) / 1e6) 
+        
+        year_bat_out = []
+        for y in range(15):
+            tot_bat_out_y = 0
+            for d in range(3):
+                tot_bat_out_y += sum(bat.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_bat_out.append(tot_bat_out_y)
+        tot_bat.append(sum(year_bat_out) / 1e6)
+     
+    tot_dg_cap = np.array(tot_dg_cap)
+    tot_pv_cap = np.array(tot_pv_cap)
+    tot_bat_cap = np.array(tot_bat_cap)
+    
+    ax_c.bar(re_levels,
+            tot_dg_cap,
+            label = 'Disel Generator',
+            color = "#d14b4b", width = 0.02
+            )
+    
+    ax_c.bar(re_levels,
+           tot_pv_cap,
+           label = 'PV',
+           color = "#f9e395", width = 0.02,
+           bottom = tot_dg_cap)
+    
+
+    ax_c.bar(re_levels,
+           tot_bat_cap,
+           label = 'Batteries',
+           color = "#b1b1b1", width = 0.02,
+           bottom = tot_dg_cap + tot_pv_cap)
+    
+
+    ax_c.set_xlabel('RE target')
+    ax_c.set_ylabel('Average Installed Capacity (kW)')
+    ax_c.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
+              bbox_transform=fig_c.transFigure,
+              frameon=False)
+
+    fig_c.subplots_adjust(top=.85)
+    fig_c.savefig(new_plots_folder_cap)
+    plt.close(fig_c)
+
+    tot_dg = np.array(tot_dg)
+    tot_pv = np.array(tot_pv)
+    tot_fi = np.array(tot_fi)
+    tot_ud = np.array(tot_ud)
+    tot_bat = np.array(tot_bat)
+    tot_d = np.array(tot_d)
+    
+    ax_e.bar(re_levels,
+           tot_dg,
+           label = 'Dispatch from DG',
+           color = "#d14b4b", width = 0.04
+           )
+    
+    ax_e.bar(re_levels,
+           tot_pv,
+           label = 'Dispatch from PV',
+           color = "#f9e395", width = 0.04,
+           bottom = tot_dg)
+    
+    ax_e.bar(re_levels,
+           tot_fi,
+           label = 'Fed-in Capacity',
+           color = "#c2deaf",  width = 0.04,
+           bottom = tot_dg + tot_pv)
+    
+    ax_e.bar(re_levels,
+           tot_ud,
+           label = 'Unmet Demand',
+           color = "#f2b382", width = 0.04,
+           bottom = tot_dg + tot_pv + tot_fi)
+    
+    ax_e.bar(re_levels,
+           tot_bat,
+           label = 'Batteries',
+           color = "#b1b1b1", width = 0.04,
+           bottom = tot_dg + tot_pv + tot_fi + tot_ud)
+    
+    ax_e.plot(re_levels, tot_d * -1, color="#595755", label='Total Demand')
+    
+    ax_e.set_xlabel('RE target')
+    ax_e.set_ylabel('Energy (GWh)')
+    ax_e.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
+              bbox_transform=fig_e.transFigure,
+              frameon=False)
+
+    
+    fig_e.subplots_adjust(top=.85)
+    fig_e.savefig(new_plots_folder_ene)
+    plt.close(fig_e)
+    
+
+def min_v_act_RE(casePath):
+    
+    sns.set(font_scale=1.5)
+    new_plots_folder = os.path.join(casePath, 
+                                        'RE target.png')
+    fig, ax = plt.subplots()
+    
+    act_re = []
+    act_re_disp = []
+    tot_pv = []
+    tot_bat_out = []
+    tot_bat_in = []
+    tot_fi = []
+    tot_d = []
+    tot_dg = []
+    tot_ud = []
+    
+    re_levels = []
+    
+    eval_sum = pd.read_excel(os.path.join(casePath, 
+                                          'Grid Search',
+                                          'Evaluation Metrics.xlsx'))
+    eval_sum = eval_sum.sort_values(by='RE target')
+    for index, row in eval_sum.iterrows():
+        re_level = row['RE target']
+        re_levels.append(re_level)
+        re_level_s = str(int(re_level))
+        fit = row['FiT']
+        fit_s = str(int(fit * 100))
+        p = row['Price']
+        p_s = str(int(p * 100))
+        
+        out = pd.read_excel(os.path.join(casePath, 
+                                         'Grid Search',
+                                         'Output Files',
+                                         re_level_s,
+                                         f'Output_{fit_s}_{p_s}.xlsx'),
+                            sheet_name=None)
+
+        demand = out['Yearly demand'].set_index('Unnamed: 0')
+        disp_pv = out['PV Dispatch'].set_index('Unnamed: 0')
+        feed_in = out['Fed-in Capacity'].set_index('Unnamed: 0')
+        bat_out = out['Battery Output'].set_index('Unnamed: 0')
+        bat_in = out['Battery Input '].set_index('Unnamed: 0')
+        ud = out['Unmet Demand'].set_index('Unnamed: 0')
+        disp_dg = out['DG Dispatch'].set_index('Unnamed: 0')
+        
+        weights_df = out['Summary'].set_index('Unnamed: 0')
+        weights = weights_df[0].loc['Day Weights'].split(',')
+        weights = [int(w) for w in weights]
+
+        year_d = []
+        for y in range(15):
+            tot_d_y = 0
+            for d in range(3):
+                tot_d_y += sum(demand.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_d.append(tot_d_y)
+        tot_d.append(sum(year_d))
+        
+        year_dg = []
+        for y in range(15):
+            tot_dg_y = 0
+            for d in range(3):
+                tot_dg_y += sum(disp_dg.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_dg.append(tot_dg_y)
+        tot_dg.append(sum(year_dg))
+        
+        year_ud = []
+        for y in range(15):
+            tot_ud_y = 0
+            for d in range(3):
+                tot_ud_y += sum(ud.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_ud.append(tot_ud_y)
+        tot_ud.append(sum(year_ud))
+        
+        year_pv = []
+        for y in range(15):
+            tot_pv_y = 0
+            for d in range(3):
+                tot_pv_y += sum(disp_pv.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_pv.append(tot_pv_y)
+        tot_pv.append(sum(year_pv))
+        
+        year_fed_in = []
+        for y in range(15):
+            tot_fed_in_y = 0
+            for d in range(3):
+                tot_fed_in_y += sum(feed_in.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_fed_in.append(tot_fed_in_y)
+        tot_fi.append(sum(year_fed_in))
+        
+        year_bat_out = []
+        for y in range(15):
+            tot_bat_out_y = 0
+            for d in range(3):
+                tot_bat_out_y += sum(bat_out.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_bat_out.append(tot_bat_out_y)
+        tot_bat_out.append(sum(year_bat_out))
+        
+        year_bat_in = []
+        for y in range(15):
+            tot_bat_in_y = 0
+            for d in range(3):
+                tot_bat_in_y += sum(bat_in.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_bat_in.append(tot_bat_in_y)
+        tot_bat_in.append(sum(year_bat_in))
+        
+        act_re.append((sum(year_fed_in) + sum(year_pv)) / 
+                      (- sum(year_d) + sum(bat_in) - sum(bat_out)))
+        act_re_disp.append((sum(year_fed_in) + sum(year_pv)) / 
+                           (sum(year_fed_in) + sum(year_pv) + sum(year_dg)))
+     
+    ax.plot(re_levels,
+            act_re,
+            label = 'RE as % of demand',
+            linewidth=3)
+    ax.plot(re_levels,
+            act_re_disp,
+            label = 'RE as % of dispatch',
+            linewidth=3)
+    
+    ax.set_xlabel('RE target')
+    ax.set_ylabel('Actual RE')
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=2,
+              bbox_transform=fig.transFigure,
+              frameon=False)
+
+    fig.subplots_adjust(top=.85)
+    fig.savefig(new_plots_folder)
+    plt.close(fig)
 #------------------------------------------------------------------------------#    
 # Run the functions for the different cases                                    #
 #------------------------------------------------------------------------------#
@@ -1011,162 +1573,76 @@ gen_year(outFile_1, multi=0)
 rep_day(outFile_1, multi=0, year=10, day=1)
 inst_cap(outFile_1, multi=0)
 get_houses(outFile_1, multi=0)
-
+'''
 
 # Baseline
 outFile_1 = os.path.join(outFile, '1. Baseline')
-fit_v_price(outFile_1)
+
+#fit_v_price(outFile_1)
 
 outFile_1_1 = os.path.join(outFile_1, 'Grid Search')
 outFile_sum = os.path.join(cwd, 'Outputs')
 summary_path_1 = os.path.join(outFile_sum, '1. Baseline', 'Summary.xlsx')
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-
+'''
 for re_level in re_levels:
     surp_heatmap(outFile_1_1, re_level=re_level, max_fits=summary_path_1)
 '''
+#re_comp(outFile_1, comp=1)
+#re_sensitivity(outFile_1, re_levels)
+#min_v_act_RE(outFile_1)
 
+summary_df = pd.read_excel(os.path.join(outFile_1, 
+                                        'Grid Search',
+                                        'Evaluation Metrics.xlsx'))
+
+summary_df = summary_df.sort_values(by='RE target')
+for index, row in summary_df.iterrows():
+    re_level = row['RE target']
+    re_level_s = str(int(re_level))
+    fit = row['FiT']
+    fit_s = str(int(fit * 100))
+    p = row['Price']
+    p_s = str(int(p * 100))
+    
+    outName = f'Output_{fit_s}_{p_s}.xlsx'
+    outPath = os.path.join(outFile_1, 'Grid Search', 'Output Files', re_level_s, outName)
+    add_ret(outPath, 1)
+    inst_cap(outPath, 1)
+    gen_year(outPath, 1)
+
+'''
 # Budget
 outFile_2 = os.path.join(outFile, '2. Budget')
-budgets = np.arange(250000, 20000001, 250000)
-'''
+budgets = np.arange(100000, 2000001, 2000000)
+budgets = os.listdir(os.path.join(outFile_2, 'Sensitivity'))
+budgets = [int(float(b)) for b in budgets]
+budgets.sort()
+
 for budget in budgets:
-    fit_v_price(os.path.join(outFile_2, str(budget)))
-'''
-re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-for re_level in re_levels:
-    energy_v_budget(outFile_2, re_level)
-
-'''
-# With PV
-outFile_3 = os.path.join(outFile, '3. With PV', 'Output Files')
-re_levels = os.listdir(outFile_3)
-
-for re_level in re_levels:
-    files = os.listdir(os.path.join(outFile_3, re_level))
-    for file in files:
-        outFile_3_1 = os.path.join(outFile, '3. With PV', 'Output Files', re_level, file)
-        add_ret(outFile_3_1, multi=1)
-        gen_year(outFile_3_1, multi=1)
-        rep_day(outFile_3_1, multi=1, year=10, day=1)
-        inst_cap(outFile_3_1, multi=1)
-        get_houses(outFile_3_1, multi=1)
-
-outFile_3_2 = os.path.join(outFile, '3. With PV')
-fit_v_price(outFile_3_2)
-#fi_level(outFile_3_2)
-#unmet_demand(outFile_3_2)
-#wasted_surplus(outFile_3_2)
-
-# No PV with Batteries
-outFile_9 = os.path.join(outFile, '9. No PV w Bat', 'Output Files')
-re_levels = os.listdir(outFile_9)
-
-for re_level in re_levels:
-    files = os.listdir(os.path.join(outFile_9, re_level))
-
-    for file in files:
-        outFile_9_1 = os.path.join(outFile, '9. No PV w Bat', 'Output Files', re_level, file)
-        add_ret(outFile_9_1, multi=1)
-        gen_year(outFile_9_1, multi=1)
-        rep_day(outFile_9_1, multi=1, year=10, day=1)
-        inst_cap(outFile_9_1, multi=1)
-        get_houses(outFile_9_1, multi=1)
-'''
-outFile_9_2 = os.path.join(outFile, '9. No PV w Bat')
-#fit_v_price(outFile_9_2)
-#fi_level(outFile_2_2)
-#unmet_demand(outFile_2_2)
-#wasted_surplus(outFile_2_2)
-'''
-
-# Initial Solution with VHR
-outFile_4= os.path.join(outFile, '4. Initial Solution (Variable HR)', 'Output_0_40.xlsx')
-add_ret(outFile_4, multi=0)
-gen_year(outFile_4, multi=0)
-rep_day(outFile_4, multi=0, year=10, day=1)
-inst_cap(outFile_4, multi=0)
-get_houses(outFile_4, multi=0)
-
-# Base Case with VHR
-outFile_5 = os.path.join(outFile, '5. Base Case (Variable HR)', 'Output_0_40.xlsx')
-add_ret(outFile_5, multi=0)
-gen_year(outFile_5, multi=0)
-rep_day(outFile_5, multi=0, year=10, day=1)
-inst_cap(outFile_5, multi=0)
-get_houses(outFile_5, multi=0)
-
-
-outFile_8 = os.path.join(outFile, '8. Fixed RE')
-outFile_8_1 = os.path.join(outFile_8, 'With PV')
-outFile_8_2 = os.path.join(outFile_8, 'No PV')
-outFile_8_3 = os.path.join(outFile_8, 'No PV w Bat')
-summary_path_1 = os.path.join(outFile, '3. With PV', 'Summary.xlsx')
-summary_path_2 = os.path.join(outFile, '2. No PV', 'Summary.xlsx')
-summary_path_3 = os.path.join(outFile, '9. No PV w Bat', 'Summary.xlsx')
+    fit_v_price(os.path.join(outFile_2, 'Feasible Region', str(budget)))
 
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
 for re_level in re_levels:
-    #surp_heatmap(outFile_8_1, re_level=re_level, max_fits=summary_path_1)
-    #surp_heatmap(outFile_8_2, re_level=re_level, max_fits=summary_path_2)
-    #surp_heatmap(outFile_8_3, re_level=re_level, max_fits=summary_path_3)
-    re_level = str(int(re_level * 100))
-    filePath_1 = os.path.join(outFile_8_1, 'Output Files', re_level)
-    filePath_2 = os.path.join(outFile_8_2, 'Output Files', re_level)
-    filePath_3 = os.path.join(outFile_8_3, 'Output Files', re_level)
-    files_1 = os.listdir(filePath_1)
-    files_2 = os.listdir(filePath_2)
-    files_3 = os.listdir(filePath_3)
-
-    for file in files_1:
-        outFile_8_1_1 = os.path.join(filePath_8_1, file)
-        add_ret(outFile_8_1_1, multi=1)
-        gen_year(outFile_8_1_1, multi=1)
-        rep_day(outFile_8_1_1, multi=1, year=10, day=1)
-        inst_cap(outFile_8_1_1, multi=1)
-        get_houses(outFile_8_1_1, multi=1)
+    energy_sensitivity(outFile_2, 'budget', budgets, re_level)
+    capacity_sensitivity(outFile_2, 'budget', budgets, re_level)
+    p_FiT_sensitivity(outFile_2, budgets, re_level)
     
-    for file in files_2:
-        outFile_8_2_1 = os.path.join(filePath_8_2, file)
-        add_ret(outFile_8_2_1, multi=1)
-        gen_year(outFile_8_2_1, multi=1)
-        rep_day(outFile_8_2_1, multi=1, year=10, day=1)
-        inst_cap(outFile_8_2_1, multi=1)
-        get_houses(outFile_8_2_1, multi=1)
-        
-    for file in files_3:
-        outFile_8_3_1 = os.path.join(filePath_3, file)
-        add_ret(outFile_8_3_1, multi=1)
-        gen_year(outFile_8_3_1, multi=1)
-        rep_day(outFile_8_3_1, multi=1, year=10, day=1)
-        inst_cap(outFile_8_3_1, multi=1)
-        get_houses(outFile_8_3_1, multi=1)
- '''
+sensitivity_v_RE(outFile_2, 'budget')
 '''
-casePaths = [outFile_8_1, outFile_8_2, outFile_8_3]
-re_levels = [0, 10, 20, 30, 40, 50, 60]
-ud_comp(casePaths, re_levels)
-ws_comp(casePaths)
-re_comp(casePaths)
+'''
+# Interest
+outFile_3 = os.path.join(outFile, '3. Interest')
+interests = [5, 10]
 
-outFile_10 =  os.path.join(outFile, '10. Budget')
-budgets = os.listdir(os.path.join(outFile_10, 'Output Files'))
+for interest in interests:
+    fit_v_price(os.path.join(outFile_3, 'Feasible Region', str(interest)))
 
-for budget in budgets:
-    files = os.listdir(os.path.join(outFile_10, 'Output Files', budget))
+re_levels = [0, 0.1, 0.2, 0.3, 0.4]
+for re_level in re_levels:
+    energy_sensitivity(outFile_3, 'interest', interests, re_level)
+    capacity_sensitivity(outFile_3, 'interest', interests, re_level)
 
-    for file in files:
-        outFile_10_1 = os.path.join(outFile_10, 'Output Files', budget, file)
-        #add_ret(outFile_10_1, multi=1)
-        #gen_year(outFile_10_1, multi=1)
-        #rep_day(outFile_10_1, multi=1, year=10, day=1)
-        #inst_cap(outFile_10_1, multi=1)
-        #get_houses(outFile_10_1, multi=1)
-
-#fit_v_price(outFile_10, search='budget')
-budget_v_cap(outFile_10)
-
-outFile_11 =  os.path.join(outFile, '11. Interest rate')
-int_v_surp(outFile_11)
+sensitivity_v_RE(outFile_3, 'interest')
 '''
