@@ -359,9 +359,8 @@ def get_npv(casePath):
     plt.savefig(new_plots_folder, dpi=300, bbox_inches='tight')
     
     
-def fit_v_price(casePath, search='re'):
+def fit_v_price(casePath, search='re', keys=None):
     sns.set(font_scale=1)
-    global keys
     
     new_plots_folder = os.path.join(casePath, "FiTs v Prices.png")
     outFile = os.path.join(casePath, "Summary.xlsx")
@@ -372,16 +371,18 @@ def fit_v_price(casePath, search='re'):
               "#f2b382", "#f4d35e", "#85a4c4", "#c2deaf" ]
     i = 0
     show_infeasible_label = True
-    keys = list(out.keys())
-    if search == 're':
-        if len(keys) >= 7:
-            keys = keys[:7]
-            
-    elif search == 'budget':
-        if len(keys) > 7:
-            keys = [str(i) for i in range(500000, 2000001, 250000)]
-        elif len(keys) == 7:
-            keys = keys[:7]
+    
+    if keys == None:
+        keys = list(out.keys())
+        if search == 're':
+            if len(keys) >= 7:
+                keys = keys[:7]
+                
+        elif search == 'budget':
+            if len(keys) > 7:
+                keys = [str(i) for i in range(500000, 2000001, 250000)]
+            elif len(keys) == 7:
+                keys = keys[:7]
             
     for key in keys:
         out[key].set_index('Unnamed: 0', inplace=True)
@@ -398,6 +399,9 @@ def fit_v_price(casePath, search='re'):
                 marker='o', linestyle='-', color=colors[i], 
                 zorder=2 if show_infeasible_label else 1,
                 label=label)
+        ax.fill_between(prices[len(unfeas_fits) - 1 ::], 
+                        fits[len(unfeas_fits) - 1 ::],
+                        alpha=0.3, color=colors[i])
         ax.scatter(prices[len(unfeas_fits) -1 : len(unfeas_fits)], 
                    unfeas_fits[len(unfeas_fits) - 1 ::], 
                    marker='x', color='red', zorder=3, 
@@ -1578,7 +1582,7 @@ get_houses(outFile_1, multi=0)
 # Baseline
 outFile_1 = os.path.join(outFile, '1. Baseline')
 
-#fit_v_price(outFile_1)
+fit_v_price(outFile_1)
 
 outFile_1_1 = os.path.join(outFile_1, 'Grid Search')
 outFile_sum = os.path.join(cwd, 'Outputs')
@@ -1591,7 +1595,7 @@ for re_level in re_levels:
 #re_comp(outFile_1, comp=1)
 #re_sensitivity(outFile_1, re_levels)
 #min_v_act_RE(outFile_1)
-
+'''
 summary_df = pd.read_excel(os.path.join(outFile_1, 
                                         'Grid Search',
                                         'Evaluation Metrics.xlsx'))
@@ -1610,7 +1614,7 @@ for index, row in summary_df.iterrows():
     add_ret(outPath, 1)
     inst_cap(outPath, 1)
     gen_year(outPath, 1)
-
+'''
 '''
 # Budget
 outFile_2 = os.path.join(outFile, '2. Budget')
