@@ -31,7 +31,7 @@ def single_run(in_path, fit, elec_price, out_path,
 
 def multi_run(in_path, fits, elec_prices, out_path,
               md_level=0, ud_penalty=0, re_level=0, 
-              voll=0.7, total_budget=np.inf, index='re', interest=0.1):
+              voll=0.7, total_budget=np.inf, index='budget', interest=0.1):
     
     global model
     os.makedirs(out_path, exist_ok=True)
@@ -50,7 +50,7 @@ def multi_run(in_path, fits, elec_prices, out_path,
 
 def fit_search(in_path, out_path, prices,
                md_level=0, ud_penalty=0, re_level=0, voll=0.7,
-               total_budget=np.inf, search='re', interest=0.1):
+               total_budget=np.inf, search='budget', interest=0.1):
     
     os.makedirs(out_path, exist_ok=True)
     index = search
@@ -109,11 +109,7 @@ def fit_search(in_path, out_path, prices,
     except FileNotFoundError:
         fits = []
         objs = []
-    
-    '''
-    fits = []
-    objs = []
-    '''
+
     for el_price in prices[len(fits)::]:
         # Check if there is a positive solution
         fit = 0
@@ -301,6 +297,7 @@ def fit_search(in_path, out_path, prices,
                                     mode='w', engine='openpyxl') as writer:
                     if index == 're':
                         summary.to_excel(writer, sheet_name=str(re_level))
+                        
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
@@ -322,18 +319,9 @@ in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '0. Current Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
            total_budget=np.inf)
-
-# Current Case with Variable Heat Rate
-in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '0. Current Case (VHR)')
-single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
-           total_budget=np.inf)
 '''
-'''
-# Baseline Model
-in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '1. Baseline')
 
+# Current budget
 current_path = os.path.join(cwd, 
                             'Outputs', 
                             '0. Current Case', 
@@ -346,70 +334,41 @@ current_budget = 0
 for y in range(len(current_cfs.columns)):
     capex_y = current_cfs.loc['Total Capital Costs'][y]
     current_budget += capex_y * (1 / (1 + interest) ** y)
-    
 
-re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-prices = np.arange(0, 40, 0.01)
-prices_gs = np.arange(0, 0.39, 0.01)
+# Baseline Model
+in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
+out_path = os.path.join(cwd, 'Outputs', '1. Baseline')
+
+#   Creating Bugdet Range
+budgets = np.arange(250000, 2000001, 250000)
+budgets = budgets.tolist()
+budgets.insert(current_budget % 1e5 * 1e5)
+budgets.remove(500000)
+
+
+prices = np.arange(0, 0.41, 0.01)
+prices_gs = np.arange(0, 0.41, 0.01)
 fits = np.arange(0, 0.26, 0.01)
 
 out_path_gs = os.path.join(cwd, 'Outputs', '1. Baseline', 'Grid Search')
 
-for re_level in re_levels:
-    fit_search(in_path, out_path, prices, re_level=re_level,
-               total_budget=current_budget)
+for budget in budgets:
+    fit_search(in_path, out_path, prices, re_level=0,
+               total_budget=budget, search='budget')
     multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
-              out_path=out_path_gs, re_level=re_level, 
-              total_budget=current_budget)
+              out_path=out_path_gs, re_level=0, 
+              total_budget=budget)
 
 summary_path_1 = os.path.join(outFile_sum, '1. Baseline', 'Summary.xlsx')
 func.eval_summary(os.path.join(cwd, 'Outputs', '1. Baseline', 
                                'Grid Search', 'Output Files'),
                   max_fits = summary_path_1)
-'''
 
-# Baseline Model with Variable Heat Rate
-in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '1. Baseline (VHR)')
 
-current_path = os.path.join(cwd, 
-                            'Outputs', 
-                            '0. Current Case (VHR)', 
-                            'Output_0_40.xlsx')
-current_df = pd.read_excel(current_path, sheet_name=None)
-current_cfs = current_df['Costs and Revenues'].set_index('Unnamed: 0')
-interest = current_df['Summary'].set_index('Unnamed: 0').loc['Interest Rate'][0]
-
-current_budget = 0
-for y in range(len(current_cfs.columns)):
-    capex_y = current_cfs.loc['Total Capital Costs'][y]
-    current_budget += capex_y * (1 / (1 + interest) ** y)
-
-opt_path = os.path.join(cwd,
-                        'Outputs',
-                        '1. Baseline',
-                        'Grid Search',
-                        'Evaluation Metrics.xlsx')
-opt_df = pd.read_excel(opt_path)
-opt_df.sort_values(by='RE target')
-
-for index, row in opt_df.iterrows():
-    re_level = row['RE target']
-    fit_b = opt_df['FiT'].loc[index]
-    fits = [round(fit_b, 2)]
-    p_b = round(opt_df['Price'].loc[index], 2)
-    prices = [round(p_b, 2)]
-    
-    multi_run(in_path=in_path, fits=fits, elec_prices=prices, 
-              out_path=out_path, re_level=re_level, 
-              total_budget=current_budget)
-
-'''
-# Budget Sensitivity
+# RE Sensitivity
 in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '2. Budget')
 
-budgets = np.arange(250000, 2000001, 250000)
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 prices = np.arange(0, 0.40, 0.01)
 prices_gs = np.arange(0, 0.3, 0.01)
@@ -422,176 +381,15 @@ for budget in budgets:
 
     for re_level in re_levels:
         fit_search(in_path, out_path_fr, prices, re_level=re_level,
-                   total_budget=budget)
+                   total_budget=budget, search='re')
         multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
                   out_path=out_path_gs, re_level=re_level, 
-                  total_budget=budget)
+                  total_budget=budget, index='re')
 
-for budget in range(250000, 1250001, 250000):
+for budget in budgets:
     summary_path_2_b = os.path.join(outFile_sum, '2. Budget', 'Feasible Region',
                                     str(budget), 'Summary.xlsx')
     
     func.eval_summary(os.path.join(cwd, 'Outputs', '2. Budget',
                                    'Sensitivity', str(budget), 'Output Files'),
                       max_fits = summary_path_2_b)
-
-   
-
-# Interest Sensitivity
-in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '3. Interest')
-
-interests = [0.05, 0.1, 0.15, 0.2]
-re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-prices = np.arange(0, 0.40, 0.01)
-prices_gs = np.arange(0.25, 0.40, 0.01)
-fits = np.arange(0, 0.3, 0.01)
-
-for interest in interests:
-    out_path_gs = os.path.join(out_path, 'Sensitivity', 
-                               str(int(interest * 100)))
-    out_path_fr = os.path.join(out_path, 'Feasible Region', 
-                               str(int(interest * 100)))
-    for re_level in re_levels:
-        
-        fit_search(in_path, out_path_fr, prices, re_level=re_level,
-                   total_budget=current_budget, interest=interest)
-        
-        
-        multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
-                  out_path=out_path_gs, re_level=re_level, 
-                  total_budget=current_budget, interest=interest)
-        
-        
-
-    summary_path_3_b = os.path.join(outFile_sum, '3. Interest', 'Feasible Region',
-                                    str(int(interest * 100)), 'Summary.xlsx')
-
-    func.eval_summary(os.path.join(cwd, 'Outputs', '3. Interest',
-                                       'Sensitivity', str(int(interest * 100)),
-                                       'Output Files'),
-                          max_fits = summary_path_3_b)
-    
-'''
-'''
-re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-
-# FiT search with no PV
-prices = np.arange(0, 0.5, 0.01)
-for re_level in re_levels:
-    in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noPV.xlsx')
-    out_path = os.path.join(cwd, 'Outputs', '2. No PV')
-    fit_search(in_path, out_path, prices, re_level=re_level)
-
-# FiT search with PV
-prices = np.arange(0, 0.5, 0.01)
-for re_level in re_levels:
-    in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
-    out_path = os.path.join(cwd, 'Outputs', '3. With PV')
-    fit_search(in_path, out_path, prices, re_level=re_level)
-
-# FiT search with no PV but with Batteries
-prices = np.arange(0, 0.5, 0.01)
-for re_level in re_levels:
-    in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noPV_wBat.xlsx')
-    out_path = os.path.join(cwd, 'Outputs', '9. No PV w Bat')
-    fit_search(in_path, out_path, prices, re_level=re_level)
-
-
-# Fixed RE
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noPV.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'No PV')
-fits = np.arange(0, 0.3, 0.02)
-elec_prices = np.arange(0.35, 0.49, 0.01)
-re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-
-for re_level in re_levels:
-    multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
-              out_path=out_path, re_level=re_level)
-
-for re_level in re_levels:
-    re_path = os.path.join(out_path, 'Output Files', str(int(re_level * 100)))
-    files = os.listdir(re_path)
-    for file in files:
-        func.change_excel(os.path.join(re_path, file))
-
-func.eval_summary(os.path.join(out_path, 'Output Files'), 
-                  day_weights, max_fits = summary_path_2)   
-
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'With PV')
-fits = np.arange(0, 0.07, 0.01)
-elec_prices = np.arange(0.27, 0.32, 0.01)
-re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-
-for re_level in re_levels:
-    multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
-              out_path=out_path, re_level=re_level)
-
-for re_level in re_levels:
-    re_path = os.path.join(out_path, 'Output Files', str(int(re_level * 100)))
-    files = os.listdir(re_path)
-    for file in files:
-        func.change_excel(os.path.join(re_path, file))
-
-func.eval_summary(os.path.join(out_path, 'Output Files'), 
-                  day_weights, max_fits = summary_path_1)   
-
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas_noPV_wBat.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '8. Fixed RE', 'No PV w Bat')
-
-fits = np.arange(0, 0.31, 0.02)
-elec_prices = np.arange(0.29, 0.46, 0.02)
-re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-
-
-for re_level in re_levels:
-    multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
-              out_path=out_path, re_level=re_level)
-
-for re_level in re_levels:
-    re_path = os.path.join(out_path, 'Output Files', str(int(re_level * 100)))
-    files = os.listdir(re_path)
-    for file in files:
-        func.change_excel(os.path.join(re_path, file))
-
-func.eval_summary(os.path.join(out_path, 'Output Files'),
-                  day_weights, max_fits = summary_path_3)   
-
-
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '10. Budget')
-
-prices = np.arange(0.29, 0.4, 0.05)
-re_level = 0.2
-budgets = np.arange(700000, 10000001, 50000)
-
-for budget in budgets:
-    b_path =  os.path.join(out_path, 'Output Files', str(int(budget)))
-    fit_search(in_path, out_path, prices, re_level=re_level,
-               total_budget=budget, search='budget') 
-    single_run(in_path=in_path, fit=0.03, elec_price=0.3, 
-               re_level = re_level, total_budget = budget,
-               out_path=b_path)
-
-# Interest rate
-interests = [0, 0.1, 0.2, 0.3, 0.4]
-re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-
-in_path = os.path.join(cwd, 'Inputs', 'model_inputs_inelas.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '11. Interest rate')
-fits = np.arange(0, 0.3, 0.02)
-elec_prices = np.arange(0.35, 0.49, 0.01)
-
-for re_level in re_levels:
-    for interest in interests:
-        out_path_re = os.path.join(out_path, str(int(re_level * 100)))
-        fit_search(in_path, out_path_re, elec_prices, re_level=re_level, 
-                   search='i', total_budget=700000, interest=interest) 
-        multi_run(in_path=in_path, fits=fits, elec_prices=elec_prices, 
-                  out_path=out_path_re, re_level=re_level, interest=interest, 
-                  index='i', total_budget=700000)
-        
-    func.eval_summary(os.path.join(out_path_re, 'Output Files'), 
-                      day_weights)
-'''

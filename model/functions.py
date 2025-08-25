@@ -371,30 +371,43 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
         ud.to_excel(writer, sheet_name='Unmet Demand')
         house_surplus.to_excel(writer, sheet_name='Household Surplus')
 
-def eval_summary(outPath, years = 15, days = 3, max_fits=None):
-    metrics = pd.DataFrame(columns = ['RE target', 'FiT', 'Price', 
+def eval_summary(outPath, years = 15, max_fits=None, index='budget'):
+    
+    assert (index == 'budget'
+            or index == 're'
+            or index == 'i'), "Wrong index type"
+    
+    labels = {'budget': 'Budget',
+              're': 'RE target',
+              'i':'Interest'}
+    metrics = pd.DataFrame(columns = [labels[index], 'FiT', 'Price', 
                                       'Unmet Demand', 'Wasted Surplus',
                                       'Household Surplus'])
-    metrics.set_index('RE target', inplace=True)
+    metrics.set_index(labels[index], inplace=True)
     
     if max_fits != None:
         max_fits_df = pd.read_excel(max_fits, sheet_name=None)
         
-    re_levels = os.listdir(outPath)
+    indices = os.listdir(outPath)
     
-    for re_level in re_levels:
+    for i in indices:
         
-        if re_level == '0' and max_fits != None:
-            max_fits_re = max_fits_df[re_level]
+        if i == '0' and max_fits != None:
+            max_fits_re = max_fits_df[i]
+            max_fits_re.set_index('Unnamed: 0', inplace=True)
+            row = max_fits_re.loc['Prices']
+            
+        elif max_fits != None and index == 're':
+            max_fits_re = max_fits_df[str(round(float(i) / 100 , 1))]
             max_fits_re.set_index('Unnamed: 0', inplace=True)
             row = max_fits_re.loc['Prices']
             
         elif max_fits != None:
-            max_fits_re = max_fits_df[str(round(float(re_level) / 100 , 1))]
+            max_fits_re = max_fits_df[i]
             max_fits_re.set_index('Unnamed: 0', inplace=True)
-            row = max_fits_re.loc['Prices']
+            row = max_fits_re.loc['Prices'] 
         
-        files = os.listdir(os.path.join(outPath, re_level))
+        files = os.listdir(os.path.join(outPath, i))
         
         waste_perc = np.nan
         ud_perc = np.nan
@@ -419,12 +432,13 @@ def eval_summary(outPath, years = 15, days = 3, max_fits=None):
                 print(f'{price} not in summary')
                 
             if fit < max_fit or max_fit == np.nan:
-                outFile = os.path.join(outPath, re_level, file)
+                outFile = os.path.join(outPath, i, file)
                 summary = pd.read_excel(outFile, sheet_name = None)
                 summary['Summary'].set_index('Unnamed: 0', inplace = True)
                 surp = summary['Summary'].loc["Household Surplus"][0]
                 day_weights = summary['Summary'].loc['Day Weights'][0]
                 day_weights = [int(d) for d in day_weights.split(',')]
+                days = len(day_weights)
                 
                 if surp >= best_surp:
                     waste = summary['Summary'].loc["Wasted Prosumer Surplus"][0]
