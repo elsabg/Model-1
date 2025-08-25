@@ -33,6 +33,7 @@ def multi_run(in_path, fits, elec_prices, out_path,
               md_level=0, ud_penalty=0, re_level=0, 
               voll=0.7, total_budget=np.inf, index='re', interest=0.1):
     
+    global model
     os.makedirs(out_path, exist_ok=True)
     
     for elec_price in elec_prices:
