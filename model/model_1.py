@@ -146,7 +146,8 @@ class Model_1:
 
 
     def solve(self, fit, elec_price, md_level, ud_penalty, re_level=0, 
-              voll=0.7, total_budget=np.inf, interest=0.1, interest_re=0.04):
+              voll=0.7, total_budget=np.inf, interest=0.1, interest_re=0.04,
+              re_start=0):
         'Create and solve the model'
 
         self.fit = fit
@@ -158,6 +159,7 @@ class Model_1:
         self.total_budget = total_budget
         self.i = interest
         self.i_re = interest_re
+        self.re_start = re_start
 
         m = Model('Model_1')
 
@@ -390,7 +392,7 @@ class Model_1:
                                 for d in range(self.days)
                                 for h in range(self.hours)))
                        * self.re_level * self.RE_max)
-                      for y in range(self.years)
+                      for y in range(re_start, self.years)
                       ),
                      name='Min Renewable Energy'
                      )
