@@ -379,13 +379,15 @@ def fit_v_price(casePath, search='re', keys=None):
                 keys = keys[:7]
                 
         elif search == 'budget':
-            if len(keys) > 7:
-                keys = [str(i) for i in range(500000, 2000001, 250000)]
-            elif len(keys) == 7:
+            if len(keys) >= 7:
                 keys = keys[:7]
-            
+                
     for key in keys:
-        out[key].set_index('Unnamed: 0', inplace=True)
+        try:
+            out[key].set_index('Unnamed: 0', inplace=True)
+        except KeyError:
+            key = str(key)
+            out[key].set_index('Unnamed: 0', inplace=True)
         fits = out[key].loc['Feed-in Tariffs'].to_list()
         unfeas_fits = [fit for fit in fits if fit == 0]
         prices = out[key].loc['Prices'].to_list()
@@ -393,12 +395,12 @@ def fit_v_price(casePath, search='re', keys=None):
         if search == 're':
             label = f'{int(float(key) * 100)}%'
         elif search == 'budget':
-            label = f'USD {float(key)/ 10e6} M'
+            label = f'USD {float(key)/ 1e6} M'
             
         ax.plot(prices[len(unfeas_fits) - 1 ::], fits[len(unfeas_fits) - 1 ::], 
                 marker='o', linestyle='-', color=colors[i], 
                 zorder=2 if show_infeasible_label else 1,
-                label=label)
+                label=label if key!='400000' else f'{label}*' )
         ax.fill_between(prices[len(unfeas_fits) - 1 ::], 
                         fits[len(unfeas_fits) - 1 ::],
                         alpha=0.3, color=colors[i])
@@ -409,7 +411,8 @@ def fit_v_price(casePath, search='re', keys=None):
         i+=1
         show_infeasible_label = False
     
-    plt.axvline(x=0.4, color='gray', linestyle='--', linewidth=1)
+    plt.axvline(x=0.4, color='gray', linestyle='--', linewidth=1,
+                label= "Current price")
     
     ax.set_xlabel('Price in USD')
     ax.set_ylabel('Maximum Feed-in Tariff in USD')
@@ -420,13 +423,13 @@ def fit_v_price(casePath, search='re', keys=None):
                   ncol=4,
                   frameon=False)
     elif search == 'budget':
-        ax.legend(title = 'Maximum Disocunted Budget',
+        ax.legend(title = 'Maximum Discounted Budget',
                   loc='upper center',
                   bbox_to_anchor=(0.5, 1.25),
                   ncol=4,
                   frameon=False)
     
-    ax.set_xticks(np.arange(0.25, 0.48, 0.02))
+    ax.set_xticks(np.arange(0.25, 0.41, 0.02))
     
     sns.set_style("whitegrid")
     
@@ -437,12 +440,22 @@ def fit_v_price(casePath, search='re', keys=None):
     plt.close()
     
     
-def surp_heatmap(casePath, re_level, max_fits=None): # summary file
+def surp_heatmap(casePath, key, index = 're', max_fits=None, lb=0): # summary file
     
+    global data
+    global files
     sns.set(font_scale=1.3)
+    assert (index == 're'
+            or index == 'budget'
+            or index == 'interest')
     
-    new_plots_folder = os.path.join(casePath, f"Surplus heatmap {re_level}.png")
-    filesPath = os.path.join(casePath, 'Output Files', str(int(re_level * 100)))
+    new_plots_folder = os.path.join(casePath, f"Surplus heatmap {key}.png")
+    
+    if index == 're':
+        endFile = str(int(key * 100))
+    else:
+        endFile = str(key)
+    filesPath = os.path.join(casePath, 'Output Files', endFile)
     files = os.listdir(filesPath)
     
     data = {'Prices ($)': [],
@@ -451,13 +464,14 @@ def surp_heatmap(casePath, re_level, max_fits=None): # summary file
     
     for file in files:
         price = int(file.split('_')[2].split('.')[0]) / 100
-        data['Prices ($)'].append(price)
         fit = int(file.split('_')[1]) / 100
-        data['FiTs ($)'].append(fit)
+        if price > lb:
+            data['Prices ($)'].append(price)
+            data['FiTs ($)'].append(fit)
+            out = pd.read_excel(os.path.join(filesPath, file), sheet_name='Summary')
+            out.set_index("Unnamed: 0", inplace=True)
+            data['Surpluses'].append(out.loc["Household Surplus"][0])
 
-        out = pd.read_excel(os.path.join(filesPath, file), sheet_name='Summary')
-        out.set_index("Unnamed: 0", inplace=True)
-        data['Surpluses'].append(out.loc["Household Surplus"][0])
     
     price_index = list(dict.fromkeys(data['Prices ($)']))
     price_index.sort()
@@ -471,7 +485,7 @@ def surp_heatmap(casePath, re_level, max_fits=None): # summary file
                             values='Surpluses')
     
     if max_fits != None:
-        max_fits = pd.read_excel(max_fits, sheet_name = str(re_level))
+        max_fits = pd.read_excel(max_fits, sheet_name = str(key))
         max_fits.set_index("Unnamed: 0", inplace=True)
         mask = np.zeros_like(heatmap_data, dtype=bool)
         for i, price in enumerate(price_index):
@@ -486,11 +500,11 @@ def surp_heatmap(casePath, re_level, max_fits=None): # summary file
                     if fit > max_fit or max_fit == "Nan" or max_fit == 0:
                         mask[j, i] = True
             except IndexError:
-                print(f're_level={re_level}, price={price}')
+                print(f'{index} key={key}, price={price}')
                 
     plt.figure(figsize=(8, 6))
     
-    sns.heatmap(heatmap_data / 1000000, fmt=".1f", 
+    sns.heatmap(heatmap_data / 1e6, fmt=".1f", 
                 cmap="YlGnBu", cbar_kws={'label': 'Surplus value (M $)'},
                 mask=mask, annot=False)
     
@@ -1568,7 +1582,7 @@ def min_v_act_RE(casePath):
 #------------------------------------------------------------------------------#
 
 cwd = os.getcwd()
-outFile = os.path.join(cwd, "Outputs")
+outFile = os.path.join(cwd, "Output_Budget")
 '''
 # Current Case
 outFile_0 = os.path.join(outFile, '0. Current Case', 'Output_0_40.xlsx')
@@ -1582,16 +1596,18 @@ get_houses(outFile_1, multi=0)
 # Baseline
 outFile_1 = os.path.join(outFile, '1. Baseline')
 
-fit_v_price(outFile_1)
+keys = [250000, 400000, 750000, 1000000, 1500000, 2000000]
+#fit_v_price(outFile_1, search='budget', keys=keys)
 
 outFile_1_1 = os.path.join(outFile_1, 'Grid Search')
-outFile_sum = os.path.join(cwd, 'Outputs')
+outFile_sum = os.path.join(cwd, 'Output_Budget')
 summary_path_1 = os.path.join(outFile_sum, '1. Baseline', 'Summary.xlsx')
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-'''
-for re_level in re_levels:
-    surp_heatmap(outFile_1_1, re_level=re_level, max_fits=summary_path_1)
-'''
+
+for re_level in keys:
+    surp_heatmap(outFile_1_1, index='budget', key=re_level, 
+                 max_fits=summary_path_1, lb=0.25)
+
 #re_comp(outFile_1, comp=1)
 #re_sensitivity(outFile_1, re_levels)
 #min_v_act_RE(outFile_1)

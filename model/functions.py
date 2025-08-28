@@ -470,7 +470,7 @@ def eval_summary(outPath, years = 15, max_fits=None, index='budget'):
         
         if best_surp == 0:
             best_surp = np.nan
-        metrics.loc[re_level] = [best_fit, best_el_price, ud_perc,
+        metrics.loc[i] = [best_fit, best_el_price, ud_perc,
                                  waste_perc, best_surp]
                     
     outFile = os.path.join(outPath, '..', 'Evaluation Metrics.xlsx')

@@ -342,7 +342,7 @@ out_path = os.path.join(cwd, 'Outputs', '1. Baseline')
 #   Creating Bugdet Range
 budgets = np.arange(250000, 2000001, 250000)
 budgets = budgets.tolist()
-budgets.insert(current_budget % 1e5 * 1e5)
+budgets.insert(1, int(current_budget // 1e5 * 1e5))
 budgets.remove(500000)
 
 
