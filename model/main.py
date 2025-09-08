@@ -50,7 +50,7 @@ def multi_run(in_path, fits, elec_prices, out_path,
             func.output_data(model, 2)
             func.to_xlsx(model, round(fit * 100), round(elec_price * 100), 
                          out_path, 1, index)    
-
+            print(f'Save to: {out_path}')
 def fit_search(in_path, out_path, prices,
                md_level=0, ud_penalty=0, re_level=0, voll=0.7,
                total_budget=np.inf, search='budget', interest=0.1,
@@ -354,25 +354,25 @@ budgets.insert(1, int(current_budget // 1e5 * 1e5))
 budgets.remove(500000)
 
 
-prices = np.arange(0, 0.41, 0.01)
-prices_gs = np.arange(0, 0.41, 0.01)
+prices = np.arange(0, 0.46, 0.01)
+prices_gs = np.arange(0, 0.46, 0.01)
 fits = np.arange(0, 0.26, 0.01)
 
-out_path_gs = os.path.join(cwd, 'Outputs', '1. Baseline', 'Grid Search')
+out_path_gs = os.path.join(cwd, 'Output_Budgets', '1. Baseline', 'Grid Search')
 
-for budget in budgets:
-    fit_search(in_path, out_path, prices, re_level=0,
-               total_budget=budget, search='budget')
-    multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
-              out_path=out_path_gs, re_level=0, 
-              total_budget=budget)
+# for budget in budgets:
+#     fit_search(in_path, out_path, prices, re_level=0,
+#                total_budget=budget, search='budget')
+#     multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
+#               out_path=out_path_gs, re_level=0, 
+#               total_budget=budget)
 
 summary_path_1 = os.path.join(outFile_sum, '1. Baseline', 'Summary.xlsx')
 func.eval_summary(os.path.join(cwd, 'Outputs', '1. Baseline', 
                                'Grid Search', 'Output Files'),
                   max_fits = summary_path_1)
 
-
+'''
 # RE Sensitivity
 in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '2. Budget')
@@ -401,3 +401,27 @@ for budget in budgets:
     func.eval_summary(os.path.join(cwd, 'Outputs', '2. Budget',
                                    'Sensitivity', str(budget), 'Output Files'),
                       max_fits = summary_path_2_b)
+
+# Stepped RE
+in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
+out_path = os.path.join(cwd, 'Outputs', '2. Stepped RE')
+
+re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+prices = np.arange(0, 0.4, 0.01)
+prices_gs = np.arange(0, 0.4, 0.01)
+fits = np.arange(0, 0.26, 0.01)
+
+out_path_gs = os.path.join(cwd, 'Outputs', '2. Stepped RE', 'Grid Search')
+
+for re_level in re_levels:
+    #fit_search(in_path, out_path, prices, re_level=re_level,
+    #           total_budget=current_budget, re_start=3, search='re')
+    multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
+              out_path=out_path_gs, re_level=re_level, 
+              total_budget=current_budget, re_start=3, index='re')
+
+summary_path_1 = os.path.join(outFile_sum, '2. Stepped RE', 'Summary.xlsx')
+func.eval_summary(os.path.join(cwd, 'Outputs', '2. Stepped RE', 
+                               'Grid Search', 'Output Files', index='re'),
+                  max_fits = summary_path_1)
+'''

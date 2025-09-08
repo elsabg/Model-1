@@ -14,6 +14,7 @@ import matplotlib.patches as mpatches
 from scipy.interpolate import griddata
 import seaborn as sns
 from matplotlib.lines import Line2D
+from matplotlib.colors import ListedColormap, BoundaryNorm
 
 import os
 
@@ -414,19 +415,19 @@ def fit_v_price(casePath, search='re', keys=None):
     plt.axvline(x=0.4, color='gray', linestyle='--', linewidth=1,
                 label= "Current price")
     
-    ax.set_xlabel('Price in USD')
-    ax.set_ylabel('Maximum Feed-in Tariff in USD')
+    ax.set_xlabel('Price (USD)')
+    ax.set_ylabel('Maximum Feed-in Tariff (USD)')
     if search == 're':
         ax.legend(title = 'Minimum Renewable Energy Generation Target',
                   loc='upper center',
                   bbox_to_anchor=(0.5, 1.25),
-                  ncol=4,
+                  ncol=3,
                   frameon=False)
     elif search == 'budget':
-        ax.legend(title = 'Maximum Discounted Budget',
+        ax.legend(title = 'Budget Available (USD)',
                   loc='upper center',
                   bbox_to_anchor=(0.5, 1.25),
-                  ncol=4,
+                  ncol=3,
                   frameon=False)
     
     ax.set_xticks(np.arange(0.25, 0.41, 0.02))
@@ -461,7 +462,7 @@ def surp_heatmap(casePath, key, index = 're', max_fits=None, lb=0): # summary fi
     data = {'Prices ($)': [],
             'FiTs ($)': [],
             'Surpluses': []}
-    
+
     for file in files:
         price = int(file.split('_')[2].split('.')[0]) / 100
         fit = int(file.split('_')[1]) / 100
@@ -480,35 +481,61 @@ def surp_heatmap(casePath, key, index = 're', max_fits=None, lb=0): # summary fi
     
     df = pd.DataFrame(data)
     
-    heatmap_data = df.pivot(index='FiTs ($)', 
-                            columns='Prices ($)', 
-                            values='Surpluses')
     
-    if max_fits != None:
+    heatmap_data = df.pivot_table(index='FiTs ($)', 
+                                  columns='Prices ($)', 
+                                  values='Surpluses')
+    
+    mask = np.zeros_like(heatmap_data, dtype=bool)
+    
+    if max_fits is not None:
         max_fits = pd.read_excel(max_fits, sheet_name = str(key))
         max_fits.set_index("Unnamed: 0", inplace=True)
-        mask = np.zeros_like(heatmap_data, dtype=bool)
+        
         for i, price in enumerate(price_index):
             row = max_fits.loc['Prices']
-            global price_col
             price_col = row[row == price].index.tolist()
-            global max_fit
+            
             try:
                 max_fit = max_fits[price_col[0]]['Feed-in Tariffs']
                 max_fit = round(max_fit, 2)
                 for j, fit in enumerate(fit_index):
-                    if fit > max_fit or max_fit == "Nan" or max_fit == 0:
+                    if fit > max_fit or max_fit == np.nan or max_fit == 0:
                         mask[j, i] = True
+                        
             except IndexError:
                 print(f'{index} key={key}, price={price}')
-                
-    plt.figure(figsize=(8, 6))
     
-    sns.heatmap(heatmap_data / 1e6, fmt=".1f", 
-                cmap="YlGnBu", cbar_kws={'label': 'Surplus value (M $)'},
-                mask=mask, annot=False)
+    def categorize(val):
+        if val < 7 * 1e6:
+            return 0  
+        elif 7 * 1e6 <= val <= 8.5 * 1e6:
+            return 1  
+        else:
+            return 2  
+
+    heatmap_cat = heatmap_data.applymap(categorize)
+        
+    plt.figure(figsize=(8, 6))
+
+    
+    cmap = ListedColormap(["#fcdbc3", "#64b985", "#2f847e"])
+    bounds = [-0.5, 0.5, 1.5, 2.5]
+    norm = BoundaryNorm(bounds, cmap.N)
+    
+    ax = sns.heatmap(heatmap_cat, fmt=".1f", 
+                     cmap=cmap, 
+                     cbar_kws={'label': 'Household Economic Surplus (M USD)',
+                               'ticks':[0,1,2]},
+                     mask=mask, annot=False,
+                     norm=norm)
+    
+    colorbar = ax.collections[0].colorbar
+    colorbar.set_ticklabels(["<7", "7–8.5", ">8.5"])
     
     plt.gca().invert_yaxis()
+    plt.xlabel("Prices (USD)")
+    plt.ylabel("FiTs (USD)")
     plt.tight_layout()
     plt.savefig(new_plots_folder)
     plt.close()
@@ -672,23 +699,23 @@ def ws_comp(casePaths, re_levels):
               bbox_to_anchor=(0.5, 1.23),
               ncol=4,
               frameon=False)
-    plt.subplots_adjust(top=.85) 
-    plt.subplots_adjust(bottom = .13)
+    #plt.subplots_adjust(top=.85) 
+    #plt.subplots_adjust(bottom = .13)
     
     plt.yticks(np.arange(0, 81, 20))
     
     plt.savefig(new_plots_folder)
     plt.close()
     
-def re_comp(casePath, comp=None):
+def re_comp(casePath, index='re', comp=None):
     
-    sns.set(font_scale=1.5)
+    sns.set(font_scale=1.1)
     
-    new_plots_folder_ud = os.path.join(casePath, 'UD+WS+RE comparison.png')
-    new_plots_folder_hs = os.path.join(casePath, 'HS+RE comparison.png')
-    new_plots_folder_pf = os.path.join(casePath, 'P+FiT+RE comparison.png')
+    new_plots_folder_ud = os.path.join(casePath, f'UD+WS+{index} comparison.png')
+    new_plots_folder_hs = os.path.join(casePath, f'HS+{index} comparison.png')
+    new_plots_folder_pf = os.path.join(casePath, f'P+FiT+{index} comparison.png')
     
-    fig_ud, ax_ud = plt.subplots(figsize=(16, 6))
+    fig_ud, ax_ud = plt.subplots(figsize=(10, 6))
     fig_hs, ax_hs = plt.subplots()
     fig_pf, ax_pf = plt.subplots()
 
@@ -705,39 +732,56 @@ def re_comp(casePath, comp=None):
                                           'Grid Search',
                                           'Evaluation Metrics.xlsx'))
     
-    eval_sum = eval_sum.sort_values(by='RE target')
+    indices = {'re': 'RE target',
+               'budget': 'Budget'}
+    eval_sum = eval_sum.sort_values(by=indices[index])
     
     # Plot
-    x = np.array(eval_sum['RE target'])
-    width = 3
-
-    ax_ud.bar(x - width/2, eval_sum['Unmet Demand'] * 100,
+    if index == 'budget':
+        width = 0.1
+        x = np.array(eval_sum[indices[index]]) / 1e6
+        x = np.delete(x, 1)
+        y_ud = np.array(eval_sum['Unmet Demand'].drop(1)) * 100
+        y_ws = np.array(eval_sum['Wasted Surplus'].drop(1)) * 100
+        y_hs = np.array(eval_sum['Household Surplus'].drop(1)) / 1e6
+        y_p = np.array(eval_sum['Price'].drop(1))
+        y_fit = np.array(eval_sum['FiT'].drop(1))
+    else:
+        width = 3
+        x = np.array(eval_sum[indices[index]])
+        y_ud = np.array(eval_sum['Unmet Demand']) * 100
+        y_ws = np.array(eval_sum['Wasted Surplus']) * 100
+        y_hs = np.array(eval_sum['Household Surplus'])
+        y_p = np.array(eval_sum['Price'])
+        y_fit = np.array(eval_sum['FiT'])
+        
+    ax_ud.bar(x - width/2, y_ud,
               width=width,
-              color='#f4d35e',
+              color='#f18a75',
               label='Unmet Demand')
 
-    ax_ud.bar(x + width/2, eval_sum['Wasted Surplus'] * 100,
+    ax_ud.bar(x + width/2, y_ws,
               width=width,
-              color='#85a4c4',
+              color='#3a737d',
               label='Wasted Surplus')
     
-    y_min, y_max = ax_ud.get_ylim()
-    ax_ud.set_ylim(y_min, y_max * 1.5)
+    #y_min, y_max = ax_ud.get_ylim()
+    #ax_ud.set_ylim(y_min, y_max * 1.5)
     
     if comp != None:
         pie_labels = ["DG", "PV", "Fed-in", "Unmet", "Battery"]
         
-        for index, row in eval_sum.iterrows():
-            re_level = row['RE target']
-            fit_b = eval_sum['FiT'].loc[index]
+        for inde, row in eval_sum.iterrows():
+            ind = row[indices[index]]
+            fit_b = eval_sum['FiT'].loc[inde]
             fit_b = round(fit_b, 2)
-            p_b = round(eval_sum['Price'].loc[index], 2)
+            p_b = round(eval_sum['Price'].loc[inde], 2)
             
             
             out = pd.read_excel(os.path.join(casePath,
                                              'Grid Search',
                                              'Output Files',
-                                             str(int(re_level)),
+                                             str(int(ind)),
                                              f'Output_{int(fit_b*100)}_{int(p_b*100)}.xlsx'),
                                 sheet_name=None)
             
@@ -790,7 +834,7 @@ def re_comp(casePath, comp=None):
                     tot_bat_out_y += sum(bat.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
                 year_bat_out.append(tot_bat_out_y)
             tot_bat.append(sum(year_bat_out) / 1e6)
-            
+            '''
             pie_data = [tot_dg[i], tot_pv[i], tot_fi[i],
                         tot_ud[i], tot_bat[i]]
             pie_colors = ["#d14b4b", "#f9e395", "#dbe4ed",
@@ -814,81 +858,102 @@ def re_comp(casePath, comp=None):
                      title="Energy (%)",
                      loc="upper right",
                      bbox_to_anchor=(0.5, 1.2))
-        
-        
-    ax_ud.set_xlabel('RE Target (%)')
+        '''
+    if index == 're':
+        ax_ud.set_xlabel('RE Target (%)')
+    elif index == 'budget':
+        ax_ud.set_xlabel('Budget ($M)')
     ax_ud.set_ylabel('(%)')
+    '''
     bar_legend = ax_ud.get_legend_handles_labels()
     bar_handles, bar_labels = bar_legend
     
     combined_handles = pie_handles + bar_handles
     combined_labels = pie_labels + bar_labels
     blank_handle = mpatches.Patch(color='none', label='')
-    
-    ax_ud.legend(combined_handles, combined_labels,
-                 title="Pie Legend  |  Bar Legend",
+    '''
+    ax_ud.legend(# combined_handles, combined_labels,
                  loc='upper center',
-                 bbox_to_anchor=(0.5, 1.3),
-                 ncol=5,
+                 bbox_to_anchor=(0.5, 1.1),
+                 ncol=2,
                  frameon=False)
     
-    fig_ud.subplots_adjust(top=0.8, left=0.15) 
+    #fig_ud.subplots_adjust(top=0.8, left=0.15) 
     
     fig_ud.savefig(new_plots_folder_ud)
     plt.close(fig_ud)
     
-    ax_hs.plot(np.array(eval_sum['RE target']),
-               np.array(eval_sum['Household Surplus'] / 1e6),
+    ax_hs.plot(x,
+               y_hs,
                linewidth = 3,
-               color = '#f4d35e',
+               color = '#64b985',
                label = 'Household Surplus')
-    ax_hs.set_xlabel('RE Target (%)')
-    ax_hs.set_ylabel('Househol Surplus (M $)')
+    ax_hs.set_xlabel(f'{indices[index]} (M USD)')
+    ax_hs.set_ylabel('Househol Surplus (M USD)')
     ax_hs.legend(loc='upper center',
-                 bbox_to_anchor=(0.5, 1.27),
+                 bbox_to_anchor=(0.5, 1.1),
                  ncol=1,
                  frameon=False)
-    fig_hs.subplots_adjust(top=0.8, left=0.15) 
+    #fig_hs.subplots_adjust(top=0.8, left=0.15) 
     
     fig_hs.savefig(new_plots_folder_hs)
     plt.close(fig_hs)
     
-    ax_pf.plot(np.array(eval_sum['RE target']),
-               np.array(eval_sum['Price']),
+    ax_pf.plot(x,
+               y_p,
                linewidth = 3,
-               color = '#f4d35e',
+               color = '#e78785',
                label = 'Price')
-    ax_pf.plot(np.array(eval_sum['RE target']),
-               np.array(eval_sum['FiT']),
+    ax_pf.plot(x,
+               y_fit,
                linewidth = 3,
-               color = '#85a4c4',
+               color = '#dfdd19',
                label = 'FiT')
     ax_pf.set_xlabel('RE Target (%)')
-    ax_pf.set_ylabel('Amount ($)')
+    ax_pf.set_ylabel('USD')
     ax_pf.legend(loc='upper center',
-                 bbox_to_anchor=(0.5, 1.27),
-                 ncol=1,
+                 bbox_to_anchor=(0.5, 1.1),
+                 ncol=2,
                  frameon=False)
-    fig_pf.subplots_adjust(top=0.8, left=0.15) 
+    
+    #fig_pf.subplots_adjust(top=0.8, left=0.15) 
     
     fig_pf.savefig(new_plots_folder_pf)
     plt.close(fig_pf)
     
     
 
-def energy_sensitivity(casePath, sensitivity, s_range, re_level):
+def energy_sensitivity(casePath, way_1, s_range_1, way_2=None, s_2=None):
 
-    assert sensitivity == 'budget' or sensitivity == 'interest', 'Wrong sensitivity parameter'
+    assert (way_1 == 'budget' 
+            or way_1 == 'i'
+            or way_1 == 're'), 'Wrong first sensitivity parameter'
+    assert (way_2 == 'budget' 
+            or way_2 == 'i'
+            or way_2 == 're'
+            or way_2 == None), 'Wrong second sensitivity parameter'
+    
     try:
-        s_range = s_range.tolist()
+        s_range_1 = s_range_1.tolist()
     except AttributeError:
         pass
     
     sns.set(font_scale=1.15)
-    
+    labels = {'budget': 'Budget',
+              'i': 'Interest',
+              're': 'RE target'}
+
     # Create new figure
-    new_plots_folder = os.path.join(casePath, 
-                                    f'Energy {str(int(re_level * 100))}.png')
+    if way_2 == None:
+        new_plots_folder = os.path.join(casePath, 'Energy.png')
+    elif way_2 == 're' or way_2 == 'i':
+        assert (s_2 != None), "Missing second sensitivity value"
+        new_plots_folder = os.path.join(casePath, 
+                                        f'Energy {str(int(s_2 * 100))}.png')
+    elif way_2 == 'budget':
+        assert (s_2 != None), "Missing second sensitivity value"
+        new_plots_folder = os.path.join(casePath, 
+                                        f'Energy {str(s_2)}.png')
     fig, ax = plt.subplots()
     
     tot_dg = []
@@ -896,33 +961,68 @@ def energy_sensitivity(casePath, sensitivity, s_range, re_level):
     tot_fi = []
     tot_ud = []
     tot_bat = []
+    tot_bat_c = []
+    tot_dem = []
     
-    for s in s_range:        
+    for s in s_range_1:        
         # find summary of evaluation metrics
-        summary_df = pd.read_excel(os.path.join(casePath, 
-                                                'Sensitivity',
-                                                str(s),
-                                                'Evaluation Metrics.xlsx'))
-        
-        summary_df.set_index('RE target', inplace=True)
-        fit_b = summary_df['FiT'].loc[int(re_level * 100)]
-        fit_b = round(fit_b, 2)
-        p_b = round(summary_df['Price'].loc[int(re_level * 100)], 2)
-        
-        print(f'fit:{fit_b}, price:{p_b}')
-        out = pd.read_excel(os.path.join(casePath,
+        if way_2 != None:
+            summary_df = pd.read_excel(os.path.join(casePath, 
+                                                    'Sensitivity',
+                                                    str(s),
+                                                    'Evaluation Metrics.xlsx'))
+            
+            summary_df.set_index(labels[way_2], inplace=True)
+            
+            if way_2 == 're' or way_2 == 'i':
+                fit_b = summary_df['FiT'].loc[int(s_2 * 100)]
+                fit_b = round(fit_b, 2)
+                p_b = round(summary_df['Price'].loc[int(s_2 * 100)], 2)
+            else:
+                fit_b = summary_df['FiT'].loc[s_2]
+                fit_b = round(fit_b, 2)
+                p_b = round(summary_df['Price'].loc[s_2], 2)
+                
+            
+            out = pd.read_excel(os.path.join(casePath,
                                          'Sensitivity',
                                          str(s),
                                          'Output Files',
-                                         str(int(re_level * 100)),
+                                         str(int(s_2 * 100)),
                                          f'Output_{int(fit_b*100)}_{int(p_b*100)}.xlsx'),
                             sheet_name=None)
+            
+        else:
+            summary_df = pd.read_excel(os.path.join(casePath,
+                                                    'Grid Search',
+                                                    'Evaluation Metrics.xlsx'))
+            
+            summary_df.set_index(labels[way_1], inplace=True)
+            if way_1 == 're' or way_1 == 'i':
+                fit_b = summary_df['FiT'].loc[int(s * 100)]
+                fit_b = round(fit_b, 2)
+                p_b = round(summary_df['Price'].loc[int(s * 100)], 2)
+                s = int(s * 100)
+            else:
+                fit_b = summary_df['FiT'].loc[s]
+                fit_b = round(fit_b, 2)
+                p_b = round(summary_df['Price'].loc[s], 2)
+                
+            out = pd.read_excel(os.path.join(casePath,
+                                         'Grid Search',
+                                         'Output Files',
+                                         str(s),
+                                         f'Output_{int(fit_b*100)}_{int(p_b*100)}.xlsx'),
+                            sheet_name=None)
+        
         
         disp_dg = out['DG Dispatch'].set_index('Unnamed: 0')
         disp_pv = out['PV Dispatch'].set_index('Unnamed: 0')
         feed_in = out['Fed-in Capacity'].set_index('Unnamed: 0')
         unmet = out['Unmet Demand'].set_index('Unnamed: 0')
         bat = out['Battery Output'].set_index('Unnamed: 0')
+        bat_c = out['Battery Input '].set_index('Unnamed: 0')
+        demand = out['Yearly demand'].set_index('Unnamed: 0')
         
         weights_df = out['Summary'].set_index('Unnamed: 0')
         weights = weights_df[0].loc['Day Weights'].split(',')
@@ -967,48 +1067,79 @@ def energy_sensitivity(casePath, sensitivity, s_range, re_level):
                 tot_bat_out_y += sum(bat.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
             year_bat_out.append(tot_bat_out_y)
         tot_bat.append(sum(year_bat_out) / 1e6)
+        
+        year_bat_in = []
+        for y in range(15):
+            tot_bat_in_y = 0
+            for d in range(3):
+                tot_bat_in_y += sum(bat_c.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_bat_in.append(tot_bat_in_y)
+        tot_bat_c.append(sum(year_bat_in) / 1e6)
+        
+        demand_l = []
+        for y in range(15):
+            demand_y = 0
+            for d in range(3):
+                demand_y += sum(demand.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            demand_l.append(demand_y)
+        tot_dem.append(sum(demand_l) / 1e6)
      
-    if sensitivity == 'budget':
-        s_range = [i / 1e6 for i in s_range]
+        
+    if way_1 == 'budget':
+        s_range_1 = [i / 1e6 for i in s_range_1]
     tot_dg = np.array(tot_dg)
     tot_pv = np.array(tot_pv)
     tot_fi = np.array(tot_fi)
     tot_ud = np.array(tot_ud)
     tot_bat = np.array(tot_bat)
+    tot_bat_c = np.array(tot_bat_c)
+    tot_dem = np.array(tot_dem)
     
-    ax.bar(s_range,
+    ax.bar(np.arange(len(s_range_1)),
            tot_dg,
            label = 'Dispatch from DG',
-           color = "#d14b4b", width = 0.1
+           color = "#d14b4b", width = 0.3
            )
     
-    ax.bar(s_range,
+    ax.bar(np.arange(len(s_range_1)),
            tot_pv,
            label = 'Dispatch from PV',
-           color = "#f9e395", width = 0.1,
+           color = "#f9e395", width = 0.3,
            bottom = tot_dg)
     
-    ax.bar(s_range,
+    ax.bar(np.arange(len(s_range_1)),
            tot_fi,
            label = 'Fed-in Capacity',
-           color = "#c2deaf",  width = 0.1,
+           color = "#c2deaf",  width = 0.3,
            bottom = tot_dg + tot_pv)
     
-    ax.bar(s_range,
+    ax.bar(np.arange(len(s_range_1)),
            tot_ud,
            label = 'Unmet Demand',
-           color = "#f2b382", width = 0.1,
+           color = "#f2b382", width = 0.3,
            bottom = tot_dg + tot_pv + tot_fi)
     
-    ax.bar(s_range,
+    ax.bar(np.arange(len(s_range_1)),
            tot_bat,
            label = 'Batteries',
-           color = "#b1b1b1", width = 0.1,
+           color = "#b1b1b1", width = 0.3,
            bottom = tot_dg + tot_pv + tot_fi + tot_ud)
     
-    if sensitivity == 'budget':
+    ax.bar(np.arange(len(s_range_1)),
+           tot_bat_c * -1,
+           color = "#b1b1b1", width = 0.3)
+    
+    ax.plot(tot_dem * -1,
+            label = 'Total demand',
+            color = 'black')
+    
+    plt.xticks(np.arange(len(s_range_1)), s_range_1)
+    
+    if way_1 == 'budget':
         ax.set_xlabel('Budget (USD M)')
-    elif sensitivity == 'interest':
+    elif way_1 == 'i':
+        ax.set_xlabel('Interest Rate')
+    elif way_1 == 're':
         ax.set_xlabel('Interest Rate')
     ax.set_ylabel('Energy (GWh)')
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
@@ -1022,48 +1153,94 @@ def energy_sensitivity(casePath, sensitivity, s_range, re_level):
     plt.close()
 
 
-def capacity_sensitivity(casePath, sensitivity, s_range, re_level):
+def capacity_sensitivity(casePath, way_1, s_range_1, way_2=None, s_2=None):
 
-    assert sensitivity == 'budget' or sensitivity == 'interest' or sensitivity == 're_level', 'Wrong sensitivity parameter'
+    assert (way_1 == 'budget' 
+            or way_1 == 'i'
+            or way_1 == 're'), 'Wrong first sensitivity parameter'
+    assert (way_2 == 'budget' 
+            or way_2 == 'i'
+            or way_2 == 're'
+            or way_2 == None), 'Wrong second sensitivity parameter'
     
     try:
-        s_range = s_range.tolist()
+        s_range_1 = s_range_1.tolist()
     except AttributeError:
         pass
     
     sns.set(font_scale=1.15)
-    
+    labels = {'budget': 'Budget',
+              'i': 'Interest',
+              're': 'RE target'}
+
     # Create new figure
-    new_plots_folder = os.path.join(casePath, 
-                                    f'Capacity {str(int(re_level * 100))}.png')
+    if way_2 == None:
+        new_plots_folder = os.path.join(casePath, 'Capacity.png')
+    elif way_2 == 're' or way_2 == 'i':
+        assert (s_2 != None), "Missing second sensitivity value"
+        new_plots_folder = os.path.join(casePath, 
+                                        f'Capacity {str(int(s_2 * 100))}.png')
+    elif way_2 == 'budget':
+        assert (s_2 != None), "Missing second sensitivity value"
+        new_plots_folder = os.path.join(casePath, 
+                                        f'Capacity {str(s_2)}.png')
     fig, ax = plt.subplots()
     
     tot_dg = []
     tot_pv = []
     tot_bat = []
     
-    for s in s_range:        
+    for s in s_range_1:        
         # find summary of evaluation metrics
-        summary_df = pd.read_excel(os.path.join(casePath, 
-                                                'Sensitivity',
-                                                str(s),
-                                                'Evaluation Metrics.xlsx'))
-        
-        summary_df.set_index('RE target', inplace=True)
-        fit_b = summary_df['FiT'].loc[int(re_level * 100)]
-        fit_b = round(fit_b, 2)
-        p_b = round(summary_df['Price'].loc[int(re_level * 100)], 2)
-        print(f'fit: {fit_b}, price: {p_b}, s: {s}, re: {re_level}')
-        
-        out = pd.read_excel(os.path.join(casePath,
+        if way_2 != None:
+            summary_df = pd.read_excel(os.path.join(casePath, 
+                                                    'Sensitivity',
+                                                    str(s),
+                                                    'Evaluation Metrics.xlsx'))
+            
+            summary_df.set_index(labels[way_2], inplace=True)
+            
+            if way_2 == 're' or way_2 == 'i':
+                fit_b = summary_df['FiT'].loc[int(s_2 * 100)]
+                fit_b = round(fit_b, 2)
+                p_b = round(summary_df['Price'].loc[int(s_2 * 100)], 2)
+            else:
+                fit_b = summary_df['FiT'].loc[s_2]
+                fit_b = round(fit_b, 2)
+                p_b = round(summary_df['Price'].loc[s_2], 2)
+                
+            
+            out = pd.read_excel(os.path.join(casePath,
                                          'Sensitivity',
                                          str(s),
                                          'Output Files',
-                                         str(int(re_level * 100)),
+                                         str(int(s_2 * 100)),
+                                         f'Output_{int(fit_b*100)}_{int(p_b*100)}.xlsx'),
+                            sheet_name="Installed Capacities")
+            
+        else:
+            summary_df = pd.read_excel(os.path.join(casePath,
+                                                    'Grid Search',
+                                                    'Evaluation Metrics.xlsx'))
+            
+            summary_df.set_index(labels[way_1], inplace=True)
+            if way_1 == 're' or way_1 == 'i':
+                fit_b = summary_df['FiT'].loc[int(s * 100)]
+                fit_b = round(fit_b, 2)
+                p_b = round(summary_df['Price'].loc[int(s * 100)], 2)
+                s = int(s * 100)
+            else:
+                fit_b = summary_df['FiT'].loc[s]
+                fit_b = round(fit_b, 2)
+                p_b = round(summary_df['Price'].loc[s], 2)
+                
+            out = pd.read_excel(os.path.join(casePath,
+                                         'Grid Search',
+                                         'Output Files',
+                                         str(s),
                                          f'Output_{int(fit_b*100)}_{int(p_b*100)}.xlsx'),
                             sheet_name='Installed Capacities')
         out.set_index('Unnamed: 0', inplace=True)
-        
         cap_dg = out.loc['Diesel Generator'].mean()
         cap_pv = out.loc['Owned PV'].mean()
         cap_bat = out.loc['Owned Batteries'].mean()
@@ -1072,35 +1249,40 @@ def capacity_sensitivity(casePath, sensitivity, s_range, re_level):
         tot_pv.append(cap_pv)
         tot_bat.append(cap_bat)
      
-    if sensitivity == 'budget':
-        s_range = [i / 1e6 for i in s_range]
+    if way_1 == 'budget':
+        s_range_1 = [i / 1e6 for i in s_range_1]
     tot_dg = np.array(tot_dg)
     tot_pv = np.array(tot_pv)
     tot_bat = np.array(tot_bat)
     
-    ax.bar(s_range,
+    ax.bar(np.arange(len(s_range_1)),
            tot_dg,
            label = 'Disel Generator',
-           color = "#d14b4b", width = 0.1
+           color = "#d14b4b", width = 0.3
            )
     
-    ax.bar(s_range,
+    ax.bar(np.arange(len(s_range_1)),
            tot_pv,
            label = 'PV',
-           color = "#f9e395", width = 0.1,
+           color = "#f9e395", width = 0.3,
            bottom = tot_dg)
     
 
-    ax.bar(s_range,
+    ax.bar(np.arange(len(s_range_1)),
            tot_bat,
            label = 'Batteries',
-           color = "#b1b1b1", width = 0.1,
+           color = "#b1b1b1", width = 0.3,
            bottom = tot_dg + tot_pv)
     
-    if sensitivity == 'budget':
+    plt.xticks(np.arange(len(s_range_1)), s_range_1)
+    
+    if way_1 == 'budget':
         ax.set_xlabel('Budget (USD M)')
-    elif sensitivity == 'interest' or sensitivity == 're_level':
+    elif way_1 == 'i':
         ax.set_xlabel('Interest Rate')
+    elif way_1 == 're':
+        ax.set_xlabel('Interest Rate')
+    
     ax.set_ylabel('Average Installed Capacity (kW)')
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=3,
               bbox_transform=fig.transFigure,
@@ -1158,7 +1340,7 @@ def p_FiT_sensitivity(casePath, s_range, re_level):
               frameon=False)
 
     
-    plt.subplots_adjust(top=.85)
+    #plt.subplots_adjust(top=.85)
     
     plt.savefig(new_plots_folder)
     plt.close()
@@ -1447,15 +1629,15 @@ def re_sensitivity(casePath, re_levels):
     plt.close(fig_e)
     
 
-def min_v_act_RE(casePath):
+def min_v_act_RE(casePaths):
     
-    sns.set(font_scale=1.5)
-    new_plots_folder = os.path.join(casePath, 
+    sns.set(font_scale=1.15)
+    new_plots_folder = os.path.join(casePaths[1], 
                                         'RE target.png')
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(8,5))
     
     act_re = []
-    act_re_disp = []
+    act_re_stepped = []
     tot_pv = []
     tot_bat_out = []
     tot_bat_in = []
@@ -1466,7 +1648,7 @@ def min_v_act_RE(casePath):
     
     re_levels = []
     
-    eval_sum = pd.read_excel(os.path.join(casePath, 
+    eval_sum = pd.read_excel(os.path.join(casePaths[0], 
                                           'Grid Search',
                                           'Evaluation Metrics.xlsx'))
     eval_sum = eval_sum.sort_values(by='RE target')
@@ -1479,7 +1661,7 @@ def min_v_act_RE(casePath):
         p = row['Price']
         p_s = str(int(p * 100))
         
-        out = pd.read_excel(os.path.join(casePath, 
+        out = pd.read_excel(os.path.join(casePaths[0], 
                                          'Grid Search',
                                          'Output Files',
                                          re_level_s,
@@ -1556,20 +1738,119 @@ def min_v_act_RE(casePath):
         
         act_re.append((sum(year_fed_in) + sum(year_pv)) / 
                       (- sum(year_d) + sum(bat_in) - sum(bat_out)))
-        act_re_disp.append((sum(year_fed_in) + sum(year_pv)) / 
-                           (sum(year_fed_in) + sum(year_pv) + sum(year_dg)))
+        
+     ###############################################################3  
+    tot_pv = []
+    tot_bat_out = []
+    tot_bat_in = []
+    tot_fi = []
+    tot_d = []
+    tot_dg = []
+    tot_ud = []
+    
+    eval_sum = pd.read_excel(os.path.join(casePaths[1], 
+                                          'Grid Search',
+                                          'Evaluation Metrics.xlsx'))
+    eval_sum = eval_sum.sort_values(by='RE target')
+    for index, row in eval_sum.iterrows():
+        re_level = row['RE target']
+        re_level_s = str(int(re_level))
+        fit = row['FiT']
+        fit_s = str(int(fit * 100))
+        p = row['Price']
+        p_s = str(int(p * 100))
+        
+        out = pd.read_excel(os.path.join(casePaths[1], 
+                                         'Grid Search',
+                                         'Output Files',
+                                         re_level_s,
+                                         f'Output_{fit_s}_{p_s}.xlsx'),
+                            sheet_name=None)
+
+        demand = out['Yearly demand'].set_index('Unnamed: 0')
+        disp_pv = out['PV Dispatch'].set_index('Unnamed: 0')
+        feed_in = out['Fed-in Capacity'].set_index('Unnamed: 0')
+        bat_out = out['Battery Output'].set_index('Unnamed: 0')
+        bat_in = out['Battery Input '].set_index('Unnamed: 0')
+        ud = out['Unmet Demand'].set_index('Unnamed: 0')
+        disp_dg = out['DG Dispatch'].set_index('Unnamed: 0')
+        
+        weights_df = out['Summary'].set_index('Unnamed: 0')
+        weights = weights_df[0].loc['Day Weights'].split(',')
+        weights = [int(w) for w in weights]
+
+        year_d = []
+        for y in range(15):
+            tot_d_y = 0
+            for d in range(3):
+                tot_d_y += sum(demand.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_d.append(tot_d_y)
+        tot_d.append(sum(year_d))
+        
+        year_dg = []
+        for y in range(15):
+            tot_dg_y = 0
+            for d in range(3):
+                tot_dg_y += sum(disp_dg.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_dg.append(tot_dg_y)
+        tot_dg.append(sum(year_dg))
+        
+        year_ud = []
+        for y in range(15):
+            tot_ud_y = 0
+            for d in range(3):
+                tot_ud_y += sum(ud.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_ud.append(tot_ud_y)
+        tot_ud.append(sum(year_ud))
+        
+        year_pv = []
+        for y in range(15):
+            tot_pv_y = 0
+            for d in range(3):
+                tot_pv_y += sum(disp_pv.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_pv.append(tot_pv_y)
+        tot_pv.append(sum(year_pv))
+        
+        year_fed_in = []
+        for y in range(15):
+            tot_fed_in_y = 0
+            for d in range(3):
+                tot_fed_in_y += sum(feed_in.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_fed_in.append(tot_fed_in_y)
+        tot_fi.append(sum(year_fed_in))
+        
+        year_bat_out = []
+        for y in range(15):
+            tot_bat_out_y = 0
+            for d in range(3):
+                tot_bat_out_y += sum(bat_out.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_bat_out.append(tot_bat_out_y)
+        tot_bat_out.append(sum(year_bat_out))
+        
+        year_bat_in = []
+        for y in range(15):
+            tot_bat_in_y = 0
+            for d in range(3):
+                tot_bat_in_y += sum(bat_in.loc[float(f'{y}'+'.'+f'{d}')]) * weights[d]
+            year_bat_in.append(tot_bat_in_y)
+        tot_bat_in.append(sum(year_bat_in))
+        
+        act_re_stepped.append((sum(year_fed_in) + sum(year_pv)) / 
+                              (- sum(year_d) + sum(bat_in) - sum(bat_out)))
      
     ax.plot(re_levels,
             act_re,
-            label = 'RE as % of demand',
+            color="#2f847e",
+            label = 'Immediate Policy',
             linewidth=3)
     ax.plot(re_levels,
-            act_re_disp,
-            label = 'RE as % of dispatch',
+            act_re_stepped,
+            color="#40dbe6",
+            label = 'Progressive Policy',
             linewidth=3)
     
-    ax.set_xlabel('RE target')
-    ax.set_ylabel('Actual RE')
+    ax.set_xlabel('RE target (%)')
+    ax.set_ylabel('Actual RE Penetration (%)')
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, .97), ncol=2,
               bbox_transform=fig.transFigure,
               frameon=False)
@@ -1582,7 +1863,8 @@ def min_v_act_RE(casePath):
 #------------------------------------------------------------------------------#
 
 cwd = os.getcwd()
-outFile = os.path.join(cwd, "Output_Budget")
+outFile = os.path.join(cwd, "Outputs")
+outFile_b = os.path.join(cwd, "Output_Budget")
 '''
 # Current Case
 outFile_0 = os.path.join(outFile, '0. Current Case', 'Output_0_40.xlsx')
@@ -1594,9 +1876,9 @@ get_houses(outFile_1, multi=0)
 '''
 
 # Baseline
-outFile_1 = os.path.join(outFile, '1. Baseline')
+outFile_1 = os.path.join(outFile_b, '1. Baseline')
 
-keys = [250000, 400000, 750000, 1000000, 1500000, 2000000]
+keys = [250000, 400000, 750000, 1500000]
 #fit_v_price(outFile_1, search='budget', keys=keys)
 
 outFile_1_1 = os.path.join(outFile_1, 'Grid Search')
@@ -1604,65 +1886,119 @@ outFile_sum = os.path.join(cwd, 'Output_Budget')
 summary_path_1 = os.path.join(outFile_sum, '1. Baseline', 'Summary.xlsx')
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
-for re_level in keys:
-    surp_heatmap(outFile_1_1, index='budget', key=re_level, 
-                 max_fits=summary_path_1, lb=0.25)
+# for re_level in keys:
+#     surp_heatmap(outFile_1_1, index='budget', key=re_level, 
+#                  max_fits=summary_path_1, lb=0.25)
 
-#re_comp(outFile_1, comp=1)
-#re_sensitivity(outFile_1, re_levels)
-#min_v_act_RE(outFile_1)
-'''
-summary_df = pd.read_excel(os.path.join(outFile_1, 
-                                        'Grid Search',
-                                        'Evaluation Metrics.xlsx'))
+# surp_heatmap(outFile_1_1, index='budget', key=100000, 
+#              max_fits=summary_path_1, lb=0.25)
 
-summary_df = summary_df.sort_values(by='RE target')
-for index, row in summary_df.iterrows():
-    re_level = row['RE target']
-    re_level_s = str(int(re_level))
-    fit = row['FiT']
-    fit_s = str(int(fit * 100))
-    p = row['Price']
-    p_s = str(int(p * 100))
+re_comp(outFile_1, comp=1, index='budget')
+# re_sensitivity(outFile_1, re_levels)
+# capacity_sensitivity(os.path.join(outFile_sum, '1. Baseline'), 
+#                    'budget', s_range_1=keys)
+# energy_sensitivity(os.path.join(outFile_sum, '1. Baseline'), 
+#                    'budget', s_range_1=keys)
+outFile_2 = os.path.join(cwd,
+                          "Output_Budget",
+                          "2. Stepped RE")
+#min_v_act_RE([outFile_1, outFile_2])
+# fit_v_price(outFile_2)
+
+# summary_df = pd.read_excel(os.path.join(outFile_1, 
+#                                         'Grid Search',
+#                                         'Evaluation Metrics.xlsx'))
+
+# summary_df = summary_df.sort_values(by='RE target')
+# for index, row in summary_df.iterrows():
+#     re_level = row['RE target']
+#     re_level_s = str(int(re_level))
+#     fit = row['FiT']
+#     fit_s = str(int(fit * 100))
+#     p = row['Price']
+#     p_s = str(int(p * 100))
     
-    outName = f'Output_{fit_s}_{p_s}.xlsx'
-    outPath = os.path.join(outFile_1, 'Grid Search', 'Output Files', re_level_s, outName)
-    add_ret(outPath, 1)
-    inst_cap(outPath, 1)
-    gen_year(outPath, 1)
+#     outName = f'Output_{fit_s}_{p_s}.xlsx'
+#     outPath = os.path.join(outFile_1, 'Grid Search', 'Output Files', re_level_s, outName)
+#     add_ret(outPath, 1)
+#     inst_cap(outPath, 1)
+#     gen_year(outPath, 1)
 '''
-'''
-# Budget
-outFile_2 = os.path.join(outFile, '2. Budget')
-budgets = np.arange(100000, 2000001, 2000000)
-budgets = os.listdir(os.path.join(outFile_2, 'Sensitivity'))
-budgets = [int(float(b)) for b in budgets]
-budgets.sort()
+
+# RE target
+outFile_3 = os.path.join(outFile, '3. RE sensitivity')
+budgets = [100000, 250000, 400000, 500000, 750000,
+           1000000, 1500000, 2000000]
+
 
 for budget in budgets:
     fit_v_price(os.path.join(outFile_2, 'Feasible Region', str(budget)))
 
+current_budget = 400000
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
-for re_level in re_levels:
-    energy_sensitivity(outFile_2, 'budget', budgets, re_level)
-    capacity_sensitivity(outFile_2, 'budget', budgets, re_level)
-    p_FiT_sensitivity(outFile_2, budgets, re_level)
+for budget in budgets:
+    summaryPath_3_1 = os.path.join(outFile_3,
+                                   'Feasible Region',
+                                   str(budget),
+                                   'Summary.xlsx')
+    outFile_3_1 = os.path.join(outFile_3,
+                               'Sensitivity',
+                               str(budget))
     
-sensitivity_v_RE(outFile_2, 'budget')
-'''
-'''
-# Interest
-outFile_3 = os.path.join(outFile, '3. Interest')
-interests = [5, 10]
-
-for interest in interests:
-    fit_v_price(os.path.join(outFile_3, 'Feasible Region', str(interest)))
-
-re_levels = [0, 0.1, 0.2, 0.3, 0.4]
 for re_level in re_levels:
-    energy_sensitivity(outFile_3, 'interest', interests, re_level)
-    capacity_sensitivity(outFile_3, 'interest', interests, re_level)
+    surp_heatmap(outFile_3_1, re_level, max_fits=summaryPath_3_1)
+    energy_sensitivity(outFile_3, 'budget', budgets, 're', re_level)
+    capacity_sensitivity(outFile_3, 'budget', budgets, 're', re_level)
 
-sensitivity_v_RE(outFile_3, 'interest')
+#sensitivity_v_RE(outFile_3, 'budget')
 '''
+# RE sensitivity
+outFile = os.path.join(cwd, "Outputs")
+outFile_4 = os.path.join(outFile, '1. Baseline')
+
+#keys = [250000, 400000, 750000, 1500000]
+#fit_v_price(outFile_1, search='budget', keys=keys)
+
+outFile_4_1 = os.path.join(outFile_4, 'Grid Search')
+outFile_sum = os.path.join(cwd, 'Outputs')
+summary_path_1 = os.path.join(outFile_sum, '1. Baseline', 'Summary.xlsx')
+re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
+
+# for re_level in keys:
+#     surp_heatmap(outFile_1_1, index='budget', key=re_level, 
+#                  max_fits=summary_path_1, lb=0.25)
+
+# surp_heatmap(outFile_1_1, index='budget', key=100000, 
+#              max_fits=summary_path_1, lb=0.25)
+
+re_comp(outFile_4, comp=1, index='re')
+#re_sensitivity(outFile_1, re_levels)
+# capacity_sensitivity(os.path.join(outFile_sum, '1. Baseline'), 
+#                     're', s_range_1=re_levels)
+# energy_sensitivity(os.path.join(outFile_sum, '1. Baseline'), 
+#                    're', s_range_1=re_levels)
+# outFile_2 = os.path.join(cwd,
+#                           "Output_Budget",
+#                           "2. Stepped RE")
+#min_v_act_RE([outFile_1, outFile_2])
+# fit_v_price(outFile_2)
+
+# summary_df = pd.read_excel(os.path.join(outFile_1, 
+#                                         'Grid Search',
+#                                         'Evaluation Metrics.xlsx'))
+
+# summary_df = summary_df.sort_values(by='RE target')
+# for index, row in summary_df.iterrows():
+#     re_level = row['RE target']
+#     re_level_s = str(int(re_level))
+#     fit = row['FiT']
+#     fit_s = str(int(fit * 100))
+#     p = row['Price']
+#     p_s = str(int(p * 100))
+    
+#     outName = f'Output_{fit_s}_{p_s}.xlsx'
+#     outPath = os.path.join(outFile_1, 'Grid Search', 'Output Files', re_level_s, outName)
+#     add_ret(outPath, 1)
+#     inst_cap(outPath, 1)
+#     gen_year(outPath, 1)

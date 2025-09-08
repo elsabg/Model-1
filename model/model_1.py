@@ -561,7 +561,7 @@ class Model_1:
                * max(self.heat_r_k) * 10)
         e = 0.01
         
-        '''
+        
         m.addConstrs(((d_cons[y, d, h] ==
                        disp['Diesel Generator', y, d, h]
                        * self.heat_r_k[1])
@@ -663,7 +663,7 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name="case 3.2")
-        
+        '''
         #----------------------------------------------------------------------#
         # Battery Operation                                                    #
         #----------------------------------------------------------------------#
@@ -680,7 +680,7 @@ class Model_1:
             'SoC tracking'
         )
         
-        m.addConstrs(((soc[y, d, 0] == soc[y, d, 23]
+        m.addConstrs(((soc[y, d, 0] == soc[y, d, 23] # self.hours-1
                        + b_in[y, d, 0] * self.bat_eff
                        - b_out[y, d, 0] / self.bat_eff)
                       for y in range(self.years)
