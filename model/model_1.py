@@ -169,8 +169,7 @@ class Model_1:
         #                                                                      #
         #----------------------------------------------------------------------#
 
-        added_cap = m.addVars(self.techs, self.years, 
-                              name='addedCap', lb = 0, vtype = GRB.INTEGER)
+        added_cap = m.addVars(self.techs, self.years, name='addedCap', lb = 0)
 
         inst_cap = m.addVars(self.techs, self.years, name='instCap', lb=0)
 

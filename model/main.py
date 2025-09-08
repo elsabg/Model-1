@@ -321,13 +321,12 @@ day_weights = [199, 106, 60]
 
 
 outFile_sum = os.path.join(cwd, 'Outputs')
-'''
+
 # Current Case
 in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '0. Current Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
            total_budget=np.inf)
-'''
 
 # Current budget
 current_path = os.path.join(cwd, 
@@ -353,19 +352,18 @@ budgets = budgets.tolist()
 budgets.insert(1, int(current_budget // 1e5 * 1e5))
 budgets.remove(500000)
 
-
 prices = np.arange(0, 0.46, 0.01)
 prices_gs = np.arange(0, 0.46, 0.01)
 fits = np.arange(0, 0.26, 0.01)
 
 out_path_gs = os.path.join(cwd, 'Output_Budgets', '1. Baseline', 'Grid Search')
 
-# for budget in budgets:
-#     fit_search(in_path, out_path, prices, re_level=0,
-#                total_budget=budget, search='budget')
-#     multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
-#               out_path=out_path_gs, re_level=0, 
-#               total_budget=budget)
+for budget in budgets:
+    fit_search(in_path, out_path, prices, re_level=0,
+                total_budget=budget, search='budget')
+    multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
+              out_path=out_path_gs, re_level=0, 
+              total_budget=budget)
 
 summary_path_1 = os.path.join(outFile_sum, '1. Baseline', 'Summary.xlsx')
 func.eval_summary(os.path.join(cwd, 'Outputs', '1. Baseline', 
