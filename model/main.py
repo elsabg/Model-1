@@ -321,13 +321,13 @@ day_weights = [199, 106, 60]
 
 
 outFile_sum = os.path.join(cwd, 'Outputs')
-
-# Current Case
+'''
+# Current Case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '0. Current Case')
 single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path,
            total_budget=np.inf)
-
+'''
 # Current budget
 current_path = os.path.join(cwd, 
                             'Outputs', 
@@ -341,8 +341,8 @@ current_budget = 0
 for y in range(len(current_cfs.columns)):
     capex_y = current_cfs.loc['Total Capital Costs'][y]
     current_budget += capex_y * (1 / (1 + interest) ** y)
-
-# Baseline Model
+'''
+# Baseline Model ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '1. Baseline')
 
@@ -351,9 +351,10 @@ budgets = np.arange(250000, 2000001, 250000)
 budgets = budgets.tolist()
 budgets.insert(1, int(current_budget // 1e5 * 1e5))
 budgets.remove(500000)
+budgets.insert(0, 100000)
 
-prices = np.arange(0, 0.46, 0.01)
-prices_gs = np.arange(0, 0.46, 0.01)
+prices = np.arange(0, 0.41, 0.01)
+prices_gs = np.arange(0, 0.41, 0.01)
 fits = np.arange(0, 0.26, 0.01)
 
 out_path_gs = os.path.join(cwd, 'Output_Budgets', '1. Baseline', 'Grid Search')
@@ -370,18 +371,17 @@ func.eval_summary(os.path.join(cwd, 'Outputs', '1. Baseline',
                                'Grid Search', 'Output Files'),
                   max_fits = summary_path_1)
 
-'''
-# RE Sensitivity
+
+# RE Sensitivity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '2. Budget')
+out_path = os.path.join(cwd, 'Outputs', '2. RE sensitivity')
 
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-prices = np.arange(0, 0.40, 0.01)
-prices_gs = np.arange(0, 0.3, 0.01)
+prices = np.arange(0, 0.41, 0.01)
+prices_gs = np.arange(0, 0.41, 0.01)
 fits = np.arange(0, 0.3, 0.01)
 
-for budget in budgets:
-
+for budget in [current_budget]:
     out_path_gs = os.path.join(out_path, 'Sensitivity', str(budget))
     out_path_fr = os.path.join(out_path, 'Feasible Region', str(budget))
 
@@ -392,34 +392,69 @@ for budget in budgets:
                   out_path=out_path_gs, re_level=re_level, 
                   total_budget=budget, index='re')
 
-for budget in budgets:
-    summary_path_2_b = os.path.join(outFile_sum, '2. Budget', 'Feasible Region',
-                                    str(budget), 'Summary.xlsx')
+for budget in [current_budget]:
+    summary_path_2_b = os.path.join(outFile_sum, '2. RE sensitivity', 'Feasible Region',
+                                    str(budget), 'Summary.xlsx', index='re')
     
-    func.eval_summary(os.path.join(cwd, 'Outputs', '2. Budget',
+    func.eval_summary(os.path.join(cwd, 'Outputs', '2. RE sensitivity',
                                    'Sensitivity', str(budget), 'Output Files'),
-                      max_fits = summary_path_2_b)
+                      max_fits = summary_path_2_b, index='re')
 
-# Stepped RE
+# Stepped RE ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '2. Stepped RE')
+out_path = os.path.join(cwd, 'Outputs', '3. Stepped RE')
 
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
-prices = np.arange(0, 0.4, 0.01)
-prices_gs = np.arange(0, 0.4, 0.01)
+prices = np.arange(0, 0.41, 0.01)
+prices_gs = np.arange(0, 0.41, 0.01)
 fits = np.arange(0, 0.26, 0.01)
 
-out_path_gs = os.path.join(cwd, 'Outputs', '2. Stepped RE', 'Grid Search')
+out_path_gs = os.path.join(cwd, 'Outputs', '3. Stepped RE', 'Grid Search')
 
 for re_level in re_levels:
-    #fit_search(in_path, out_path, prices, re_level=re_level,
-    #           total_budget=current_budget, re_start=3, search='re')
+    fit_search(in_path, out_path, prices, re_level=re_level,
+               total_budget=current_budget, re_start=3, search='re')
     multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
               out_path=out_path_gs, re_level=re_level, 
               total_budget=current_budget, re_start=3, index='re')
 
-summary_path_1 = os.path.join(outFile_sum, '2. Stepped RE', 'Summary.xlsx')
-func.eval_summary(os.path.join(cwd, 'Outputs', '2. Stepped RE', 
-                               'Grid Search', 'Output Files', index='re'),
-                  max_fits = summary_path_1)
+summary_path_1 = os.path.join(outFile_sum, '3. Stepped RE', 'Summary.xlsx')
+func.eval_summary(os.path.join(cwd, 'Outputs', '3. Stepped RE', 
+                               'Grid Search', 'Output Files'),
+                  max_fits = summary_path_1, index='re')
 '''
+# VoLL Sensitivity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
+out_path = os.path.join(cwd, 'Outputs', '4. VoLL')
+
+#   Creating Bugdet Range
+budgets = np.arange(250000, 2000001, 250000)
+budgets = budgets.tolist()
+budgets.insert(1, int(current_budget // 1e5 * 1e5))
+budgets.remove(500000)
+budgets.insert(0, 100000)
+volls = [0.4, 0.5, 0.6, 0.7]
+re_level = 0
+
+prices = np.arange(0, 0.41, 0.01)
+prices_gs = np.arange(0, 0.41, 0.01)
+fits = np.arange(0, 0.26, 0.01)
+
+for budget in budgets:
+    out_path_gs = os.path.join(out_path, 'Sensitivity', str(budget))
+    out_path_fr = os.path.join(out_path, 'Feasible Region', str(budget))
+
+    for voll in volls:
+        fit_search(in_path, out_path_fr, prices, re_level=re_level,
+                   total_budget=budget, search='re', voll=voll)
+        multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
+                  out_path=out_path_gs, re_level=re_level, 
+                  total_budget=budget, index='re', voll=voll)
+
+for budget in budgets:
+    summary_path_4_b = os.path.join(outFile_sum, '4. VoLL', 'Feasible Region',
+                                    str(budget), 'Summary.xlsx')
+    
+    func.eval_summary(os.path.join(cwd, 'Outputs', '4. VoLL',
+                                   'Sensitivity', str(budget), 'Output Files'),
+                      max_fits = summary_path_4_b, index='re')
