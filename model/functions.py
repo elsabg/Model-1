@@ -194,7 +194,8 @@ def output_data(model, t=0):
 
 
 def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
-    assert index == 're' or index == 'budget' or index =='i', 'Wrong search input'
+    assert (index == 're' or index == 'budget' 
+            or index == 'voll' or index == 'pros'), 'Wrong search input'
     ############################################################################
     # Import model ranges                                                      #
     ############################################################################
@@ -337,8 +338,10 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
             index_folder = str(int(model.re_level * 100))
         elif index == 'budget':
             index_folder = str(model.total_budget)
-        elif index == 'i':
-            index_folder = str(model.i * 100)
+        elif index == 'voll':
+            index_folder = str(model.voll * 100)
+        elif index == 'pros':
+            index_folder = str(int(model.pros_perc * 100))
             
         folder_path = os.path.join(out_path, folder_name, index_folder)
         os.makedirs(folder_path, exist_ok=True)
@@ -375,11 +378,13 @@ def eval_summary(outPath, years = 15, max_fits=None, index='budget'):
     
     assert (index == 'budget'
             or index == 're'
-            or index == 'i'), "Wrong index type"
+            or index == 'voll'
+            or index == 'pros'), "Wrong index type"
     
     labels = {'budget': 'Budget',
               're': 'RE target',
-              'i':'Interest'}
+              'voll':'VoLL',
+              'pros': 'Prosumer percentage'}
     metrics = pd.DataFrame(columns = [labels[index], 'FiT', 'Price', 
                                       'Unmet Demand', 'Wasted Surplus',
                                       'Household Surplus'])

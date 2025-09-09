@@ -15,7 +15,7 @@ from model_1 import Model_1
 def single_run(in_path, fit, elec_price, out_path,
                md_level=0, ud_penalty=0, re_level=0, 
                voll=0.7, total_budget=np.inf, interest=0.1,
-               re_start=0):
+               re_start=0, pros_perc = None):
     
     global model
     os.makedirs(out_path, exist_ok=True)
@@ -25,7 +25,7 @@ def single_run(in_path, fit, elec_price, out_path,
     model.solve(fit=fit, elec_price=elec_price, 
                 md_level = md_level, ud_penalty=ud_penalty, 
                 re_level=re_level, voll=voll, total_budget=total_budget,
-                interest=interest, re_start=re_start)
+                interest=interest, re_start=re_start, pros_perc=pros_perc)
     func.output_data(model, 2)
     func.to_xlsx(model, round(fit * 100), round(elec_price * 100), 
                  out_path, multi=0)
@@ -33,7 +33,7 @@ def single_run(in_path, fit, elec_price, out_path,
 def multi_run(in_path, fits, elec_prices, out_path,
               md_level=0, ud_penalty=0, re_level=0, 
               voll=0.7, total_budget=np.inf, index='budget', interest=0.1,
-               re_start=0):
+               re_start=0, pros_perc=None):
     
     global model
     os.makedirs(out_path, exist_ok=True)
@@ -46,15 +46,16 @@ def multi_run(in_path, fits, elec_prices, out_path,
                         md_level = md_level, ud_penalty=ud_penalty, 
                         re_level=re_level, voll=voll, 
                         total_budget=total_budget, interest=interest,
-                        re_start=re_start)
+                        re_start=re_start, pros_perc=pros_perc)
             func.output_data(model, 2)
             func.to_xlsx(model, round(fit * 100), round(elec_price * 100), 
                          out_path, 1, index)    
             print(f'Save to: {out_path}')
+            
 def fit_search(in_path, out_path, prices,
                md_level=0, ud_penalty=0, re_level=0, voll=0.7,
                total_budget=np.inf, search='budget', interest=0.1,
-               re_start=0):
+               re_start=0, pros_perc=None):
     
     os.makedirs(out_path, exist_ok=True)
     index = search
@@ -121,7 +122,7 @@ def fit_search(in_path, out_path, prices,
                     ud_penalty=ud_penalty, md_level=md_level,
                     re_level=re_level, voll=voll, 
                     total_budget=total_budget, interest=interest,
-                        re_start=re_start)
+                        re_start=re_start, pros_perc=pros_perc)
         
         if model.m.getObjective().getValue() < base_npv:
             print(f'No positive solution for {el_price}')
@@ -141,9 +142,12 @@ def fit_search(in_path, out_path, prices,
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
-                    elif index == 'i':
+                    elif index == 'voll':
                         summary.to_excel(writer, 
-                                         sheet_name=str(interest))
+                                         sheet_name=str(voll))
+                    elif index == 'pros':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(pros_perc))
                 
             except FileNotFoundError:
                 with pd.ExcelWriter(os.path.join(out_path, 'Summary.xlsx'), 
@@ -154,9 +158,12 @@ def fit_search(in_path, out_path, prices,
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
-                    elif index == 'i':
+                    elif index == 'voll':
                         summary.to_excel(writer, 
-                                         sheet_name=str(interest))
+                                         sheet_name=str(voll))
+                    elif index == 'pros':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(pros_perc))
                         
         # If yes, run a binary grid search to find it
         elif len(fits) != 0:
@@ -170,7 +177,7 @@ def fit_search(in_path, out_path, prices,
                         ud_penalty=ud_penalty, md_level=md_level, 
                         re_level=re_level, voll=voll, 
                         total_budget=total_budget, interest=interest,
-                        re_start=re_start)
+                        re_start=re_start, pros_perc=pros_perc)
     
             while worse:
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
@@ -196,7 +203,7 @@ def fit_search(in_path, out_path, prices,
                             ud_penalty=ud_penalty, md_level=md_level, 
                             re_level=re_level, voll=voll,
                             total_budget=total_budget, interest=interest,
-                            re_start=re_start)
+                            re_start=re_start, pros_perc=pros_perc)
                 if (abs(model.m.getObjective().getValue() - base_npv) <= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
@@ -223,9 +230,12 @@ def fit_search(in_path, out_path, prices,
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
-                    elif index == 'i':
+                    elif index == 'voll':
                         summary.to_excel(writer, 
-                                         sheet_name=str(interest))
+                                         sheet_name=str(voll))
+                    elif index == 'pros':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(pros_perc))
                         
                 
             except FileNotFoundError:
@@ -237,9 +247,12 @@ def fit_search(in_path, out_path, prices,
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
-                    elif index == 'i':
+                    elif index == 'voll':
                         summary.to_excel(writer, 
-                                         sheet_name=str(interest))
+                                         sheet_name=str(voll))
+                    elif index == 'pros':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(pros_perc))
             
         else:
             fit_left = 0
@@ -252,7 +265,7 @@ def fit_search(in_path, out_path, prices,
                         ud_penalty=ud_penalty, md_level=md_level,
                         re_level = re_level, voll=voll,
                         total_budget=total_budget, interest=interest,
-                        re_start=re_start)
+                        re_start=re_start, pros_perc=pros_perc)
             
             while worse:
                 model_feed_in = sum(model.feed_in[i, y, d, h].X 
@@ -276,7 +289,8 @@ def fit_search(in_path, out_path, prices,
                 model.solve(fit=fit_mid, elec_price=el_price,
                             ud_penalty=ud_penalty, md_level=md_level, 
                             re_level=re_level, voll=voll,
-                            total_budget=total_budget, interest=interest)
+                            total_budget=total_budget, interest=interest,
+                            pros_perc=pros_perc)
                 if (abs(model.m.getObjective().getValue() - base_npv) <= 10000
                     and model.m.getObjective().getValue() >= base_npv):
                     worse = False
@@ -309,9 +323,12 @@ def fit_search(in_path, out_path, prices,
                     elif index == 'budget':
                         summary.to_excel(writer, 
                                          sheet_name=str(total_budget))
-                    elif index == 'i':
+                    elif index == 'voll':
                         summary.to_excel(writer, 
-                                         sheet_name=str(interest))
+                                         sheet_name=str(voll))
+                    elif index == 'pros':
+                        summary.to_excel(writer, 
+                                         sheet_name=str(pros_perc))
 
 cwd = os.getcwd()
 day_weights = [199, 106, 60]
@@ -418,11 +435,11 @@ for re_level in re_levels:
               out_path=out_path_gs, re_level=re_level, 
               total_budget=current_budget, re_start=3, index='re')
 
-summary_path_1 = os.path.join(outFile_sum, '3. Stepped RE', 'Summary.xlsx')
+summary_path_3 = os.path.join(outFile_sum, '3. Stepped RE', 'Summary.xlsx')
 func.eval_summary(os.path.join(cwd, 'Outputs', '3. Stepped RE', 
                                'Grid Search', 'Output Files'),
-                  max_fits = summary_path_1, index='re')
-'''
+                  max_fits = summary_path_3, index='re')
+
 # VoLL Sensitivity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '4. VoLL')
@@ -458,3 +475,27 @@ for budget in budgets:
     func.eval_summary(os.path.join(cwd, 'Outputs', '4. VoLL',
                                    'Sensitivity', str(budget), 'Output Files'),
                       max_fits = summary_path_4_b, index='re')
+'''
+# Prosumer % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
+out_path = os.path.join(cwd, 'Outputs', '5. Prosumer percentage')
+
+pros_percs = [0, 0.25, 0.5, 0.75, 1]
+prices = np.arange(0, 0.41, 0.01)
+prices_gs = np.arange(0, 0.41, 0.01)
+fits = np.arange(0, 0.26, 0.01)
+
+out_path_gs = os.path.join(cwd, 'Outputs', '5. Prosumer percentage', 'Grid Search')
+
+for pros_perc in pros_percs:
+    fit_search(in_path, out_path, prices, total_budget=current_budget, 
+               pros_perc=pros_perc, search='pros')
+    multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
+              out_path=out_path_gs, total_budget=current_budget, 
+              pros_perc=pros_perc, index='pros')
+
+summary_path_5 = os.path.join(outFile_sum, '5. Prosumer percentage', 
+                              'Summary.xlsx')
+func.eval_summary(os.path.join(cwd, 'Outputs', '5. Prosumer percentage', 
+                               'Grid Search', 'Output Files'),
+                  max_fits = summary_path_5, index='pros')

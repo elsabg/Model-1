@@ -147,7 +147,7 @@ class Model_1:
 
     def solve(self, fit, elec_price, md_level, ud_penalty, re_level=0, 
               voll=0.7, total_budget=np.inf, interest=0.1, interest_re=0.04,
-              re_start=0):
+              re_start=0, pros_perc=None):
         'Create and solve the model'
 
         self.fit = fit
@@ -160,7 +160,24 @@ class Model_1:
         self.i = interest
         self.i_re = interest_re
         self.re_start = re_start
-
+        
+        current_perc = (sum(self.max_house[self.avg_pv_cap > 0]) 
+                        / sum(self.max_house))
+        
+        if pros_perc == None or pros_perc == current_perc:
+            self.pros_perc = current_perc
+        else:
+            change = (pros_perc - current_perc) * sum(self.max_house)
+            new_pros = self.max_house[1] + change
+            new_cons = self.max_house[0] - change
+            new_max_house = np.array([round(new_cons), round(new_pros)])
+            
+            self.max_house = new_max_house
+            self.max_house_str = {f'Type {i+1}' : new_max_house[i]
+                                  for i in range(len(self.house))}
+            
+            self.pros_perc = pros_perc
+            
         m = Model('Model_1')
 
         #----------------------------------------------------------------------#
