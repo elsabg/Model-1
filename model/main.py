@@ -55,7 +55,7 @@ def multi_run(in_path, fits, elec_prices, out_path,
 def fit_search(in_path, out_path, prices,
                md_level=0, ud_penalty=0, re_level=0, voll=0.7,
                total_budget=np.inf, search='budget', interest=0.1,
-               re_start=0, pros_perc=None):
+               re_start=0, pros_perc=None, base_npv=None):
     
     os.makedirs(out_path, exist_ok=True)
     index = search
@@ -66,11 +66,12 @@ def fit_search(in_path, out_path, prices,
     
     
     # Define base case
-    base_path = os.path.join(os.getcwd(), "Outputs",
-                             "0. Current Case", "Output_0_40.xlsx")
-    file = pd.read_excel(base_path, sheet_name='Summary')
-    file.set_index('Unnamed: 0', inplace=True)
-    base_npv = file.loc['NPV', 0]
+    if base_npv == None:
+        base_path = os.path.join(os.getcwd(), "Outputs",
+                                 "0. Current Case", "Output_0_40.xlsx")
+        file = pd.read_excel(base_path, sheet_name='Summary')
+        file.set_index('Unnamed: 0', inplace=True)
+        base_npv = file.loc['NPV', 0]
 
     # Grid search
     global fits
@@ -337,7 +338,7 @@ day_weights = [199, 106, 60]
 ####################################################
 
 
-outFile_sum = os.path.join(cwd, 'Outputs')
+outFile_sum = os.path.join(cwd, 'Output_Budget')
 '''
 # Current Case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
@@ -391,12 +392,13 @@ func.eval_summary(os.path.join(cwd, 'Outputs', '1. Baseline',
 
 # RE Sensitivity ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
-out_path = os.path.join(cwd, 'Outputs', '2. RE sensitivity')
+out_path = os.path.join(cwd, 'Output_Budget', '2. RE sensitivity')
 
 re_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 prices = np.arange(0, 0.41, 0.01)
 prices_gs = np.arange(0, 0.41, 0.01)
 fits = np.arange(0, 0.3, 0.01)
+current_budget = 400000
 
 for budget in [current_budget]:
     out_path_gs = os.path.join(out_path, 'Sensitivity', str(budget))
@@ -411,9 +413,9 @@ for budget in [current_budget]:
 
 for budget in [current_budget]:
     summary_path_2_b = os.path.join(outFile_sum, '2. RE sensitivity', 'Feasible Region',
-                                    str(budget), 'Summary.xlsx', index='re')
+                                    str(budget), 'Summary.xlsx')
     
-    func.eval_summary(os.path.join(cwd, 'Outputs', '2. RE sensitivity',
+    func.eval_summary(os.path.join(outFile_sum, '2. RE sensitivity',
                                    'Sensitivity', str(budget), 'Output Files'),
                       max_fits = summary_path_2_b, index='re')
 
@@ -477,7 +479,7 @@ for budget in budgets:
                       max_fits = summary_path_4_b, index='re')
 '''
 # Prosumer % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
+in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '5. Prosumer percentage')
 
 pros_percs = [0, 0.25, 0.5, 0.75, 1]
@@ -487,11 +489,39 @@ fits = np.arange(0, 0.26, 0.01)
 
 out_path_gs = os.path.join(cwd, 'Outputs', '5. Prosumer percentage', 'Grid Search')
 
+# Current base cases:
 for pros_perc in pros_percs:
-    fit_search(in_path, out_path, prices, total_budget=current_budget, 
-               pros_perc=pros_perc, search='pros')
+    out_path_bc = os.path.join(out_path, 'Base Cases', str(pros_perc * 100))
+    single_run(in_path=in_path, fit=0, elec_price=0.4, out_path=out_path_bc,
+               total_budget=np.inf, pros_perc = pros_perc)
+    
+base_npvs = []
+current_budgets = []
+
+for pros_perc in pros_percs:
+    base_path = os.path.join(out_path, "Base Cases", 
+                             str(pros_perc * 100), "Output_0_40.xlsx")
+    print(base_path)
+    file = pd.read_excel(base_path, sheet_name=None)
+    file['Summary'].set_index('Unnamed: 0', inplace=True)
+    print(file['Summary'].loc['NPV', 0])
+    base_npvs.append(file['Summary'].loc['NPV', 0])
+    
+    current_cfs = file['Costs and Revenues'].set_index('Unnamed: 0')
+    interest = file['Summary'].loc['Interest Rate'][0]
+    current_b = 0
+    for y in range(len(current_cfs.columns)):
+        capex_y = current_cfs.loc['Total Capital Costs'][y]
+        current_b += capex_y * (1 / (1 + interest) ** y)
+    current_budgets.append(current_b)
+
+in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
+
+for i, pros_perc in enumerate(pros_percs):
+    fit_search(in_path, out_path, prices, total_budget=current_budgets[i], 
+               pros_perc=pros_perc, search='pros', base_npv = base_npvs[i])
     multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
-              out_path=out_path_gs, total_budget=current_budget, 
+              out_path=out_path_gs, total_budget=current_budgets[i], 
               pros_perc=pros_perc, index='pros')
 
 summary_path_5 = os.path.join(outFile_sum, '5. Prosumer percentage', 

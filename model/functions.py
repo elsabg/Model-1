@@ -397,16 +397,13 @@ def eval_summary(outPath, years = 15, max_fits=None, index='budget'):
     
     for i in indices:
         
-        if i == '0' and max_fits != None:
-            max_fits_re = max_fits_df[i]
+        if max_fits != None and (index == 'pros' or index == 're'):
+            max_fits_re = max_fits_df[
+                str((float(i) / 100)).rstrip('0').rstrip('.')
+                ]
             max_fits_re.set_index('Unnamed: 0', inplace=True)
-            row = max_fits_re.loc['Prices']
-            
-        elif max_fits != None and index == 're':
-            max_fits_re = max_fits_df[str(round(float(i) / 100 , 1))]
-            max_fits_re.set_index('Unnamed: 0', inplace=True)
-            row = max_fits_re.loc['Prices']
-            
+            row = max_fits_re.loc['Prices']            
+        
         elif max_fits != None:
             max_fits_re = max_fits_df[i]
             max_fits_re.set_index('Unnamed: 0', inplace=True)
@@ -436,7 +433,7 @@ def eval_summary(outPath, years = 15, max_fits=None, index='budget'):
                 max_fit = 10
                 print(f'{price} not in summary')
                 
-            if fit < max_fit or max_fit == np.nan:
+            if fit < max_fit or pd.isna(max_fit):
                 outFile = os.path.join(outPath, i, file)
                 summary = pd.read_excel(outFile, sheet_name = None)
                 summary['Summary'].set_index('Unnamed: 0', inplace = True)
