@@ -451,7 +451,8 @@ class Model_1:
         
         
         M = - (np.min(self.demand[min(self.demand)]) 
-               * max(self.max_house))
+               * max(self.max_house)
+               / np.min(self.cap_fact[self.cap_fact != 0]))
         
         m.addConstrs(((inst_cap['Owned PV', y] <= self.RE_max * M * 100)
                       for y in range(self.years)
@@ -574,10 +575,10 @@ class Model_1:
         #----------------------------------------------------------------------#
         M = - (np.min(self.demand[min(self.demand)]) 
                * sum(self.max_house) 
-               * max(self.heat_r_k) * 10)
+               * max(self.heat_r_k) * 100)
         e = 0.01
         
-        
+        '''
         m.addConstrs(((d_cons[y, d, h] ==
                        disp['Diesel Generator', y, d, h]
                        * self.heat_r_k[1])
@@ -679,7 +680,7 @@ class Model_1:
                       for h in range(self.hours)
                       ),
                      name="case 3.2")
-        '''
+        
         #----------------------------------------------------------------------#
         # Battery Operation                                                    #
         #----------------------------------------------------------------------#

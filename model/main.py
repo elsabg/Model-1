@@ -338,7 +338,7 @@ day_weights = [199, 106, 60]
 ####################################################
 
 
-outFile_sum = os.path.join(cwd, 'Output_Budget')
+outFile_sum = os.path.join(cwd, 'Outputs')
 '''
 # Current Case ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
@@ -359,12 +359,13 @@ current_budget = 0
 for y in range(len(current_cfs.columns)):
     capex_y = current_cfs.loc['Total Capital Costs'][y]
     current_budget += capex_y * (1 / (1 + interest) ** y)
-'''
+
 # Baseline Model ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-in_path = os.path.join(cwd, 'Inputs', 'inputs_RE.xlsx')
+in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '1. Baseline')
 
 #   Creating Bugdet Range
+'''
 budgets = np.arange(250000, 2000001, 250000)
 budgets = budgets.tolist()
 budgets.insert(1, int(current_budget // 1e5 * 1e5))
@@ -374,16 +375,20 @@ budgets.insert(0, 100000)
 prices = np.arange(0, 0.41, 0.01)
 prices_gs = np.arange(0, 0.41, 0.01)
 fits = np.arange(0, 0.26, 0.01)
-
-out_path_gs = os.path.join(cwd, 'Output_Budgets', '1. Baseline', 'Grid Search')
+'''
+prices_gs = [0.29]
+prices = [0.29]
+fits = [0.04]
+budgets = [2000000]
+out_path_gs = os.path.join(cwd, 'Outputs', '1. Baseline', 'Grid Search')
 
 for budget in budgets:
-    fit_search(in_path, out_path, prices, re_level=0,
-                total_budget=budget, search='budget')
+    #fit_search(in_path, out_path, prices, re_level=0,
+    #            total_budget=budget, search='budget')
     multi_run(in_path=in_path, fits=fits, elec_prices=prices_gs, 
               out_path=out_path_gs, re_level=0, 
               total_budget=budget)
-
+'''
 summary_path_1 = os.path.join(outFile_sum, '1. Baseline', 'Summary.xlsx')
 func.eval_summary(os.path.join(cwd, 'Outputs', '1. Baseline', 
                                'Grid Search', 'Output Files'),
@@ -477,7 +482,7 @@ for budget in budgets:
     func.eval_summary(os.path.join(cwd, 'Outputs', '4. VoLL',
                                    'Sensitivity', str(budget), 'Output Files'),
                       max_fits = summary_path_4_b, index='re')
-'''
+
 # Prosumer % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
 in_path = os.path.join(cwd, 'Inputs', 'inputs.xlsx')
 out_path = os.path.join(cwd, 'Outputs', '5. Prosumer percentage')
@@ -529,3 +534,4 @@ summary_path_5 = os.path.join(outFile_sum, '5. Prosumer percentage',
 func.eval_summary(os.path.join(cwd, 'Outputs', '5. Prosumer percentage', 
                                'Grid Search', 'Output Files'),
                   max_fits = summary_path_5, index='pros')
+'''
