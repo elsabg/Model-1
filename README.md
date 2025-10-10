@@ -20,18 +20,18 @@ This repository presents the code for a bi-level game theoretical model, with a 
 The `main` branch of the repository is structured as follows:
 <pre>
 Model-1/
-├── Inputs/ # Input files
-│ ├── inputs.xlsx/ # Inputs for the microgrid at the status quo
-│ └── inputs_RE.xlsx/ # Inputs for the microgrid after RE penetration
-├── Outputs/ # Output files
-│ ├── 0. Current Case/ # Output file at the status quo
-│ ├── 1. Budget sensitivity/ # Output under different budget constraints
-│ ├── 2. RE sensitivity/ # Output under different budget RE targets
-│ └── 3. Prosumer percentage/ # Outputs for different microgrids with different prosumer percentages
-├── `functions.py` # Output generating functions
-├── `main.py` # Run
-├── `model_1.py` # Microgrid class
-├── `plot_functions.py` # Output visualization functions
-├── README.md # Project documentation
-└── LICENSE # License information
+├── Inputs/                     # Input files
+│ ├── inputs.xlsx/              # Inputs for the microgrid at the status quo
+│ └── inputs_RE.xlsx/           # Inputs for the microgrid after RE penetration
+├── Outputs/                    # Output files
+│ ├── 0. Current Case/          # Output file at the status quo
+│ ├── 1. Budget sensitivity/    # Output under different budget constraints
+│ ├── 2. RE sensitivity/        # Output under different budget RE targets
+│ └── 3. Prosumer percentage/   # Outputs for different microgrids with different prosumer percentages
+├── `functions.py`              # Output generating functions
+├── `main.py`                   # Run
+├── `model_1.py`                # Microgrid class
+├── `plot_functions.py`         # Output visualization functions
+├── README.md                   # Project documentation
+└── LICENSE                     # License information
 </pre>
