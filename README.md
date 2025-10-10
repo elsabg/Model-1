@@ -12,10 +12,13 @@ We investigate the feasibility and impact of introducing renewable energy to the
 - For which of such policies is the household economic surplus (HES) maximized?
 - What are the effects of different constraints, such as budget and minimum renewable energy target, on the microgrid?
 
+### Data and Case Study
+This model is applied to the case of a microgrid in Deir Qanoun Ennaher, South Lebanon. Data has been collected [...]
+
 ## Repository description
-This repository presents the code for a bi-level game theoretical model, with a weak regulator maximizing HES at the first level, and the profit-maximizing DGC at the second.
+This repository presents the code for a bi-level game theoretical model, with a weak regulator maximizing HES at the first level, and the profit-maximizing DGC at the second. 
 The `main` branch of the repository is structured as follows:
-<pre> ```
+<pre>
 Model-1/
 ├── Inputs/ # Input files
 │ ├── inputs.xlsx/ # Inputs for the microgrid at the status quo
@@ -31,4 +34,4 @@ Model-1/
 ├── `plot_functions.py` # Output visualization functions
 ├── README.md # Project documentation
 └── LICENSE # License information
-``` </pre>
+</pre>
