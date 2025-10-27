@@ -202,7 +202,6 @@ def to_xlsx(model, fit, elec_price, out_path, multi=1, index='re'):
     years = model.years
     days = model.days
     hours = model.hours
-    house = model.house
     techs_g = model.techs_g
     techs = model.techs
     voll = model.voll
@@ -479,7 +478,6 @@ def eval_summary(outPath, years = 15, max_fits=None, index='budget'):
     metrics.to_excel(outFile)
     
 def change_excel(outFile):
-    
     try:
         wb = load_workbook(outFile)
         fit = int(outFile.split('_')[1]) / 100
